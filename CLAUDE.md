@@ -1,6 +1,6 @@
 # Agent Instructions
 
-<!-- /init-pipeline: replace this comment with one paragraph on what this project is. -->
+mdblog is a framework for publishing a set of Obsidian-managed files as a static website formatted with Hugo and hosted on Cloudflare. Longer term it will also include tools for [POSSE](https://indieweb.org/POSSE) and [backfeed](https://indieweb.org/backfeed) workflows. It is built for its author's own vault and site first, and keeps site-specific settings in configuration so others could adopt it later. The overall shape and scope are still open.
 
 Work is planned, implemented, and reviewed through the task pipeline:
 `/new-task` → `/work task-XXX` → `/ship task-XXX`. Its rules live in
@@ -21,7 +21,12 @@ in `.claude/docs/`, even when a human also reads them.
 
 ## Project conventions
 
-<!-- /init-pipeline: replace this comment with the languages and stack, each language's static checker and its setting, and any convention the user named. -->
+- **Language:** Python 3.14. Static checker: pyrefly at `preset = "strict"`.
+- **Toolchain:** pixi with conda-forge provides Python, Hugo and the dev tools. `pixi.lock` covers `linux-64`, `linux-aarch64` and `osx-arm64`.
+- **Site:** Hugo builds the site, and a Cloudflare Worker serves the output as static assets with no custom Worker code. The task that adds deployment also adds Node and wrangler to the pixi environment.
+- **Gate:** `tools/check` runs `ruff format --check`, `ruff check`, pyrefly, pytest, and a Hugo build of a fixture vault. `--smoke` leaves out the Hugo build.
+- **Platforms:** the repo runs on Linux and macOS.
+- **Vault:** the Obsidian vault is never part of this repo. Tools point at a parallel checkout of it.
 
 ## Standing task-planning obligations
 
