@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#
+# Placeholder for the merge gate: it fails so that no task can pass review
+# before task-001 replaces it. The contract for the real one is in
+# .claude/docs/pipeline.md § Checks.
+echo "tools/check is not configured yet: task-001 replaces this stub." >&2
+exit 1
