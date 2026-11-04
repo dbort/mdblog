@@ -1,0 +1,15 @@
+[workspace]
+name = "mdblog"
+channels = ["conda-forge"]
+platforms = ["linux-64", "linux-aarch64", "osx-arm64"]
+
+[dependencies]
+python = "3.14.*"
+# Hugo's output can change between minor releases, so the minor stays pinned.
+hugo = "0.169.*"
+pyrefly = "*"
+pytest = "*"
+ruff = "*"
+
+[pypi-dependencies]
+mdblog = { path = ".", editable = true }

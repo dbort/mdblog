@@ -1,0 +1,3 @@
+baseURL = "https://example.org/"
+title = "mdblog fixture"
+disableKinds = ["RSS", "sitemap", "taxonomy", "term"]
