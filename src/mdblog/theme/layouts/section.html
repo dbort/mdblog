@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+  <head>
+    <title>{{ .Title }}</title>
+    <meta name="author" content="{{ .Site.Params.author }}">
+  </head>
+  <body>
+    {{ .Content }}
+    <ul>
+      {{ range .Pages }}<li><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>{{ end }}
+    </ul>
+  </body>
+</html>

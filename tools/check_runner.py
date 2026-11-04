@@ -1,8 +1,6 @@
 """check_runner: the merge gate's steps, which `tools/check` runs inside the pixi environment."""
 
 import argparse
-import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -10,7 +8,8 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from mdblog.publish import copy_notes
+from mdblog.build import BuildError, build_site
+from mdblog.config import ConfigError
 
 FIXTURE_NOTE_TEXT = "The fixture note reached the generated page."
 FIXTURE_PAGE = Path("projects/first-note/index.html")
@@ -54,37 +53,16 @@ def run_command(
 def hugo_fixture_build(repo_root: Path, hugo: Sequence[str]) -> int:
     """Builds the fixture vault with Hugo and returns 0 if the note's text is in the page.
 
-    Nonzero means Hugo failed or the page lacks the text. Reads the fixtures under
-    `repo_root` and writes only to a temporary directory.
+    Nonzero means the build failed or the page lacks the text. Reads the fixture vault
+    under `repo_root` and writes only to a temporary directory.
     """
-    fixtures = repo_root / "tests" / "fixtures"
-    # A HUGO_* variable overrides site configuration, which would let the caller's
-    # environment change what the fixture build reads.
-    env = {k: v for k, v in os.environ.items() if not k.startswith("HUGO")}
     with tempfile.TemporaryDirectory(prefix="mdblog-check-") as tmp:
-        root = Path(tmp)
-        site = root / "site"
-        # Hugo writes .hugo_build.lock and resources/ into its source, so it builds a
-        # copy to leave the repository untouched.
-        shutil.copytree(fixtures / "site", site)
-        copy_notes(fixtures / "vault", site / "content")
-        public = root / "public"
-        status = run_command(
-            [
-                *hugo,
-                "--source",
-                str(site),
-                "--destination",
-                str(public),
-                # The default cache lives under the user's home or system temp directory.
-                "--cacheDir",
-                str(root / "cache"),
-            ],
-            cwd=root,
-            env=env,
-        )
-        if status != 0:
-            return status
+        public = Path(tmp) / "public"
+        try:
+            build_site(repo_root / "tests" / "fixtures" / "vault", public, hugo)
+        except (BuildError, ConfigError) as exc:
+            print(f"check: {exc}", file=sys.stderr)
+            return 1
         page = public / FIXTURE_PAGE
         if not page.is_file():
             print(f"check: Hugo did not generate {FIXTURE_PAGE}", file=sys.stderr)

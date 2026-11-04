@@ -9,6 +9,7 @@ python = "3.14.*"
 hugo = "0.169.*"
 pyrefly = "*"
 pytest = "*"
+"ruamel.yaml" = ">=0.19.1,<0.20"
 ruff = "*"
 
 [pypi-dependencies]

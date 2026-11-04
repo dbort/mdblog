@@ -2,6 +2,8 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+from ruamel.yaml import YAML
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -24,6 +26,18 @@ def test_pixi_declares_the_platforms_channel_and_tools() -> None:
     assert workspace["channels"] == ["conda-forge"]
     assert {"python", "hugo", "ruff", "pyrefly", "pytest"} <= set(dependencies)
     assert dependencies["python"] == "3.14.*"
+
+
+def test_lockfile_resolves_ruamel_yaml_for_every_platform() -> None:
+    assert "ruamel.yaml" in _table(_toml("pixi.toml"), "dependencies")
+    loaded: object = YAML(typ="safe", pure=True).load(REPO_ROOT / "pixi.lock")
+    assert isinstance(loaded, dict)
+    environment = _table(_table(loaded, "environments"), "default")
+    packages = _table(environment, "packages")
+
+    assert set(packages) == {"linux-64", "linux-aarch64", "osx-arm64"}
+    for entries in packages.values():
+        assert "/ruamel.yaml-" in str(entries)
 
 
 def test_hugo_minor_version_is_pinned() -> None:
