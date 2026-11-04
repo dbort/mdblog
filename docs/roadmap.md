@@ -8,28 +8,23 @@ A note publishes only when its front matter has `publish: true`, and a note with
 
 M1 to M5 make up v1. M6 and M7 follow it. Each milestone's decisions are settled in the `/new-task` interview that plans it, and each recommendation below is a starting point for that interview.
 
-Search, comments, series, scheduled publishing, and packaging mdblog for other people's sites are outside v1.
+Search, comments, series, scheduled publishing, and packaging mdblog for other people's sites are outside v1. Each site's settings live in its own vault, so in the long run this repo can host multiple independent sites.
 
 ## M1: Publish command and configuration
 
-**Status:** Planned
+**Status:** Tasks task-002
 
-Grow `copy_notes` into a command that builds a site from a real vault and publishes only the notes marked for it.
+- [ ] task-002: Add the mdblog build command and the publish rule
 
-- A `mdblog` command that builds from a vault path to an output directory.
-- A configuration file for site-specific settings: vault path, site URL, title and author. A relative vault path resolves from the configuration file, so `../vault` works for a parallel checkout on any machine. The vault path is optional here, since it can also be set outside this file.
-- The `publish` rule: only a boolean `publish: true` publishes. A missing property, `false`, or a note with no front matter does not. A production build leaves unpublished notes out of Hugo's content directory, so `.obsidian/` and note templates need no special handling.
+Build a site from one vault with `mdblog build VAULT --output DIR`, publishing only the notes marked for it.
+
+- A configuration file at `_site/mdblog.toml` in the vault for site URL, title and author, from which the command generates `hugo.toml`.
+- Default layouts in the `mdblog` package, which a site can override from its vault's `_site/layouts/`. M1's defaults are minimal until M3 replaces them.
+- The `publish` rule: only a boolean `publish: true` publishes. A missing property, `false`, or a note with no front matter does not. A non-boolean value or front matter that does not parse fails the build, naming each note, so a typo cannot go unnoticed. A production build leaves unpublished notes out of Hugo's content directory, so `.obsidian/` and note templates need no special handling. Files under `_site/` and dot-folders, including Obsidian's `.trash/`, are never selected.
 - Content and output directories regenerated on every build, so a note that is deleted or changed to unpublished disappears from the site. Hugo leaves a deleted page's files in its output directory, so regenerating the content directory alone does not remove them.
+- A marker file in the output directory. The build refuses to replace a non-empty directory without one, so a wrong path cannot wipe real files, and a failed build leaves the previous output in place.
 
 **Done when:** a fixture vault with published and unpublished notes builds, the unpublished text appears nowhere in the output, and removing `publish: true` from a note removes its files from the output directory on the next build.
-
-**Decisions:**
-- How to treat a non-boolean value such as `publish: "true"`, or front matter that does not parse. Recommended: leave the note unpublished and report it, because Obsidian's checkbox property always writes a boolean, so anything else is a typo.
-- Which YAML parser reads front matter. The environment has none yet. PyYAML reads `publish: yes` as `true`, which breaks the boolean-only rule, so the choice needs a parser that treats `yes` as a string or a check of the raw value.
-- Configuration format. Recommended: TOML, which Python reads with no added dependency.
-- Where the site's own files live, such as its configuration, bio and layouts, given that this repo holds the framework. M1 needs minimal layouts until M3 replaces them.
-- How to set the vault path outside the configuration file: on the command line, in a local configuration file kept out of the repo for each build environment, or both. Recommended: start with the command line, which wins when both are set, and add the local file if a build environment needs it.
-- How the configuration relates to `hugo.toml`. Recommended: generate `hugo.toml` from it, so the site URL has one source and M4 can override it for preview builds.
 
 ## M2: Obsidian Markdown conversion
 
@@ -63,10 +58,10 @@ Turn Obsidian's Markdown into what Hugo expects.
 
 **Status:** Planned
 
-Build the reader-facing site from Hugo layouts, using fixtures until real content arrives.
+Build the reader-facing site from the default Hugo layouts in the `mdblog` package, using fixtures until real content arrives.
 
 - Three entry types: posts, TILs and links, using the converter's entry type property and URL scheme. A link entry points to the external page and carries a short commentary and its own permalink.
-- A home page with the bio and recent entries of every type, plus a full archive and tag pages.
+- A home page with the bio from the vault's `_site/` and recent entries of every type, plus a full archive and tag pages.
 - An RSS feed covering all entries, advertised from each page's `<head>`. Hugo generates this as `index.xml`, newest first, and M6 and M7 can read it too.
 - A visual design of its own that works at phone width, plus a 404 page.
 - h-entry microformats in entry templates, so M6 and M7 need no template retrofit.
@@ -87,7 +82,7 @@ Serve the built site from a Cloudflare Worker as static assets, with no custom W
 
 - Node from conda-forge, and wrangler from npm with a committed `package-lock.json`. No wrangler package turned up on conda-forge, so `CLAUDE.md`'s line about adding wrangler to the pixi environment needs correcting.
 - `tools/check` installs from the npm lockfile itself, so callers need no setup step, and fails on a stale lockfile, which `pixi run --locked` does not detect. Under `--offline`, the install and any check that depends on it skip.
-- A deploy command that runs a fresh production build of the current working directories, then uploads it, so the site reflects their current state and local preview output cannot reach Cloudflare.
+- A deploy command that runs a fresh production build of the current working directories, then uploads it without M1's output marker, so the site reflects their current state and local preview output cannot reach Cloudflare.
 - A separate command that takes a deployed URL and fails if it does not serve the home page and feed, runnable at any time and independent of a deploy.
 - A preview deployment separate from production, built with its own site URL because Hugo writes the URL into links and feeds, and kept out of search indexes.
 - Worker configuration checked in `tools/check`: a `wrangler deploy --dry-run` if it works without network access or credentials, otherwise a test of the fields the deploy relies on.
@@ -97,6 +92,7 @@ Serve the built site from a Cloudflare Worker as static assets, with no custom W
 **Decisions:**
 - Where the build runs. Recommended: locally or in CI through pixi, uploading the finished output, so Cloudflare never needs pixi and Hugo stays at the pinned version.
 - Whether custom headers are needed at launch.
+- Where each site's Worker name and routes live. Recommended: in the vault's `_site/`, because this repo holds nothing site-specific.
 
 ## M5: Authoring workflow and launch
 
