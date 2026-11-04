@@ -51,14 +51,22 @@ TOOL_STEPS = ["ruff format", "ruff check", "pyrefly", "pytest"]
 HUGO_STEP = "hugo fixture build"
 
 
-@pytest.mark.parametrize(
-    ("flags", "expected"),
-    [
-        pytest.param([], [*TOOL_STEPS, HUGO_STEP], marks=pytest.mark.hugo),
-        pytest.param(["--offline"], [*TOOL_STEPS, HUGO_STEP], marks=pytest.mark.hugo),
-        (["--smoke"], TOOL_STEPS),
-    ],
-)
+GATE_RUNS = [
+    pytest.param([], [*TOOL_STEPS, HUGO_STEP], marks=pytest.mark.hugo),
+    pytest.param(["--offline"], [*TOOL_STEPS, HUGO_STEP], marks=pytest.mark.hugo),
+    pytest.param(["--smoke"], TOOL_STEPS),
+]
+
+
+def test_every_gate_run_that_builds_with_hugo_is_marked() -> None:
+    # The broken-fixture smoke test skips this module, so it cannot catch a missing mark.
+    for run in GATE_RUNS:
+        expected = run.values[1]
+        assert isinstance(expected, list)
+        assert (HUGO_STEP in expected) == ("hugo" in {m.name for m in run.marks})
+
+
+@pytest.mark.parametrize(("flags", "expected"), GATE_RUNS)
 def test_gate_passes_from_the_filesystem_root(
     flags: list[str], expected: list[str]
 ) -> None:

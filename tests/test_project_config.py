@@ -66,6 +66,13 @@ def test_pyrefly_runs_at_strict_with_warnings_promoted() -> None:
         assert errors[kind] == "error"
 
 
+def test_pytest_collects_the_whole_test_directory() -> None:
+    tool = _table(_toml("pyproject.toml"), "tool")
+    options = _table(_table(tool, "pytest"), "ini_options")
+
+    assert options["testpaths"] == ["tests"]
+
+
 def test_gitignore_covers_toolchain_output() -> None:
     paths = [
         ".pixi/x",

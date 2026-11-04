@@ -93,6 +93,8 @@ def test_default_commands_cover_the_checked_directories() -> None:
     assert commands.lint == ("ruff", "check", *CHECKED_PATHS)
     # pyrefly takes its directories from project-includes; test_project_config pins them.
     assert commands.typecheck == ("pyrefly", "check")
+    # pytest takes its directory from testpaths, pinned in the same place.
+    assert commands.test == ("pytest",)
 
 
 def test_only_smoke_deselects_the_hugo_tests() -> None:
