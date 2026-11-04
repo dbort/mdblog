@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
 #
-# Placeholder for the merge gate: it fails so that no task can pass review
-# before task-001 replaces it. The contract for the real one is in
-# .claude/docs/pipeline.md § Checks.
-echo "tools/check is not configured yet: task-001 replaces this stub." >&2
-exit 1
+# The merge gate's contract is in .claude/docs/pipeline.md § Checks. Steps live in
+# tools/check_runner.py.
+set -e
+
+# Clearing CDPATH stops cd from printing the directory or resolving against a decoy.
+repo=$(CDPATH="" cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+
+if ! command -v pixi >/dev/null 2>&1; then
+    echo "tools/check: pixi not found on PATH; install it from https://pixi.sh" >&2
+    exit 127
+fi
+
+# --locked fails on a pixi.lock that is out of date with pixi.toml.
+exec pixi run --locked --manifest-path "$repo/pixi.toml" \
+    python "$repo/tools/check_runner.py" "$@"

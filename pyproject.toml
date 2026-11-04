@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mdblog"
+version = "0.1.0"
+description = "Publishes Obsidian-managed notes as a static site built with Hugo."
+requires-python = ">=3.14"
+license = "MIT"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mdblog"]
+
+[tool.ruff]
+src = ["src", "tools"]
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "PTH", "RUF", "SIM", "UP", "W"]
+# The formatter owns line length.
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tools"]
+addopts = ["--strict-markers", "--strict-config"]
+xfail_strict = true
+markers = [
+    "hugo: runs the real Hugo binary or a full gate, so `tools/check --smoke` deselects it",
+    "wrapper: drives tools/check itself, so `tools/check --nested` deselects it to avoid recursion",
+]
+
+[tool.pyrefly]
+preset = "strict"
+project-includes = ["src", "tests", "tools"]
+search-path = ["src", "tools"]
+# A suppression aimed at another checker must not hide a pyrefly error.
+enabled-ignores = ["pyrefly"]
+
+# A warning does not fail the gate, and pyrefly hides warnings by default.
+[tool.pyrefly.errors]
+deprecated = "error"
+redundant-cast = "error"
+redundant-condition = "error"
+unreachable = "error"
+unnecessary-type-conversion = "error"
