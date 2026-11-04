@@ -58,3 +58,9 @@ Adds `mdblog build VAULT --output DIR`, which builds a site from one vault and p
 - [x] **Step 8** (`CLAUDE.md`): under Project conventions, state that one vault is one site and that its settings and overriding layouts live in the vault's `_site/`. Update the opening paragraph's "keeps site-specific settings in configuration" to match.
 
 ## Review log
+
+### Round 1: REJECTED
+- **F1: Some bad front matter crashes the build instead of being reported** (`src/mdblog/publish.py:98`): the Must Have says one run names every bad note on stderr with its reason, but two inputs escape as raw Python tracebacks. `publish: !!bool maybe` raises `KeyError` from ruamel's `construct_yaml_bool`, and the `except` catches only `YAMLError`, `ValueError` and `RecursionError`. `publish: 0xfff...` with 5000 hex digits loads, then `{value!r}` at line 125 raises `ValueError` outside any handler. In the `KeyError` run, a second bad note was never named. Any exception from the load call should become a `FrontMatterError`, and formatting the value must not be able to raise. Add cases for both inputs, plus a test showing other bad notes are still named.
+- **N1: Same gap in the config loader** (`src/mdblog/config.py:43`): a `mdblog.toml` with a 5000-digit integer raises `ValueError`, and one with 5000 nested `[` raises `RecursionError`. Both escape `load_config` with no message naming the file. Fold in with F1 and add matching test cases.
+- **N2: A YAML directive can opt a note out of the 1.2 boolean rule** (`src/mdblog/publish.py:92`): a block holding `%YAML 1.1`, then `--- ` with a trailing space, then `publish: yes` loads as `True`, so the note publishes. The fix could reject directives in front matter.
+- **N3: Absent-Hugo assertion can pass for the wrong reason** (`tests/test_cli.py:47`): `tmp_path` contains `hugo` because pytest derives it from the test name. Asserting `"cannot run hugo"` closes this.
