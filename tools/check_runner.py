@@ -15,17 +15,17 @@ from mdblog.publish import copy_notes
 FIXTURE_NOTE_TEXT = "The fixture note reached the generated page."
 FIXTURE_PAGE = Path("projects/first-note/index.html")
 HUGO_STEP = "hugo fixture build"
-_CHECKED_PATHS = ("src", "tests", "tools")
+CHECKED_PATHS = ("src", "tests", "tools")
 
 
 @dataclass(frozen=True)
 class Commands:
     """The argv of each external tool, replaceable so tests can inject failures."""
 
-    format_check: Sequence[str] = ("ruff", "format", "--check", *_CHECKED_PATHS)
-    lint: Sequence[str] = ("ruff", "check", *_CHECKED_PATHS)
+    format_check: Sequence[str] = ("ruff", "format", "--check", *CHECKED_PATHS)
+    lint: Sequence[str] = ("ruff", "check", *CHECKED_PATHS)
     # With no file arguments pyrefly checks the project-includes in pyproject.toml,
-    # which name the same directories as _CHECKED_PATHS.
+    # which name the same directories as CHECKED_PATHS.
     typecheck: Sequence[str] = ("pyrefly", "check")
     test: Sequence[str] = ("pytest",)
     hugo: Sequence[str] = ("hugo",)
@@ -95,8 +95,13 @@ def hugo_fixture_build(repo_root: Path, hugo: Sequence[str]) -> int:
     return 0
 
 
+def pytest_argv(test: Sequence[str], *, smoke: bool) -> list[str]:
+    """`test`, deselecting the tests that build with real Hugo when `smoke` is true."""
+    return [*test, "-m", "not hugo"] if smoke else [*test]
+
+
 def build_steps(repo_root: Path, *, smoke: bool, commands: Commands) -> list[Step]:
-    """The gate's steps in run order; `smoke` leaves out only the Hugo build."""
+    """The gate's steps in run order; `smoke` leaves out the Hugo build, in pytest too."""
 
     def tool(name: str, argv: Sequence[str]) -> Step:
         return Step(name, lambda: run_command(argv, repo_root))
@@ -105,7 +110,7 @@ def build_steps(repo_root: Path, *, smoke: bool, commands: Commands) -> list[Ste
         tool("ruff format", commands.format_check),
         tool("ruff check", commands.lint),
         tool("pyrefly", commands.typecheck),
-        tool("pytest", commands.test),
+        tool("pytest", pytest_argv(commands.test, smoke=smoke)),
     ]
     if not smoke:
         steps.append(

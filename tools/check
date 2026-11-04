@@ -4,7 +4,8 @@
 # tools/check_runner.py.
 set -e
 
-repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# Clearing CDPATH stops cd from printing the directory or resolving against a decoy.
+repo=$(CDPATH="" cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 
 if ! command -v pixi >/dev/null 2>&1; then
     echo "tools/check: pixi not found on PATH; install it from https://pixi.sh" >&2

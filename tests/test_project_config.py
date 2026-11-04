@@ -54,6 +54,7 @@ def test_pyrefly_runs_at_strict_with_warnings_promoted() -> None:
     errors = _table(pyrefly, "errors")
 
     assert pyrefly["preset"] == "strict"
+    assert pyrefly["project-includes"] == ["src", "tests", "tools"]
     assert pyrefly["enabled-ignores"] == ["pyrefly"]
     for kind in (
         "deprecated",

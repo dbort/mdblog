@@ -3,6 +3,7 @@
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -19,7 +20,7 @@ pytestmark = pytest.mark.skipif(
 
 
 def _run(
-    argv: list[str], cwd: Path, path: str | None = None
+    argv: list[str], cwd: Path, **env_overrides: str
 ) -> subprocess.CompletedProcess[str]:
     # A dead proxy turns any network use by pixi or a check into a failure.
     env = {
@@ -31,9 +32,8 @@ def _run(
         "http_proxy": DEAD_PROXY,
         "https_proxy": DEAD_PROXY,
         "all_proxy": DEAD_PROXY,
+        **env_overrides,
     }
-    if path is not None:
-        env["PATH"] = path
     return subprocess.run(
         argv, cwd=cwd, env=env, capture_output=True, text=True, check=False
     )
@@ -54,8 +54,8 @@ HUGO_STEP = "hugo fixture build"
 @pytest.mark.parametrize(
     ("flags", "expected"),
     [
-        ([], [*TOOL_STEPS, HUGO_STEP]),
-        (["--offline"], [*TOOL_STEPS, HUGO_STEP]),
+        pytest.param([], [*TOOL_STEPS, HUGO_STEP], marks=pytest.mark.hugo),
+        pytest.param(["--offline"], [*TOOL_STEPS, HUGO_STEP], marks=pytest.mark.hugo),
         (["--smoke"], TOOL_STEPS),
     ],
 )
@@ -75,6 +75,38 @@ def test_gate_fails_on_an_unknown_flag() -> None:
     result = _run([str(CHECK), "--no-such-flag"], Path("/"))
 
     assert result.returncode != 0
+
+
+def test_gate_finds_its_repo_despite_cdpath(tmp_path: Path) -> None:
+    # A relative `tools/..` would resolve against this decoy before the working directory.
+    (tmp_path / "tools").mkdir()
+
+    result = _run(["tools/check", "--help"], REPO_ROOT, CDPATH=str(tmp_path))
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_smoke_passes_with_a_broken_hugo_fixture(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for directory in ("src", "tests", "tools"):
+        shutil.copytree(
+            REPO_ROOT / directory,
+            repo / directory,
+            ignore=shutil.ignore_patterns("__pycache__"),
+        )
+    for name in (".gitignore", "pixi.lock", "pixi.toml", "pyproject.toml"):
+        shutil.copy2(REPO_ROOT / name, repo / name)
+    # test_project_config asks git about .gitignore.
+    assert _run(["git", "init", "-q"], repo).returncode == 0
+    layout = repo / "tests" / "fixtures" / "site" / "layouts" / "page.html"
+    layout.write_text("{{ this does not parse", encoding="utf-8")
+
+    # Python runs the copy's runner directly because pixi would install a new environment.
+    result = _run([sys.executable, "tools/check_runner.py", "--smoke"], repo)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _steps_run(result.stdout) == TOOL_STEPS
 
 
 def test_package_imports_from_any_directory() -> None:
@@ -107,7 +139,7 @@ def test_gate_names_pixi_when_it_is_missing(tmp_path: Path) -> None:
         assert found is not None
         (bin_dir / tool).symlink_to(found)
 
-    result = _run([str(CHECK)], Path("/"), path=str(bin_dir))
+    result = _run([str(CHECK)], Path("/"), PATH=str(bin_dir))
 
     assert result.returncode != 0
     assert "pixi" in result.stderr

@@ -7,13 +7,16 @@ from pathlib import Path
 import pytest
 
 from check_runner import (
+    CHECKED_PATHS,
     FIXTURE_NOTE_TEXT,
+    FIXTURE_PAGE,
     HUGO_STEP,
     Commands,
     Step,
     build_steps,
     hugo_fixture_build,
     main,
+    pytest_argv,
     run_command,
     run_steps,
 )
@@ -21,8 +24,20 @@ from check_runner import (
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PASS = (sys.executable, "-c", "pass")
 FAIL = (sys.executable, "-c", "raise SystemExit(3)")
-# The real Hugo stays in place: a stand-in would have to write the fixture page itself.
-PASSING = Commands(format_check=PASS, lint=PASS, typecheck=PASS, test=PASS)
+# Stands in for Hugo so the runner's logic stays covered by `--smoke`, which runs no Hugo.
+FAKE_HUGO = (
+    sys.executable,
+    "-c",
+    "import pathlib, sys;"
+    "public = pathlib.Path(sys.argv[sys.argv.index('--destination') + 1]);"
+    f"page = public / {str(FIXTURE_PAGE)!r};"
+    "page.parent.mkdir(parents=True);"
+    f"page.write_text({FIXTURE_NOTE_TEXT!r})",
+)
+PASSING = Commands(
+    format_check=PASS, lint=PASS, typecheck=PASS, test=PASS, hugo=FAKE_HUGO
+)
+BROKEN_LAYOUT = "{{ this does not parse"
 
 
 def test_main_exits_zero_when_every_step_passes() -> None:
@@ -73,10 +88,16 @@ def test_offline_still_runs_every_step() -> None:
 def test_default_commands_cover_the_checked_directories() -> None:
     commands = Commands()
 
-    assert commands.format_check[:3] == ("ruff", "format", "--check")
-    assert commands.lint[:2] == ("ruff", "check")
-    for argv in (commands.format_check, commands.lint):
-        assert {"src", "tests", "tools"} <= set(argv)
+    assert CHECKED_PATHS == ("src", "tests", "tools")
+    assert commands.format_check == ("ruff", "format", "--check", *CHECKED_PATHS)
+    assert commands.lint == ("ruff", "check", *CHECKED_PATHS)
+    # pyrefly takes its directories from project-includes; test_project_config pins them.
+    assert commands.typecheck == ("pyrefly", "check")
+
+
+def test_only_smoke_deselects_the_hugo_tests() -> None:
+    assert pytest_argv(("pytest",), smoke=True) == ["pytest", "-m", "not hugo"]
+    assert pytest_argv(("pytest",), smoke=False) == ["pytest"]
 
 
 def test_run_steps_runs_later_steps_after_a_failure() -> None:
@@ -98,6 +119,7 @@ def test_run_command_returns_127_for_a_missing_tool(tmp_path: Path) -> None:
     assert run_command(["mdblog-no-such-tool"], tmp_path) == 127
 
 
+@pytest.mark.hugo
 def test_hugo_build_passes_on_the_real_fixture() -> None:
     assert hugo_fixture_build(REPO_ROOT, ("hugo",)) == 0
 
@@ -108,6 +130,7 @@ def _copy_fixtures(repo_root: Path) -> Path:
     return fixtures
 
 
+@pytest.mark.hugo
 def test_hugo_build_fails_when_the_note_text_is_missing(tmp_path: Path) -> None:
     fixtures = _copy_fixtures(tmp_path)
     note = fixtures / "vault" / "projects" / "first-note.md"
@@ -116,6 +139,17 @@ def test_hugo_build_fails_when_the_note_text_is_missing(tmp_path: Path) -> None:
     assert hugo_fixture_build(tmp_path, ("hugo",)) != 0
 
 
+@pytest.mark.hugo
+def test_hugo_build_fails_on_a_broken_layout(tmp_path: Path) -> None:
+    fixtures = _copy_fixtures(tmp_path)
+    (fixtures / "site" / "layouts" / "page.html").write_text(
+        BROKEN_LAYOUT, encoding="utf-8"
+    )
+
+    assert hugo_fixture_build(tmp_path, ("hugo",)) != 0
+
+
+@pytest.mark.hugo
 def test_hugo_build_fails_when_the_page_is_not_generated(tmp_path: Path) -> None:
     fixtures = _copy_fixtures(tmp_path)
     note = fixtures / "vault" / "projects" / "first-note.md"
