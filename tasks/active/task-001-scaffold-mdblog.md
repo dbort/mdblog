@@ -44,3 +44,8 @@ Sets up the pixi environment, a minimal `mdblog` Python package, and a real `too
 - [x] **Step 6** (`tools/task_status.py`): bring it through ruff and pyrefly strict without changing its behavior.
 
 ## Review log
+
+### Round 1: REJECTED
+- **F1: `--smoke` still runs real Hugo builds through pytest** (`tests/test_check_runner.py:25`): the Must Have says `--smoke` omits only the Hugo build, but only the named step is dropped. The pytest step still builds with real Hugo and starts nested full gates, so a broken layout fails `--smoke` and smoke is no faster than the full gate. `test_smoke_exit_status_ignores_a_failing_hugo` only injects a failure into the skipped step.
+- **F2: Nothing tests that pyrefly covers `src/`, `tests/` and `tools/`** (`tests/test_project_config.py:51`): the scope depends entirely on `project-includes`, and with `project-includes = ["src"]` the tests still pass and `pyrefly check` reports 0 errors. The default `typecheck` argv is also unasserted.
+- **N1: An exported `CDPATH` breaks the wrapper's repo lookup** (`tools/check:7`): with `CDPATH` set and a relative `tools/check` call, `cd` also prints the directory, so `repo` holds two lines and pixi fails.
