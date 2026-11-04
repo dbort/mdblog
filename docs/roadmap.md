@@ -28,31 +28,24 @@ Build a site from one vault with `mdblog build VAULT --output DIR`, publishing o
 
 ## M2: Obsidian Markdown conversion
 
-**Status:** Planned
+**Status:** Tasks task-003, task-004
+
+- [ ] task-003: Write front matter from a fixed property list and place pages by slug (blocked on task-002)
+- [ ] task-004: Convert Obsidian links, embeds and syntax (blocked on task-003)
 
 Turn Obsidian's Markdown into what Hugo expects.
 
-- Front matter: the converter writes each page's front matter from scratch, using a fixed list of vault properties that each have a meaning defined by mdblog. A missing title comes from the file name. Every other property is dropped, because the same name can mean something else to Hugo: `aliases` generates redirect pages, `url` moves the page, `weight` reorders the feed, and `published` or `expiryDate` can hide the page or fail the build.
-- Links: `[[note]]`, `[[note|alias]]` and `[[note#heading]]` become site URLs.
-- Embeds: `![[image.png]]` becomes an image, and only attachments used by published notes are copied to the site.
-- Obsidian-only syntax: strip `%%comments%%` and render callouts.
-- Page placement: the converter places each page by entry type and URL scheme, so a note's vault folder has no effect on its URL.
-- `date` means the publish date, so a note started months ago does not land months back in the stream and the feed. Hugo dates a note with no `date` as year 0001 and lists it last in the feed, and it leaves out a future-dated note with no warning.
-- A link to an unpublished note renders as plain text instead of a URL that would 404, and an embed of one renders nothing, so its text stays off the site.
-- One validation pass, reporting any link or embed that resolves to nothing, each link or embed that points at an unpublished note, each published note with a missing or future `date`, and any two notes that resolve to the same URL. Hugo builds that last case with no warning, and one page overwrites the other.
+- Front matter: the converter writes each page's front matter from scratch, reading `title`, `date`, `tags`, `slug`, `type` and a link entry's `url`. A missing title comes from the file name. Every other property is dropped, because the same name can mean something else to Hugo: `aliases` generates redirect pages, `url` moves the page, `weight` reorders the feed, and `published` or `expiryDate` can hide the page or fail the build. A Hugo feature wanted later, such as a redirect after a rename, gets its own property and is never passed through by name.
+- Page placement: every entry type lives at `/posts/<slug>/`, so a note's vault folder, file name and type have no effect on its URL. `slug` and `type` are required on published notes.
+- `date` means the publish date, so a note started months ago does not land months back in the stream and the feed. Hugo dates a note with no `date` as year 0001 and lists it last in the feed, and it leaves out a future-dated note with no warning, so the converter validates dates itself.
+- Tags: the `tags` property sets site tags, and nested tags keep Hugo's nested paths. Inline `#tags` stay literal text.
+- Links: `[[note]]`, `[[note|alias]]`, `[[note#heading]]` and `![[note]]` become links to site URLs. Internal standard Markdown links are unsupported.
+- Images: `![[image.png]]`, with an optional size, becomes an image, and only images used by published notes are copied. Other attachments are unsupported.
+- Obsidian-only syntax: strip `%%comments%%` and block IDs, and render callouts and `==highlights==`.
+- One validation pass that fails the build on any broken or ambiguous link or embed, any link or embed of an unpublished note, any invalid `date`, `slug` or `type`, any unsupported link, and any two notes with one URL. A note goes live only when everything it links to is published, so no draft text can reach the site that way.
 - A reference in `docs/` listing each vault property, its meaning and the collisions above, so the mapping and its reasoning outlive this milestone's section.
 
-**Done when:** a fixture vault using each supported syntax renders correctly in a Hugo build, a fixture note carrying colliding properties produces the same page and feed entry as one without them, generated front matter holds only the listed keys, a broken link, a missing date and a URL collision in the fixture each produce a report naming the notes involved, and tests confirm that an unpublished note's text and attachments do not reach the output through a link or embed.
-
-**Decisions:**
-- Which syntax to support. Start with a survey of what the real vault uses, so the list comes from evidence. The survey also settles duplicate note names in `[[note]]`, inline `#tags`, embeds of published notes, and non-image attachments.
-- URL scheme for each entry type, such as dated paths for posts and flat paths for TILs. Link generation depends on it, so it comes before the site design, and it is hard to change after launch.
-- How a note declares its type. Recommended: front matter, so moving a note between vault folders changes nothing on the site, with a missing value meaning a post and an unknown value reported. The vault property need not be named `type`.
-- Whether `slug` is required on published notes. Without one the URL comes from the file name, so renaming a note changes its URL and feed readers may show it as a new entry. Requiring it protects every URL, at the cost of one more property on each published note.
-- Which properties the converter reads. Recommended: `title`, `date`, `tags`, `slug`, the entry type, and a link entry's external target, which goes under Hugo's `params` because a top-level `url` moves the page. Anything wanted later, such as an opt-in to syndication or a redirect after a rename, gets its own property under this mapping and is never passed through by name.
-- How tags map. Obsidian's nested `project/alpha` becomes nested Hugo paths, and tags used to organize the vault may not belong on the site. Recommended: pick a rule after the vault survey.
-- Own converter or a wrapper around `obsidian-export`. Recommended: a Python converter, because link and embed handling depend on the `publish` rule and the code stays under the strict type gate. Check first whether `obsidian-export` can express that rule, since it already covers much of this list.
-- Which reports fail a production build. Recommended: a broken link or embed, a missing or future `date`, and a URL collision fail it, because nothing rebuilds the site when a future date arrives. A link to an unpublished note only warns, since it renders safely. Local preview only warns.
+**Done when:** a fixture vault using each supported syntax renders correctly in a Hugo build, a fixture note carrying colliding properties produces the same page and feed entry as one without them, generated front matter holds only the listed keys, a broken link, a missing date and a URL collision in the fixture each fail the build with a report naming the notes involved, and tests confirm that an unpublished note's text and images do not reach the output through a link or embed.
 
 ## M3: Site design and content types
 
@@ -60,7 +53,7 @@ Turn Obsidian's Markdown into what Hugo expects.
 
 Build the reader-facing site from the default Hugo layouts in the `mdblog` package, using fixtures until real content arrives.
 
-- Three entry types: posts, TILs and links, using the converter's entry type property and URL scheme. A link entry points to the external page and carries a short commentary and its own permalink.
+- Three entry types: posts, TILs and links, all at `/posts/<slug>/`. The converter records the type as `.Params.entry_type` and a link's target as `.Params.link_url`, so list pages filter on those. A link entry points to the external page and carries a short commentary and its own permalink.
 - A home page with the bio from the vault's `_site/` and recent entries of every type, plus a full archive and tag pages.
 - An RSS feed covering all entries, advertised from each page's `<head>`. Hugo generates this as `index.xml`, newest first, and M6 and M7 can read it too.
 - A visual design of its own that works at phone width, plus a 404 page.
@@ -70,7 +63,7 @@ Build the reader-facing site from the default Hugo layouts in the `mdblog` packa
 
 **Decisions:**
 - Styling. Recommended: plain CSS through Hugo, which keeps Node out of the build.
-- Full text or summaries in the feed. Hugo's built-in template sends only each entry's summary, which cuts a post at its `<!--more-->` break or, with no break, after its first paragraphs. Recommended: full text through a small template override, so people can read in their feed reader.
+- Full text or summaries in the feed. Hugo's built-in template sends only each entry's summary, which cuts a post at its `<!--more-->` break or, with no break, after its first paragraphs. Recommended: full text through a small template override, so people can read in their feed reader. The converter's links are root-relative, so the override needs to make them absolute.
 - Which other feeds to keep. Hugo also generates one per section and per tag. Recommended: keep the main feed and the tag feeds, and turn off the rest.
 - How a link entry appears in the feed: pointing at the external page or at its permalink here.
 
@@ -100,13 +93,13 @@ Serve the built site from a Cloudflare Worker as static assets, with no custom W
 
 Make publishing part of writing, then go live.
 
-- A local preview of the real vault with live reload, which can include unpublished notes and marks them as such. In that mode the converter passes them to Hugo with a generated `draft: true`, runs Hugo with `--buildDrafts`, writes to its own output directory, and renders links and embeds of unpublished notes normally. Authors only write `publish`.
+- A local preview of the real vault with live reload, which can include unpublished notes and marks them as such. In that mode the converter passes them to Hugo with a generated `draft: true`, runs Hugo with `--buildDrafts`, writes to its own output directory, and renders links and embeds of unpublished notes normally. Validation failures that stop a production build only warn in this mode. Authors only write `publish`.
 - A check command that runs the build's validation pass with nothing deployed, so problems surface before anything goes live.
 - Note templates for each entry type, for use in Obsidian. They leave out `publish` and `date`, so a new note starts unpublished with or without a template, and the author sets the date when publishing it.
 - A way to trigger a publish from the vault.
 - The production domain, and the first real content.
 
-**Done when:** a new note written in Obsidian, marked `publish: true` and given a `date`, reaches the live site with no change to this repo.
+**Done when:** a new note written in Obsidian, marked `publish: true` and given a `date` and `slug`, reaches the live site with no change to this repo.
 
 **Decisions:**
 - Publish trigger. Recommended: start with a manual command, then add CI on vault pushes once the check command has earned trust. The `publish` rule keeps new notes off the site, but an automatic trigger would still put a half-finished edit to an already published note live.
