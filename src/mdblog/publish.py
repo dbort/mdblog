@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ruamel.yaml import YAML
-from ruamel.yaml.error import MarkedYAMLError, YAMLError
+from ruamel.yaml.error import MarkedYAMLError
 
 from mdblog.config import SITE_DIR
 
@@ -74,11 +74,20 @@ def _yaml_problem(exc: Exception) -> str:
     return " ".join(str(exc).split())
 
 
+def _describe(value: object) -> str:
+    try:
+        return repr(value)
+    # repr raises ValueError for an integer past Python's digit limit, and RecursionError
+    # for a deeply nested value.
+    except ValueError, RecursionError:
+        return f"a value of type {type(value).__name__}"
+
+
 def parse_properties(block: bytes) -> Mapping[object, object]:
     """The properties in a front matter block; empty for a blank or comment-only block.
 
-    Raises `FrontMatterError` when the block is not UTF-8, is invalid YAML, has a
-    duplicate key or is not a mapping.
+    Raises `FrontMatterError` when the block is not UTF-8, holds a YAML directive, is
+    invalid YAML, has a duplicate key or is not a mapping.
     """
     try:
         text = block.decode("utf-8")
@@ -88,14 +97,18 @@ def parse_properties(block: bytes) -> Mapping[object, object]:
     # the second is a non-mapping.
     if _is_blank(text):
         return {}
+    # A `%YAML 1.1` directive would turn `yes` back into a boolean.
+    if any(line.startswith("%") for line in text.splitlines()):
+        raise FrontMatterError("front matter holds a YAML directive")
     # YAML 1.2 keeps `yes` a string, and the safe loader raises on a duplicate key.
     yaml = YAML(typ="safe", pure=True)
     try:
         # ruamel.yaml is untyped, so its result is narrowed to `object` here.
         loaded: object = yaml.load(text)
-    # An out-of-range date raises a plain ValueError, and deep nesting exhausts the
-    # pure loader's recursion.
-    except (YAMLError, ValueError, RecursionError) as exc:
+    # The broad catch is deliberate: this untyped loader also raises ValueError for an
+    # out-of-range date, KeyError for `!!bool maybe` and RecursionError for deep nesting,
+    # and one bad note must not stop the run from naming the others.
+    except Exception as exc:
         raise FrontMatterError(
             f"front matter is invalid YAML: {_yaml_problem(exc)}"
         ) from exc
@@ -122,7 +135,7 @@ def is_published(data: bytes) -> bool:
     if value is False:
         return False
     if value is not True:
-        raise FrontMatterError(f"publish must be true or false, not {value!r}")
+        raise FrontMatterError(f"publish must be true or false, not {_describe(value)}")
     try:
         data.decode("utf-8")
     except UnicodeDecodeError as exc:

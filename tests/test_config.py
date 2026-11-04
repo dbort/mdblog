@@ -30,6 +30,8 @@ def test_load_config_returns_the_values(tmp_path: Path) -> None:
     [
         pytest.param("title = ", "invalid TOML", id="invalid-toml"),
         pytest.param(b"title = '\xff'\n", "invalid TOML", id="not-utf-8"),
+        pytest.param("x = " + "1" * 5000, "invalid TOML", id="huge-integer"),
+        pytest.param("x = " + "[" * 5000, "invalid TOML", id="deep-nesting"),
         pytest.param(
             'base_url = "u"\ntitle = "t"\n', "missing key 'author'", id="missing-key"
         ),

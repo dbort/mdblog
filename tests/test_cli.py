@@ -44,7 +44,7 @@ def test_absent_hugo_exits_nonzero_naming_it(
     status = main(["build", str(FIXTURE_VAULT), "--output", str(tmp_path / "out")])
 
     assert status == 1
-    assert "hugo" in capsys.readouterr().err
+    assert "cannot run hugo" in capsys.readouterr().err
     assert not (tmp_path / "out").exists()
 
 
@@ -72,6 +72,24 @@ def test_bad_notes_exit_nonzero_naming_each_on_stderr(
     assert "typo.md: publish must be" in err
     assert "dup.md: front matter is invalid YAML" in err
     assert "duplicate key" in err
+
+
+def test_a_loader_crash_still_names_every_bad_note(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(FIXTURE_VAULT, vault)
+    (vault / "crash.md").write_text(
+        "---\npublish: !!bool maybe\n---\n", encoding="utf-8"
+    )
+    (vault / "typo.md").write_text("---\npublish: yes\n---\n", encoding="utf-8")
+
+    status = main(["build", str(vault), "--output", str(tmp_path / "out")])
+
+    assert status == 1
+    err = capsys.readouterr().err
+    assert "crash.md: front matter is invalid YAML" in err
+    assert "typo.md: publish must be" in err
 
 
 def _pixi() -> str:
