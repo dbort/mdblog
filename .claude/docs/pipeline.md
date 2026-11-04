@@ -59,8 +59,6 @@ commits the merge. Its contract:
   in for the full run at a review or a merge.
 - A check that needs the network runs by default, fails on any network
   error, and skips itself only under `--offline`.
-- A check that needs live infrastructure becomes a durable check inside
-  `tools/check`, never a one-off command.
 
 Run a slow check once per checkpoint. Save its output and exit status, for
 example `tools/check > "$out" 2>&1; echo "exit=$?"`, then read that file as
