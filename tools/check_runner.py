@@ -27,7 +27,7 @@ class Commands:
     # With no file arguments pyrefly checks the project-includes in pyproject.toml,
     # which name the same directories as CHECKED_PATHS.
     typecheck: Sequence[str] = ("pyrefly", "check")
-    test: Sequence[str] = ("pytest",)
+    test: Sequence[str] = ("pytest", "tests")
     hugo: Sequence[str] = ("hugo",)
 
 
@@ -95,13 +95,23 @@ def hugo_fixture_build(repo_root: Path, hugo: Sequence[str]) -> int:
     return 0
 
 
-def pytest_argv(test: Sequence[str], *, smoke: bool) -> list[str]:
-    """`test`, deselecting the tests that build with real Hugo when `smoke` is true."""
-    return [*test, "-m", "not hugo"] if smoke else [*test]
+def pytest_argv(test: Sequence[str], *, smoke: bool, nested: bool) -> list[str]:
+    """`test`, deselecting `hugo` tests when `smoke` and `wrapper` tests when `nested`."""
+    excluded = [
+        f"not {marker}"
+        for marker, exclude in (("hugo", smoke), ("wrapper", nested))
+        if exclude
+    ]
+    return [*test, "-m", " and ".join(excluded)] if excluded else [*test]
 
 
-def build_steps(repo_root: Path, *, smoke: bool, commands: Commands) -> list[Step]:
-    """The gate's steps in run order; `smoke` leaves out the Hugo build, in pytest too."""
+def build_steps(
+    repo_root: Path, *, smoke: bool, commands: Commands, nested: bool = False
+) -> list[Step]:
+    """The gate's steps in run order; `smoke` leaves out the Hugo build, in pytest too.
+
+    `nested` leaves out only the tests that start this gate themselves.
+    """
 
     def tool(name: str, argv: Sequence[str]) -> Step:
         return Step(name, lambda: run_command(argv, repo_root))
@@ -110,7 +120,7 @@ def build_steps(repo_root: Path, *, smoke: bool, commands: Commands) -> list[Ste
         tool("ruff format", commands.format_check),
         tool("ruff check", commands.lint),
         tool("pyrefly", commands.typecheck),
-        tool("pytest", pytest_argv(commands.test, smoke=smoke)),
+        tool("pytest", pytest_argv(commands.test, smoke=smoke, nested=nested)),
     ]
     if not smoke:
         steps.append(
@@ -148,12 +158,18 @@ def main(
     parser.add_argument(
         "--offline", action="store_true", help="accepted; no check needs the network"
     )
+    parser.add_argument(
+        "--nested",
+        action="store_true",
+        help="internal: the gate's own tests pass this so pytest does not start them again",
+    )
     args = parser.parse_args(argv)
     return run_steps(
         build_steps(
             repo_root or Path(__file__).resolve().parent.parent,
             smoke=args.smoke,
             commands=commands or Commands(),
+            nested=args.nested,
         )
     )
 

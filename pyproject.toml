@@ -25,7 +25,10 @@ testpaths = ["tests"]
 pythonpath = ["tools"]
 addopts = ["--strict-markers", "--strict-config"]
 xfail_strict = true
-markers = ["hugo: runs the real Hugo binary or a full gate, so `tools/check --smoke` deselects it"]
+markers = [
+    "hugo: runs the real Hugo binary or a full gate, so `tools/check --smoke` deselects it",
+    "wrapper: drives tools/check itself, so `tools/check --nested` deselects it to avoid recursion",
+]
 
 [tool.pyrefly]
 preset = "strict"

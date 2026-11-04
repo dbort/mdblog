@@ -34,6 +34,7 @@ Sets up the pixi environment, a minimal `mdblog` Python package, and a real `too
 - Keep the wrapper compatible with macOS's bash 3.2, since macOS is a supported platform.
 - Pin Hugo's minor version in `pixi.toml` because its output can change between releases; the lockfile pins everything else exactly.
 - All checks are local, so `--offline` has no effect on which checks run. Only environment installation needs the network, and that happens before any check starts.
+- 2026-11-04, user decision after review round 3: the gate is not expected to detect an edit that narrows its own configuration, such as `testpaths`, `addopts` or the pytest argv, because the tests guarding that scope run inside the scope. Those edits are visible in the diff at review. Do not add machinery outside pytest to catch them; `Commands.test` names `tests` explicitly, and that is the extent of this guard.
 
 ## Plan
 - [x] **Step 1** (`pixi.toml`, `pixi.lock`, `pyproject.toml`, `.gitignore`): pixi workspace for the three platforms, editable `mdblog` install from a `src/` layout, ruff and pyrefly configuration, ignores for each toolchain's output.

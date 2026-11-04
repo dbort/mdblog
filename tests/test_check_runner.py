@@ -16,7 +16,6 @@ from check_runner import (
     build_steps,
     hugo_fixture_build,
     main,
-    pytest_argv,
     run_command,
     run_steps,
 )
@@ -93,13 +92,32 @@ def test_default_commands_cover_the_checked_directories() -> None:
     assert commands.lint == ("ruff", "check", *CHECKED_PATHS)
     # pyrefly takes its directories from project-includes; test_project_config pins them.
     assert commands.typecheck == ("pyrefly", "check")
-    # pytest takes its directory from testpaths, pinned in the same place.
-    assert commands.test == ("pytest",)
+    assert commands.test == ("pytest", "tests")
 
 
-def test_only_smoke_deselects_the_hugo_tests() -> None:
-    assert pytest_argv(("pytest",), smoke=True) == ["pytest", "-m", "not hugo"]
-    assert pytest_argv(("pytest",), smoke=False) == ["pytest"]
+@pytest.mark.parametrize(
+    ("flags", "deselect"),
+    [
+        ([], []),
+        (["--offline"], []),
+        (["--smoke"], ["-m", "not hugo"]),
+        (["--nested"], ["-m", "not wrapper"]),
+        (["--smoke", "--nested"], ["-m", "not hugo and not wrapper"]),
+    ],
+)
+def test_pytest_step_receives_only_the_deselection_its_flags_ask_for(
+    tmp_path: Path, flags: list[str], deselect: list[str]
+) -> None:
+    record = tmp_path / "argv.json"
+    script = (
+        "import json, pathlib, sys;"
+        f"pathlib.Path({str(record)!r}).write_text(json.dumps(sys.argv[1:]))"
+    )
+    commands = replace(PASSING, test=(sys.executable, "-c", script, "tests"))
+
+    assert main(flags, repo_root=REPO_ROOT, commands=commands) == 0
+
+    assert json.loads(record.read_text(encoding="utf-8")) == ["tests", *deselect]
 
 
 def test_run_steps_runs_later_steps_after_a_failure() -> None:

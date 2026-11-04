@@ -10,13 +10,11 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CHECK = REPO_ROOT / "tools" / "check"
-# A nested gate runs pytest, which would run this module again without end.
-NESTED = "MDBLOG_CHECK_NESTED"
+# A gate started here runs pytest, which would run this module again without end.
+NESTED = "--nested"
 DEAD_PROXY = "http://127.0.0.1:9"
 
-pytestmark = pytest.mark.skipif(
-    NESTED in os.environ, reason="already inside a tools/check started by this module"
-)
+pytestmark = pytest.mark.wrapper
 
 
 def _run(
@@ -25,7 +23,6 @@ def _run(
     # A dead proxy turns any network use by pixi or a check into a failure.
     env = {
         **os.environ,
-        NESTED: "1",
         "HTTP_PROXY": DEAD_PROXY,
         "HTTPS_PROXY": DEAD_PROXY,
         "ALL_PROXY": DEAD_PROXY,
@@ -59,7 +56,7 @@ GATE_RUNS = [
 
 
 def test_every_gate_run_that_builds_with_hugo_is_marked() -> None:
-    # The broken-fixture smoke test skips this module, so it cannot catch a missing mark.
+    # The broken-fixture smoke test deselects this module, so it cannot catch a missing mark.
     for run in GATE_RUNS:
         expected = run.values[1]
         assert isinstance(expected, list)
@@ -72,7 +69,7 @@ def test_gate_passes_from_the_filesystem_root(
 ) -> None:
     before = _git_status()
 
-    result = _run([str(CHECK), *flags], Path("/"))
+    result = _run([str(CHECK), NESTED, *flags], Path("/"))
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert _steps_run(result.stdout) == expected
@@ -111,7 +108,7 @@ def test_smoke_passes_with_a_broken_hugo_fixture(tmp_path: Path) -> None:
     layout.write_text("{{ this does not parse", encoding="utf-8")
 
     # Python runs the copy's runner directly because pixi would install a new environment.
-    result = _run([sys.executable, "tools/check_runner.py", "--smoke"], repo)
+    result = _run([sys.executable, "tools/check_runner.py", "--smoke", NESTED], repo)
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert _steps_run(result.stdout) == TOOL_STEPS
