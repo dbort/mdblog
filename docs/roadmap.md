@@ -27,7 +27,7 @@ Turn Obsidian's Markdown into what Hugo expects.
 - Images: `![[image.png]]`, with an optional size, becomes an image, and only images used by published notes are copied. Other attachments are unsupported.
 - Obsidian-only syntax: strip `%%comments%%` and block IDs, and render callouts and `==highlights==`.
 - One validation pass that fails the build on any broken or ambiguous link or embed, any link or embed of an unpublished note, any invalid `date`, `slug` or `type`, any unsupported link, and any two notes with one URL. A note goes live only when everything it links to is published, so no draft text can reach the site that way.
-- A reference in `docs/` listing each vault property, its meaning and the collisions above, so the mapping and its reasoning outlive this milestone's section.
+- A reference in `docs/` listing each vault property, its meaning and the collisions with Hugo, so the mapping and its reasoning outlive this milestone's section.
 
 **Done when:** a fixture vault using each supported syntax renders correctly in a Hugo build, a fixture note carrying colliding properties produces the same page and feed entry as one without them, generated front matter holds only the listed keys, a broken link, a missing date and a URL collision in the fixture each fail the build with a report naming the notes involved, and tests confirm that an unpublished note's text and images do not reach the output through a link or embed.
 
