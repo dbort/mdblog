@@ -33,23 +33,20 @@ Turn Obsidian's Markdown into what Hugo expects.
 
 ## M3: Site design and content types
 
-**Status:** Planned
+**Status:** Tasks task-006, task-007
+
+- [ ] task-006: Build the site's pages, feeds and entry markup (blocked on task-004)
+- [ ] task-007: Give the site its visual design and 404 page (blocked on task-006)
 
 Build the reader-facing site from the default Hugo layouts in the `mdblog` package, using fixtures until real content arrives.
 
 - Three entry types: posts, TILs and links, all at `/posts/<slug>/`. The converter records the type as `.Params.entry_type` and a link's target as `.Params.link_url`, so list pages filter on those. A link entry points to the external page and carries a short commentary and its own permalink.
-- A home page with the bio from the vault's `_site/` and recent entries of every type, plus a full archive and tag pages.
-- An RSS feed covering all entries, advertised from each page's `<head>`. Hugo generates this as `index.xml`, newest first, and M6 and M7 can read it too.
-- A visual design of its own that works at phone width, plus a 404 page.
-- h-entry microformats in entry templates, so M6 and M7 need no template retrofit.
+- A home page with the bio from the vault's `_site/bio.md` and the latest 15 entries of every type, plus a full archive by year and tag pages.
+- A full-text RSS feed of the latest 50 entries of all types, advertised from each page's `<head>`, and one feed per tag. Hugo generates these as `index.xml`, newest first, and M6 and M7 can read them too. A link entry's feed item links to its permalink on the site, and its body starts with the external link.
+- A visual design of its own in plain CSS, with no Node: system fonts, light and dark palettes that follow the reader's system, and syntax highlighting in both. It works at phone width, and there is a 404 page.
+- h-entry microformats in entry templates and lists, so M6 and M7 need no template retrofit.
 
 **Done when:** a fixture build generates every page type, the tests assert each entry's date, tags, permalink and h-entry markup, and `index.xml` parses as RSS and lists entries of all three types.
-
-**Decisions:**
-- Styling. Recommended: plain CSS through Hugo, which keeps Node out of the build.
-- Full text or summaries in the feed. Hugo's built-in template sends only each entry's summary, which cuts a post at its `<!--more-->` break or, with no break, after its first paragraphs. Recommended: full text through a small template override, so people can read in their feed reader. The converter's links are root-relative, so the override needs to make them absolute.
-- Which other feeds to keep. Hugo also generates one per section and per tag. Recommended: keep the main feed and the tag feeds, and turn off the rest.
-- How a link entry appears in the feed: pointing at the external page or at its permalink here.
 
 ## M4: Deploy to Cloudflare
 
