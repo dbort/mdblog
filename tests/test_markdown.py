@@ -11,7 +11,9 @@ from mdblog.markdown import (
     remove_block_ids,
     remove_comments,
     split_wikilink,
+    wikilink_text,
 )
+from notes import HEADINGS
 
 
 def _code(text: str, needle: str) -> bool:
@@ -121,26 +123,7 @@ def test_anchor_base_matches_hugo(text: str, expected: str) -> None:
 
 
 def test_headings_follow_hugos_ids() -> None:
-    text = (
-        "# Café & Über: 100%!\n"
-        "## Same\n"
-        "## Same\n"
-        "## C++ and `code` stuff\n"
-        "## !!!\n"
-        "##\n"
-        "## Explicit {#same-2}\n"
-        "## Same\n"
-        "## Classed {.wide}\n"
-        "## Braces {a, b}\n"
-        "## See [[note|Alias]] and [[other]]\n"
-        "## Image ![alt text](a.png) here\n"
-        "## Auto <https://a.test/x> y\n"
-        "## <span>raw</span> html\n"
-        "First line\nsecond line\n===\n"
-        "```\n# Not a heading\n```\n"
-    )
-
-    assert headings(text) == (
+    assert headings(HEADINGS) == (
         Heading("Café & Über: 100%!", "café--über-100"),
         Heading("Same", "same"),
         Heading("Same", "same-1"),
@@ -150,13 +133,31 @@ def test_headings_follow_hugos_ids() -> None:
         Heading("Same", "same-3"),
         Heading("Classed", "classed"),
         Heading("Braces {a, b}", "braces-a-b"),
-        Heading("See Alias and other", "see-alias-and-other"),
-        Heading("Image alt text here", "image-alt-text-here"),
+        Heading("See Alias and target", "see-alias-and-target"),
+        Heading("Sized a.png and a.png", "sized-apng-and-apng"),
+        Heading("Alt alt words and a.png", "alt-alt-words-and-apng"),
         Heading("Auto  y", "auto--y"),
         Heading("raw html", "raw-html"),
         # Hugo builds a multi-line setext heading's ID from its last line.
         Heading("second line", "second-line"),
     )
+
+
+@pytest.mark.parametrize(
+    ("embed", "target", "alias", "expected"),
+    [
+        (True, "images/a.png", None, "a.png"),
+        (True, "a.PNG#x", "300x200", "a.PNG"),
+        (True, "a.png", "alt words", "alt words"),
+        (False, "images/a.png", None, "images/a.png"),
+        (True, "note", None, "note"),
+        (True, "note#Heading", "alias", "alias"),
+    ],
+)
+def test_wikilink_text(
+    embed: bool, target: str, alias: str | None, expected: str
+) -> None:
+    assert wikilink_text(embed, target, alias) == expected
 
 
 @pytest.mark.parametrize(

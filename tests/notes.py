@@ -20,3 +20,26 @@ def published_text(
         "---\n"
         f"{body}"
     )
+
+
+# Headings exercising each rule of Hugo's heading IDs. test_build.py builds them with
+# real Hugo, and test_markdown.py states the expected IDs.
+HEADINGS = (
+    "# Café & Über: 100%!\n"
+    "## Same\n"
+    "## Same\n"
+    "## C++ and `code` stuff\n"
+    "## !!!\n"
+    "##\n"
+    "## Explicit {#same-2}\n"
+    "## Same\n"
+    "## Classed {.wide}\n"
+    "## Braces {a, b}\n"
+    "## See [[target|Alias]] and [[target]]\n"
+    "## Sized ![[a.png|300]] and ![[images/a.png]]\n"
+    "## Alt ![[a.png|alt words]] and [[a.png]]\n"
+    "## Auto <https://a.test/x> y\n"
+    "## <span>raw</span> html\n"
+    "First line\nsecond line\n===\n"
+    "```\n# Not a heading\n```\n"
+)

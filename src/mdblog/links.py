@@ -8,6 +8,8 @@ from urllib.parse import quote, urlsplit
 
 from mdblog.config import SITE_DIR
 from mdblog.markdown import (
+    IMAGE_SIZE,
+    IMAGE_SUFFIXES,
     WIKILINK,
     CodeMap,
     heading_key,
@@ -16,13 +18,10 @@ from mdblog.markdown import (
     remove_block_ids,
     remove_comments,
     split_wikilink,
+    wikilink_text,
 )
 from mdblog.publish import NOTE_SUFFIX, NoteFailure, PublishedNote, Selection
 
-IMAGE_SUFFIXES = frozenset(
-    (".avif", ".bmp", ".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp")
-)
-IMAGE_SIZE = re.compile(r"(\d+)(?:x(\d+))?")
 # The default render-image hook reads these and removes them from `src`.
 WIDTH_PARAMETER = "mdblog-width"
 HEIGHT_PARAMETER = "mdblog-height"
@@ -147,7 +146,9 @@ def _fragment(subpath: str, path: Path, target: LinkTarget) -> str:
 
 
 def _link_text(text: str) -> str:
-    return re.sub(r"([\\\[\]])", r"\\\1", text)
+    # Escaping every ASCII punctuation character keeps the text literal: `_a_` stays
+    # underscores and `<b>` stays visible instead of becoming omitted raw HTML.
+    return re.sub(r"([!-/:-@\[-`{-~])", r"\\\1", text)
 
 
 @dataclass(frozen=True)
@@ -191,15 +192,12 @@ class _NoteContext:
         url = self.page_url(self.slug) + quote(path.name)
         if not embed:
             return f"[{_link_text(alias or target)}]({url})"
-        alt = path.name
         size = IMAGE_SIZE.fullmatch(alias or "")
         if size is not None:
             url += f"?{WIDTH_PARAMETER}={size[1]}"
             if size[2] is not None:
                 url += f"&{HEIGHT_PARAMETER}={size[2]}"
-        elif alias:
-            alt = alias
-        return f"![{_link_text(alt)}]({url})"
+        return f"![{_link_text(wikilink_text(True, target, alias))}]({url})"
 
     def _note_link(self, path: Path, subpath: str, text: str) -> str:
         target = self.index.published.get(path)

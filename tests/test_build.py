@@ -21,7 +21,8 @@ from mdblog.build import (
     swap_in,
 )
 from mdblog.config import ConfigError, SiteConfig
-from notes import published_text
+from mdblog.markdown import headings
+from notes import HEADINGS, published_text
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_VAULT = REPO_ROOT / "tests" / "fixtures" / "vault"
@@ -878,3 +879,20 @@ def test_links_to_unpublished_material_fail_and_leak_nothing(tmp_path: Path) -> 
         assert not [
             name for name, data in _snapshot(output).items() if needle in (data or b"")
         ]
+
+
+def test_heading_ids_match_hugos(tmp_path: Path) -> None:
+    # A wrong ID sends a link nowhere without any error, so every rule is compared.
+    vault = _make_vault(tmp_path)
+    (vault / "images").mkdir()
+    (vault / "images" / "a.png").write_bytes(b"PNG")
+    (vault / "target.md").write_text(
+        published_text("target", body=HEADINGS), encoding="utf-8"
+    )
+    output = tmp_path / "output"
+
+    build_site(vault, output, ("hugo",))
+
+    page = _page_html(output, "target")
+    hugo_ids = re.findall(r'<h[1-6][^>]*\bid="([^"]*)"', page)
+    assert hugo_ids == [heading.anchor for heading in headings(HEADINGS)]

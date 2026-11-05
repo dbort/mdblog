@@ -10,6 +10,7 @@ import re
 import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import override
 
 from markdown_it import MarkdownIt
@@ -22,6 +23,11 @@ BLOCK_ID = re.compile(
     r"(?:(?<![^\r\n])|[ \t]+)\^([A-Za-z0-9-]+)[ \t]*(?=\r\n|\r|\n|\Z)"
 )
 WIKILINK = re.compile(r"(!?)\[\[([^\[\]\r\n]+)\]\]")
+IMAGE_SUFFIXES = frozenset(
+    (".avif", ".bmp", ".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp")
+)
+# `![[image.png|300]]` sets a width and `|300x200` a width and height.
+IMAGE_SIZE = re.compile(r"(\d+)(?:x(\d+))?")
 URL_SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:")
 # Goldmark's attribute syntax, which Hugo enables for headings: `## Title {#id .class}`.
 # Braces holding anything else stay in the heading's text.
@@ -175,9 +181,22 @@ def split_wikilink(inner: str) -> tuple[str, str | None]:
     return target.strip(), alias.strip() if found else None
 
 
-def _wikilink_display(match: re.Match[str]) -> str:
-    target, alias = split_wikilink(match[2])
+def wikilink_text(embed: bool, target: str, alias: str | None) -> str:
+    """The text a converted wikilink shows, from its parts as `split_wikilink` returns them.
+
+    An image embed shows its alt text: an alias that is not a size, or otherwise the
+    file name of the target. Every other link shows the alias, or otherwise the target.
+    """
+    name = target.partition("#")[0].strip().rsplit("/", 1)[-1]
+    if embed and PurePosixPath(name).suffix.casefold() in IMAGE_SUFFIXES:
+        if alias and IMAGE_SIZE.fullmatch(alias) is None:
+            return alias
+        return name
     return alias or target
+
+
+def _wikilink_display(match: re.Match[str]) -> str:
+    return wikilink_text(match[1] == "!", *split_wikilink(match[2]))
 
 
 def _plain_text(children: Sequence[Token]) -> str:
@@ -205,7 +224,7 @@ def _plain_text(children: Sequence[Token]) -> str:
 class Heading:
     """One heading of a note, in document order."""
 
-    # The heading's text as a reader sees it, with a wikilink as its link text.
+    # The heading's text as a reader sees it, with a wikilink as its `wikilink_text`.
     text: str
     # The `id` Hugo gives the rendered heading.
     anchor: str

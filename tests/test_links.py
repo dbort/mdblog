@@ -38,6 +38,7 @@ def _vault(root: Path, source_body: str) -> Path:
     _note(root, "notes/target.md", TARGET)
     _note(root, "folder/deep.md", "")
     _note(root, "top.md", "")
+    _note(root, "_draft notes_.md", "", slug="draft-notes")
     _write(root, "drafts/draft.md", "---\npublish: false\n---\nDRAFT-TEXT\n")
     _write(root, "broken.md", "---\npublish: true\nslug: broken\n---\n")
     _write(root, "images/a.png", b"PNG-A")
@@ -88,36 +89,41 @@ def _converted(
         ("[[target]]", "[target](/posts/target/)"),
         ("[[target|the alias]]", "[the alias](/posts/target/)"),
         ("[[TARGET]]", "[TARGET](/posts/target/)"),
-        ("[[target.md]]", "[target.md](/posts/target/)"),
+        ("[[target.md]]", "[target\\.md](/posts/target/)"),
         ("[[ target ]]", "[target](/posts/target/)"),
-        ("[[folder/deep]]", "[folder/deep](/posts/deep/)"),
-        ("[[Folder/Deep.md]]", "[Folder/Deep.md](/posts/deep/)"),
-        ("[[../top]]", "[../top](/posts/top/)"),
-        ("[[./target]]", "[./target](/posts/target/)"),
+        ("[[folder/deep]]", "[folder\\/deep](/posts/deep/)"),
+        ("[[Folder/Deep.md]]", "[Folder\\/Deep\\.md](/posts/deep/)"),
+        ("[[../top]]", "[\\.\\.\\/top](/posts/top/)"),
+        ("[[./target]]", "[\\.\\/target](/posts/target/)"),
         (
             "[[target#Target Heading]]",
-            "[target#Target Heading](/posts/target/#target-heading)",
+            "[target\\#Target Heading](/posts/target/#target-heading)",
         ),
         ("[[target#target heading|alias]]", "[alias](/posts/target/#target-heading)"),
         (
             "[[target#Outer#Target Heading]]",
-            "[target#Outer#Target Heading](/posts/target/#target-heading)",
+            "[target\\#Outer\\#Target Heading](/posts/target/#target-heading)",
         ),
         (
             "[[target#Café & Über: 100%!]]",
-            "[target#Café & Über: 100%!](/posts/target/#caf%C3%A9--%C3%BCber-100)",
+            "[target\\#Café \\& Über\\: 100\\%\\!](/posts/target/#caf%C3%A9--%C3%BCber-100)",
         ),
-        ("[[#Own Heading]]", "[#Own Heading](/posts/source/#own-heading)"),
-        ("[[target#^blk]]", "[target#^blk](/posts/target/)"),
+        ("[[#Own Heading]]", "[\\#Own Heading](/posts/source/#own-heading)"),
+        ("[[target#^blk]]", "[target\\#\\^blk](/posts/target/)"),
         ("[[target#^BLK|alias]]", "[alias](/posts/target/)"),
-        ("[[#^mine]]", "[#^mine](/posts/source/)"),
+        ("[[#^mine]]", "[\\#\\^mine](/posts/source/)"),
         ("![[target]]", "[target](/posts/target/)"),
         (
             "![[target#Target Heading]]",
-            "[target#Target Heading](/posts/target/#target-heading)",
+            "[target\\#Target Heading](/posts/target/#target-heading)",
         ),
         ("| [[target\\|alias]] | x |", "| [alias](/posts/target/) | x |"),
         ("[[target|back\\slash\\]]", "[back\\\\slash\\\\](/posts/target/)"),
+        (
+            "[[_draft notes_|<b> *c* -- d]]",
+            "[\\<b\\> \\*c\\* \\-\\- d](/posts/draft-notes/)",
+        ),
+        ("[[_draft notes_]]", "[\\_draft notes\\_](/posts/draft-notes/)"),
     ],
 )
 def test_wikilinks_become_markdown_links(
@@ -129,19 +135,19 @@ def test_wikilinks_become_markdown_links(
 @pytest.mark.parametrize(
     ("embed", "expected"),
     [
-        ("![[a.png]]", "![a.png](/posts/source/a.png)"),
-        ("[[a.png]]", "[a.png](/posts/source/a.png)"),
+        ("![[a.png]]", "![a\\.png](/posts/source/a.png)"),
+        ("[[a.png]]", "[a\\.png](/posts/source/a.png)"),
         ("[[a.png|the file]]", "[the file](/posts/source/a.png)"),
-        ("![[images/a.png]]", "![a.png](/posts/source/a.png)"),
-        ("![[A.PNG]]", "![a.png](/posts/source/a.png)"),
-        ("![[a.png|300]]", "![a.png](/posts/source/a.png?mdblog-width=300)"),
+        ("![[images/a.png]]", "![a\\.png](/posts/source/a.png)"),
+        ("![[A.PNG]]", "![A\\.PNG](/posts/source/a.png)"),
+        ("![[a.png|300]]", "![a\\.png](/posts/source/a.png?mdblog-width=300)"),
         (
             "![[a.png|300x200]]",
-            "![a.png](/posts/source/a.png?mdblog-width=300&mdblog-height=200)",
+            "![a\\.png](/posts/source/a.png?mdblog-width=300&mdblog-height=200)",
         ),
         ("![[a.png|some text]]", "![some text](/posts/source/a.png)"),
         ("![[a.png|300 wide]]", "![300 wide](/posts/source/a.png)"),
-        ("![[my pic.png]]", "![my pic.png](/posts/source/my%20pic.png)"),
+        ("![[my pic.png]]", "![my pic\\.png](/posts/source/my%20pic.png)"),
     ],
 )
 def test_image_embeds_and_links(tmp_path: Path, embed: str, expected: str) -> None:
@@ -202,7 +208,7 @@ def test_urls_start_with_the_base_path(
 ) -> None:
     converted = _converted(tmp_path, "[[target]] ![[a.png]]", base_url)
 
-    assert converted == f"[target]({page}) ![a.png]({image})"
+    assert converted == f"[target]({page}) ![a\\.png]({image})"
 
 
 def test_base_path_drops_the_trailing_slash() -> None:
@@ -219,7 +225,7 @@ def test_a_note_wins_over_an_image_with_the_same_name(tmp_path: Path) -> None:
     converted = _body(_convert(vault))
 
     assert (
-        "[photo.png](/posts/photo-note/) [v1.2 notes](/posts/version-notes/)"
+        "[photo\\.png](/posts/photo-note/) [v1\\.2 notes](/posts/version-notes/)"
         in converted
     )
 
@@ -300,7 +306,7 @@ def test_notes_may_each_use_an_image_with_the_same_name(tmp_path: Path) -> None:
     conversion = _convert(vault)
 
     assert _link_failures(conversion) == []
-    assert "![a.png](/posts/second/a.png)" in _body(conversion, "second")
+    assert "![a\\.png](/posts/second/a.png)" in _body(conversion, "second")
 
 
 def test_every_failure_in_every_note_is_reported(tmp_path: Path) -> None:
