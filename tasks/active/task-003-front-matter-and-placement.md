@@ -1,7 +1,7 @@
 ---
 id: task-003
 title: "Write front matter from a fixed property list and place pages by slug"
-blocked_by: [task-002]
+blocked_by: [task-002, task-005]
 ---
 
 # task-003: Write front matter from a fixed property list and place pages by slug
@@ -24,8 +24,8 @@ Stops vault properties from changing the site by accident: the converter writes 
 - [ ] These rules apply only to published notes: an unpublished note with no `date`, `slug` or `type` causes no failure. A bad `publish` value still fails for any selected note.
 - [ ] One run reports every failure across all published notes, naming the note and reason for each, and leaves the output directory unchanged.
 - [ ] A published note's body after its front matter reaches Hugo byte-for-byte.
-- [ ] `docs/vault-format.md` lists each property the converter reads, its meaning and validation, and each tested Hugo collision. A test asserts the file names every property the converter reads.
-- [ ] `tools/check` exits 0 on the finished branch, with real Hugo tests carrying the `hugo` mark.
+- [ ] `docs/vault-format.md` lists each property the converter reads, its meaning and validation, and each tested Hugo collision.
+- [ ] `tools/check` exits 0 on the finished branch.
 
 ## Advice
 - User decisions: every entry type lives at `/posts/<slug>/`, so slugs are unique across the site and changing a note's type never moves it. `type` and `slug` are required on published notes. Slugs are lowercase ASCII, so URLs copy cleanly and two slugs cannot collide on a case-insensitive filesystem.
@@ -39,12 +39,13 @@ Stops vault properties from changing the site by accident: the converter writes 
 - A null property means missing, because Obsidian writes an empty property as null.
 - Standing obligation, strict static checks: the validated note is a frozen dataclass with precise field types. Narrow from `object` with `isinstance` checks instead of casts.
 - Standing obligation, scripts stay simple: all logic is Python in importable functions, tested directly.
+- Standing obligation, test where the risk is: the property rules and page placement are novel code, so unit tests cover each rule and message. Real Hugo runs in the end-to-end fixture build and in the time-zone Must Have, because Hugo hides that page silently. The byte-identical output trees may use real Hugo or the fake, whichever proves it.
 
 ## Plan
 - [ ] **Step 1** (`src/mdblog/properties.py`, tests): a function taking a note's parsed front matter, its file name and the clock, returning a validated value or every failure for that note. Cover each Must Have rule directly.
 - [ ] **Step 2** (`src/mdblog/publish.py`, `src/mdblog/build.py`, tests): write validated pages to `content/posts/<slug>/index.md` with generated front matter and the original body. Detect slug collisions across notes, report all failures in one run, and pass `--buildFuture` to Hugo.
 - [ ] **Step 3** (`tests/fixtures/vault/`): add `type`, `slug` and `date` to `projects/first-note.md` and every other published fixture note, and add a `type: link` note.
-- [ ] **Step 4** (`tools/check_runner.py`, `tests/test_check_runner.py`, tests from task-002): `FIXTURE_PAGE` becomes `posts/first-note/index.html`. `test_hugo_build_fails_when_the_note_text_is_missing` writes a note with full valid properties, so it fails for the intended reason. `test_hugo_build_fails_when_the_page_is_not_generated` renames the note today, which no longer changes the URL, so it changes the note's `slug` instead. Grep task-002's tests for `projects/first-note`, relative-path placement assertions, and notes holding only `publish: true`, and update each: published test notes need the required properties, so add a shared helper that writes them.
+- [ ] **Step 4** (tests from task-002): grep task-002's tests for `projects/first-note`, relative-path placement assertions, and notes holding only `publish: true`, and update each: published test notes need the required properties, so add a shared helper that writes them.
 - [ ] **Step 5** (`docs/vault-format.md`): the property reference. Move the collision evidence there from the roadmap's M2 section.
 
 ## Review log

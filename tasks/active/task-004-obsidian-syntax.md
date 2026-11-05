@@ -18,7 +18,7 @@ Turns the Obsidian syntax in published notes into what Hugo renders: wikilinks, 
 - [ ] Each of these fails the build, with a message naming the source note and the target: a link or embed that resolves to nothing, resolves to more than one note or image, resolves outside the vault, or targets a file under `_site/` or a dot-folder; a link or embed of an unpublished note; a missing heading or block ID; and a link or embed of a non-image file such as `paper.pdf` or `clip.mp4`.
 - [ ] An internal standard Markdown link or image fails the build, whether inline or reference-style. A destination with a URL scheme, or one that starts with `#`, passes through unchanged.
 - [ ] One run reports every failure across all published notes, along with task-003's failures, and leaves the output directory unchanged. These rules do not apply to the text of unpublished notes.
-- [ ] Tests with real Hugo confirm that a published note linking or embedding an unpublished note or image fails, and that the unpublished text and image appear nowhere in the output directory.
+- [ ] Tests confirm that a published note linking or embedding an unpublished note or image fails, and that the unpublished text and image appear nowhere in the output directory.
 - [ ] `![[a.png]]` renders an image, and `[[a.png]]` renders a link to the copied file. Supported extensions are `avif`, `bmp`, `gif`, `jpeg`, `jpg`, `png`, `svg` and `webp`, ignoring case.
 - [ ] `![[a.png|300]]` renders `width="300"`, `![[a.png|300x200]]` also renders `height="200"`, and `![[a.png|some text]]` renders that text as `alt`. A file name holding a space renders a working URL.
 - [ ] Only images used by published notes are copied: a test asserts that an unused image, and one used only by an unpublished note, are absent from the output. An image used by two notes appears under both pages.
@@ -32,7 +32,7 @@ Turns the Obsidian syntax in published notes into what Hugo renders: wikilinks, 
 - [ ] Raw HTML in a note does not render: the output has no `<img src="draft.png">` written directly in a note, so it cannot bypass these rules.
 - [ ] A site can override a default `_markup` layout from `_site/layouts/_markup/`.
 - [ ] `docs/vault-format.md` lists the supported syntax, the failure rules and the known limits: math, note transclusion, media players and hyphenated callout types are unsupported.
-- [ ] `tools/check` exits 0 on the finished branch, with real Hugo tests carrying the `hugo` mark.
+- [ ] `tools/check` exits 0 on the finished branch.
 
 ## Advice
 - User decisions: links and embeds of unpublished notes fail the build, so a production build has no plain-text or render-nothing path, and a note goes live only when its targets are published. Non-image attachments fail, and support gets added on first need. Internal standard Markdown links fail, so keep Obsidian's "Use [[Wikilinks]]" setting on. Note embeds render as links, which avoids recursion and duplicate-content rules.
@@ -49,6 +49,7 @@ Turns the Obsidian syntax in published notes into what Hugo renders: wikilinks, 
 - Compute heading anchors with Hugo's algorithm and pin it with the real-Hugo test, since a mismatch produces a link that silently goes nowhere.
 - Standing obligation, strict static checks: `markdown-it-py` is typed, so it needs no escape hatch. Keep each syntax step a pure function from text to text plus failures.
 - Standing obligation, scripts stay simple: all logic is Python in importable functions, tested directly.
+- Standing obligation, test where the risk is: conversion and validation are novel code, so unit tests cover each rule and message. Real Hugo runs in the end-to-end fixture build, for heading anchors and for the render hooks, because a break there silently produces wrong pages.
 
 ## Plan
 - [ ] **Step 1** (`pixi.toml`, `pixi.lock`, `pyproject.toml`): add `markdown-it-py`.
@@ -56,7 +57,7 @@ Turns the Obsidian syntax in published notes into what Hugo renders: wikilinks, 
 - [ ] **Step 3** (`src/mdblog/links.py`, tests): an index of selected notes and images with the resolution order, then wikilink and embed conversion returning new text, images to copy and every failure.
 - [ ] **Step 4** (`src/mdblog/publish.py`, `src/mdblog/build.py`, tests): wire conversion into page writing, copy images into leaf bundles, merge failures with task-003's report, and add `extras.mark` to the generated `hugo.toml`.
 - [ ] **Step 5** (`src/mdblog/theme/layouts/_markup/`, tests): default `render-blockquote.html` and `render-image.html` hooks, tested with real Hugo along with the site override.
-- [ ] **Step 6** (`tests/fixtures/vault/`, `tools/check_runner.py`): add fixture notes and images using each supported syntax, so the gate's Hugo step covers them, while keeping `FIXTURE_NOTE_TEXT` in `projects/first-note.md`.
+- [ ] **Step 6** (`tests/fixtures/vault/`, `tests/test_build.py`): add fixture notes and images using each supported syntax, with the end-to-end test building them.
 - [ ] **Step 7** (`docs/vault-format.md`): the syntax, failure rules and known limits.
 
 ## Review log

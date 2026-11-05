@@ -24,7 +24,7 @@ in `.claude/docs/`, even when a human also reads them.
 - **Language:** Python 3.14. Static checker: pyrefly at `preset = "strict"`.
 - **Toolchain:** pixi with conda-forge provides Python, Hugo and the dev tools. `pixi.lock` covers `linux-64`, `linux-aarch64` and `osx-arm64`.
 - **Site:** Hugo builds the site, and a Cloudflare Worker serves the output as static assets with no custom Worker code. The task that adds deployment also adds Node and wrangler to the pixi environment.
-- **Gate:** `tools/check` runs `ruff format --check`, `ruff check`, pyrefly, pytest, and a Hugo build of a fixture vault. `--smoke` leaves out the Hugo build.
+- **Gate:** `tools/check` runs `ruff format --check`, `ruff check`, pyrefly and pytest. `--smoke` and `--offline` run the same steps.
 - **Platforms:** the repo runs on Linux and macOS.
 - **Vault:** the Obsidian vault is never part of this repo. Tools point at a parallel checkout of it.
 - **Sites:** one vault is one site, and building several sites means running `mdblog build` once per vault. A site's settings (`_site/mdblog.toml`) and overriding layouts (`_site/layouts/`) live in its vault. The repo's only site configs are test fixtures.
@@ -52,6 +52,18 @@ wrong.
   checked language under the rule above, with its logic in importable
   functions so tests exercise them directly rather than only driving the
   script as a subprocess.
+
+- **Test where the risk is:** unit tests cover novel code: every documented
+  rule, branch and error message, including realistic bad input. A real
+  third-party tool runs in one end-to-end happy path, and in another test
+  only where a break would silently produce wrong output. Anything a fake
+  can prove uses a fake. Repo tooling gets a test only where a bug would
+  silently give a wrong answer that matters, such as the gate passing after
+  a failure, so `tools/task_status.py` stays untested. Write no tests of
+  tests (breaking a fixture to show a check notices), no tests that restate
+  config, and no tests of pathological input that fails loudly and leaves
+  output intact. A clear error message covers those, and they get debugged
+  when someone hits them.
 
 ## Friction log and bug log
 
