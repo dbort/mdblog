@@ -94,17 +94,39 @@ def _entry_type(value: object, failures: list[str]) -> str | None:
     return None
 
 
-def _tags(value: object, failures: list[str]) -> tuple[str, ...] | None:
-    if value is None:
-        return ()
+def _is_safe_tag(tag: str) -> bool:
+    # Hugo makes a tag's text the page's path, so a `..` segment writes outside `/tags/`
+    # and a bare `..` writes over the home page. Browsers read a backslash as a slash and
+    # `%2e` as a dot, so those would send a tag's link elsewhere.
+    if "\\" in tag or "%" in tag:
+        return False
+    return all(segment.strip(" \t\r\n.") for segment in tag.split("/"))
+
+
+def _tag_list(value: object) -> tuple[str, ...] | None:
     if isinstance(value, str):
         return (value,)
     if isinstance(value, list):
         tags = tuple(item for item in value if isinstance(item, str))
         if len(tags) == len(value):
             return tags
-    failures.append(f"tags must be a string or a list of strings, not {value!r}")
     return None
+
+
+def _tags(value: object, failures: list[str]) -> tuple[str, ...] | None:
+    if value is None:
+        return ()
+    tags = _tag_list(value)
+    if tags is None:
+        failures.append(f"tags must be a string or a list of strings, not {value!r}")
+        return None
+    unsafe = [tag for tag in tags if not _is_safe_tag(tag)]
+    failures.extend(
+        f"tag {tag!r} must not hold an empty or dot-only path segment, "
+        "a backslash or a percent sign"
+        for tag in unsafe
+    )
+    return None if unsafe else tags
 
 
 def _is_web_url(value: str) -> bool:

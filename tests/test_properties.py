@@ -211,6 +211,8 @@ def test_a_link_entry_with_a_bad_url_fails(url: object) -> None:
         pytest.param("one", ("one",), id="one-string"),
         pytest.param(["one", "two"], ("one", "two"), id="list"),
         pytest.param([], (), id="empty-list"),
+        pytest.param("project/alpha", ("project/alpha",), id="nested"),
+        pytest.param(["node.js", "c++", "a..b"], ("node.js", "c++", "a..b"), id="dots"),
     ],
 )
 def test_good_tags_pass(tags: object, expected: tuple[str, ...]) -> None:
@@ -222,6 +224,45 @@ def test_bad_tags_fail(tags: object) -> None:
     assert _failures(tags=tags) == (
         f"tags must be a string or a list of strings, not {tags!r}",
     )
+
+
+@pytest.mark.parametrize(
+    "tag",
+    [
+        "..",
+        ".",
+        "...",
+        "",
+        " ",
+        "../../evil",
+        "a/../../evil",
+        "a/..",
+        "../",
+        "./a",
+        "/evil",
+        "a/",
+        "a//b",
+        " .. /evil",
+        "..\t/evil",
+        "..\\..\\evil",
+        "%2e%2e/evil",
+        "..%2fevil",
+    ],
+)
+def test_a_tag_that_could_leave_the_tags_section_fails(tag: str) -> None:
+    reason = (
+        f"tag {tag!r} must not hold an empty or dot-only path segment, "
+        "a backslash or a percent sign"
+    )
+
+    assert _failures(tags=tag) == (reason,)
+    assert _failures(tags=["fine", tag]) == (reason,)
+
+
+def test_every_unsafe_tag_is_reported() -> None:
+    failures = _failures(tags=["..", "fine", "a/../b"])
+
+    assert [reason.split("'")[1] for reason in failures] == ["..", "a/../b"]
 
 
 def _front_matter(**changes: object) -> dict[str, object]:

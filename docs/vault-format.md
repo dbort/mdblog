@@ -13,7 +13,7 @@ The build reads these properties and ignores every other one. An empty property 
 | `date` | yes | The publish date. | A YAML date or datetime, not a quoted string. A date after the local date or a datetime after the current time fails. A datetime with no offset means the local time of the machine running the build, and is published with that offset. |
 | `slug` | yes | Sets the page's URL, `/posts/<slug>/`. | Lowercase ASCII letters and digits joined by single hyphens, such as `first-note`. Two notes with one slug fail, and the message names both. |
 | `type` | yes | The entry type, which layouts read as `.Params.entry_type`. | Exactly `post`, `til` or `link`. |
-| `tags` | no | Site tags. `project/alpha` builds a tag page at `/tags/project/alpha/`. | One string or a list of strings. |
+| `tags` | no | Site tags. `project/alpha` builds a tag page at `/tags/project/alpha/`. | One string or a list of strings. A tag fails if it holds an empty or dot-only path segment, a backslash or a percent sign, because Hugo makes a tag's text the page's path and `../` would write outside `/tags/`. |
 | `url` | on `type: link` | The linked page, which layouts read as `.Params.link_url`. | An `http` or `https` URL. On `post` and `til` notes `url` has no effect, whatever its value. |
 
 A note's vault folder, file name and type have no effect on its URL, so moving or retyping a note never moves its page.
