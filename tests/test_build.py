@@ -1,3 +1,4 @@
+import datetime as dt
 import json
 import os
 import stat
@@ -18,6 +19,7 @@ from mdblog.build import (
     swap_in,
 )
 from mdblog.config import ConfigError, SiteConfig
+from notes import published_text
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_VAULT = REPO_ROOT / "tests" / "fixtures" / "vault"
@@ -26,7 +28,7 @@ CONFIG = (
     'title = "The Site Title"\n'
     'author = "The Site Author"\n'
 )
-PUBLISHED = "---\npublish: true\n---\nPUBLISHED-TEXT\n"
+PUBLISHED = published_text("published", body="PUBLISHED-TEXT\n")
 UNPUBLISHED = "---\npublish: false\n---\nUNPUBLISHED-TEXT\n"
 # Stands in for Hugo: it copies the content directory to the destination and records
 # what the build passed it.
@@ -87,8 +89,9 @@ def test_build_writes_published_notes_and_the_marker(tmp_path: Path) -> None:
 
     build_site(vault, output, FAKE_HUGO)
 
-    assert (output / "notes" / "published.md").read_text(encoding="utf-8") == PUBLISHED
-    assert not (output / "unpublished.md").exists()
+    page = (output / "posts" / "published" / "index.md").read_bytes()
+    assert page.endswith(b"}\nPUBLISHED-TEXT\n")
+    assert not [name for name in _snapshot(output) if "unpublished" in name]
     assert (output / MARKER).is_file()
     _assert_no_leftovers(output)
 
@@ -199,13 +202,13 @@ def test_build_does_not_follow_symlinked_layouts(tmp_path: Path) -> None:
 def test_build_does_not_publish_a_symlinked_note(tmp_path: Path) -> None:
     vault = _make_vault(tmp_path)
     outside = tmp_path / "outside.md"
-    outside.write_text(PUBLISHED, encoding="utf-8")
+    outside.write_text(published_text("linked"), encoding="utf-8")
     (vault / "linked.md").symlink_to(outside)
     output = tmp_path / "output"
 
     build_site(vault, output, FAKE_HUGO)
 
-    assert not (output / "linked.md").exists()
+    assert not (output / "posts" / "linked").exists()
 
 
 def test_build_rejects_a_missing_vault(tmp_path: Path) -> None:
@@ -226,6 +229,120 @@ def test_build_names_every_bad_note_and_leaves_the_output(tmp_path: Path) -> Non
     assert "typo.md: publish must be" in str(exc.value)
     assert "broken.md: front matter is invalid YAML" in str(exc.value)
     assert _snapshot(output) == before
+
+
+def test_build_reports_property_failures_and_leaves_the_output(tmp_path: Path) -> None:
+    vault = _make_vault(tmp_path)
+    (vault / "no-date.md").write_text(
+        "---\npublish: true\nslug: no-date\ntype: post\n---\n", encoding="utf-8"
+    )
+    (vault / "twin-one.md").write_text(published_text("twin"), encoding="utf-8")
+    (vault / "twin-two.md").write_text(published_text("twin"), encoding="utf-8")
+    output = _make_previous_output(tmp_path)
+    before = _snapshot(output)
+
+    with pytest.raises(BuildError) as exc:
+        build_site(vault, output, FAKE_HUGO)
+
+    assert "no-date.md: date is required" in str(exc.value)
+    assert "twin-one.md: slug 'twin'" in str(exc.value)
+    assert "twin-two.md: slug 'twin'" in str(exc.value)
+    assert _snapshot(output) == before
+
+
+def _site_files(output: Path) -> dict[str, bytes | None]:
+    # seen.json records the temporary paths of one run.
+    return {k: v for k, v in _snapshot(output).items() if k != "seen.json"}
+
+
+def test_a_notes_folder_and_file_name_do_not_change_the_site(tmp_path: Path) -> None:
+    text = published_text("a-note", extra="title: A title\n", body="Body\n")
+    vault = _make_vault(tmp_path)
+    note = vault / "notes" / "before.md"
+    note.write_text(text, encoding="utf-8")
+    first = tmp_path / "first"
+    build_site(vault, first, FAKE_HUGO)
+
+    (vault / "elsewhere" / "deep").mkdir(parents=True)
+    note.rename(vault / "elsewhere" / "deep" / "after.md")
+    second = tmp_path / "second"
+    build_site(vault, second, FAKE_HUGO)
+
+    assert (first / "posts" / "a-note" / "index.md").is_file()
+    assert _site_files(first) == _site_files(second)
+
+
+def test_properties_hugo_would_read_do_not_change_the_site(tmp_path: Path) -> None:
+    plain = _make_vault(tmp_path / "plain")
+    (plain / "note.md").write_text(
+        published_text("a-note", extra="title: A title\n", body="Body\n"),
+        encoding="utf-8",
+    )
+    colliding = _make_vault(tmp_path / "colliding")
+    (colliding / "note.md").write_text(
+        published_text(
+            "a-note",
+            extra=(
+                "title: A title\n"
+                "aliases: [/old/]\n"
+                "url: https://clipped.test/source\n"
+                "weight: -5\n"
+                "published: 2099-01-01\n"
+                "expiryDate: 2000-01-01\n"
+                "headless: true\n"
+                "build: {render: never, list: never}\n"
+                "layout: other\n"
+                "draft: true\n"
+                "cascade: {params: {entry_type: other}}\n"
+                "outputs: [json]\n"
+            ),
+            body="Body\n",
+        ),
+        encoding="utf-8",
+    )
+
+    build_site(plain, tmp_path / "plain-site", FAKE_HUGO)
+    build_site(colliding, tmp_path / "colliding-site", FAKE_HUGO)
+
+    assert (tmp_path / "plain-site" / "posts" / "a-note" / "index.md").is_file()
+    assert _site_files(tmp_path / "plain-site") == _site_files(
+        tmp_path / "colliding-site"
+    )
+
+
+def test_a_notes_body_reaches_hugo_byte_for_byte(tmp_path: Path) -> None:
+    body = b"\n\n---\n  {{ text }}\r\n\xc3\xa9\r\n\n"
+    vault = _make_vault(tmp_path)
+    (vault / "note.md").write_bytes(published_text("a-note").encode() + body)
+    output = tmp_path / "output"
+
+    build_site(vault, output, FAKE_HUGO)
+
+    assert (
+        (output / "posts" / "a-note" / "index.md").read_bytes().endswith(b"}\n" + body)
+    )
+
+
+def test_build_judges_dates_by_the_local_clock(
+    tmp_path: Path, local_zone: Callable[[str], None]
+) -> None:
+    # These zones are 26 hours apart, so they are never on the same date.
+    ahead = dt.timezone(dt.timedelta(hours=14))
+    today_ahead = dt.datetime.now(ahead).date().isoformat()
+    vault = _make_vault(tmp_path)
+    (vault / "dated.md").write_text(
+        published_text("dated", date=today_ahead), encoding="utf-8"
+    )
+    output = tmp_path / "output"
+
+    # POSIX counts offsets west of UTC as positive, so XXX-14 is UTC+14.
+    local_zone("XXX-14")
+    build_site(vault, output, FAKE_HUGO)
+    assert (output / "posts" / "dated" / "index.md").is_file()
+
+    local_zone("XXX12")
+    with pytest.raises(BuildError, match="is in the future"):
+        build_site(vault, output, FAKE_HUGO)
 
 
 def test_build_leaves_the_output_on_a_bad_config(tmp_path: Path) -> None:
@@ -405,8 +522,10 @@ def test_fixture_vault_builds_end_to_end(tmp_path: Path) -> None:
     files = {name: data for name, data in _snapshot(output).items() if data is not None}
     assert (
         b"The fixture note reached the generated page."
-        in files["projects/first-note/index.html"]
+        in files["posts/first-note/index.html"]
     )
+    assert b"The fixture link note." in files["posts/a-link/index.html"]
+    assert "tags/project/alpha/index.html" in files
     for needle in (
         b"UNPUBLISHED-MARKED-FALSE",
         b"UNPUBLISHED-NO-PROPERTY",
@@ -424,10 +543,10 @@ def test_a_note_that_stops_publishing_leaves_no_file(
 ) -> None:
     vault = _make_vault(tmp_path)
     note = vault / "notes" / "published.md"
-    (vault / "kept.md").write_text("---\npublish: true\n---\nKEPT\n", encoding="utf-8")
+    (vault / "kept.md").write_text(published_text("kept"), encoding="utf-8")
     output = tmp_path / "output"
     build_site(vault, output, FAKE_HUGO)
-    assert (output / "notes" / "published.md").is_file()
+    assert (output / "posts" / "published" / "index.md").is_file()
 
     if change == "unpublish":
         note.write_text("No front matter. PUBLISHED-TEXT\n", encoding="utf-8")
@@ -436,7 +555,7 @@ def test_a_note_that_stops_publishing_leaves_no_file(
     build_site(vault, output, FAKE_HUGO)
 
     after = _snapshot(output)
-    assert (output / "kept.md").is_file()
+    assert (output / "posts" / "kept" / "index.md").is_file()
     assert not [name for name in after if "published" in name]
     assert not [name for name, d in after.items() if b"PUBLISHED-TEXT" in (d or b"")]
 
@@ -447,11 +566,11 @@ def test_generated_site_uses_the_configuration(tmp_path: Path) -> None:
     build_site(_make_vault(tmp_path), output, ("hugo",))
 
     feed = (output / "index.xml").read_text(encoding="utf-8")
-    assert "<link>https://example.test/blog/notes/published/</link>" in feed
+    assert "<link>https://example.test/blog/posts/published/</link>" in feed
     home = (output / "index.html").read_text(encoding="utf-8")
     assert "<title>The Site Title</title>" in home
     assert 'content="The Site Author"' in home
-    page = (output / "notes" / "published" / "index.html").read_text(encoding="utf-8")
+    page = (output / "posts" / "published" / "index.html").read_text(encoding="utf-8")
     assert 'content="The Site Author"' in page
 
 
@@ -459,13 +578,22 @@ def test_vault_layout_replaces_only_the_page_default(tmp_path: Path) -> None:
     vault = _make_vault(tmp_path)
     layouts = vault / "_site" / "layouts"
     layouts.mkdir()
-    (layouts / "page.html").write_text("OVERRIDDEN PAGE", encoding="utf-8")
+    (layouts / "page.html").write_text(
+        "OVERRIDDEN PAGE {{ .Params.entry_type }} {{ .Params.link_url }}",
+        encoding="utf-8",
+    )
+    (vault / "link.md").write_text(
+        published_text(
+            "link", entry_type="link", extra="url: https://example.test/elsewhere\n"
+        ),
+        encoding="utf-8",
+    )
     output = tmp_path / "output"
 
     build_site(vault, output, ("hugo",))
 
-    page = (output / "notes" / "published" / "index.html").read_text(encoding="utf-8")
-    assert page == "OVERRIDDEN PAGE"
+    page = (output / "posts" / "link" / "index.html").read_text(encoding="utf-8")
+    assert page == "OVERRIDDEN PAGE link https://example.test/elsewhere"
     home = (output / "index.html").read_text(encoding="utf-8")
     assert "OVERRIDDEN PAGE" not in home
     assert "<title>The Site Title</title>" in home
@@ -481,3 +609,49 @@ def test_build_writes_nothing_under_the_vault(tmp_path: Path) -> None:
     build_site(vault, tmp_path / "output", FAKE_HUGO)
 
     assert _snapshot(vault) == before
+
+
+def test_a_note_dated_today_builds_while_that_date_is_ahead_of_utc(
+    tmp_path: Path,
+) -> None:
+    # A clock a day ahead of the real one stands for a zone already on the next date:
+    # validation accepts the date, while Hugo's clock still has it in the future.
+    tomorrow = dt.datetime.now(dt.UTC) + dt.timedelta(days=1)
+    vault = _make_vault(tmp_path)
+    (vault / "today.md").write_text(
+        published_text("today", date=tomorrow.date().isoformat(), body="TODAY-TEXT\n"),
+        encoding="utf-8",
+    )
+    output = tmp_path / "output"
+
+    build_site(vault, output, ("hugo",), now=tomorrow)
+
+    page = (output / "posts" / "today" / "index.html").read_text(encoding="utf-8")
+    assert "TODAY-TEXT" in page
+
+
+def test_accepted_tags_write_only_under_the_tags_section(tmp_path: Path) -> None:
+    # Hugo decides a tag's path, so a rule change there would silently move these pages.
+    tags = ["c++", "node.js", ".net", "a..b", "日本語/カナ", "a_b-c", "project/alpha"]
+    plain = _make_vault(tmp_path / "plain")
+    tagged = _make_vault(tmp_path / "tagged")
+    (tagged / "notes" / "published.md").write_text(
+        published_text(
+            "published", extra=f"tags: {json.dumps(tags)}\n", body="PUBLISHED-TEXT\n"
+        ),
+        encoding="utf-8",
+    )
+
+    build_site(plain, tmp_path / "plain-site", ("hugo",))
+    build_site(tagged, tmp_path / "tagged-site", ("hugo",))
+
+    def outside_tags(site: Path) -> set[str]:
+        ignored = ("tags/", "sitemap.xml")
+        return {name for name in _snapshot(site) if not name.startswith(ignored)}
+
+    assert outside_tags(tmp_path / "tagged-site") == outside_tags(
+        tmp_path / "plain-site"
+    )
+    for tag in tags:
+        page = tmp_path / "tagged-site" / "tags" / tag / "index.html"
+        assert page.is_file(), tag

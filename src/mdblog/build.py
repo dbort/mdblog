@@ -6,9 +6,11 @@ import shutil
 import subprocess
 import tempfile
 from collections.abc import Sequence
+from datetime import datetime
 from pathlib import Path
 
 from mdblog.config import SITE_DIR, SiteConfig, load_config
+from mdblog.properties import front_matter
 from mdblog.publish import PublishedNote, select_notes
 
 MARKER = ".mdblog-output"
@@ -88,9 +90,10 @@ def _assemble_source(
     content = source / "content"
     content.mkdir()
     for note in notes:
-        destination = content / note.path
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(note.content)
+        # The folder sets the URL. Writing Hugo's `url` or `slug` would add a second source.
+        bundle = content / "posts" / note.page.slug
+        bundle.mkdir(parents=True)
+        (bundle / "index.md").write_bytes(front_matter(note.page) + note.body)
     shutil.copytree(PACKAGED_THEME, source / "themes" / THEME)
     # Hugo prefers a project layout to the theme's with the same name, and the theme
     # supplies the rest.
@@ -111,6 +114,9 @@ def _run_hugo(hugo: Sequence[str], source: Path, destination: Path) -> None:
         # The default cache lives under the user's home or system temp directory.
         "--cacheDir",
         str(source / ".cache"),
+        # Hugo compares a date-only value as UTC midnight, which would hide a note dated
+        # today at some local times. Validation has already rejected future dates.
+        "--buildFuture",
     ]
     try:
         status = subprocess.run(argv, cwd=source, env=env, check=False).returncode
@@ -139,12 +145,19 @@ def swap_in(site: Path, output: Path, previous: Path) -> None:
         raise
 
 
-def build_site(vault: Path, output: Path, hugo: Sequence[str] = ("hugo",)) -> None:
+def build_site(
+    vault: Path,
+    output: Path,
+    hugo: Sequence[str] = ("hugo",),
+    now: datetime | None = None,
+) -> None:
     """Replaces `output` with the site built from `vault`, running Hugo as `hugo`.
 
     On success `output` holds Hugo's output plus the marker file. Raises `BuildError`
     or `ConfigError` on any refusal or failure, with `output` unchanged. A `BuildError`
-    for bad notes lists every one with its reason. Writes nothing under `vault`.
+    for bad notes lists every one with its reason. Writes nothing under `vault`. `now`
+    is the timezone-aware time that decides which dates are in the future, by default
+    the current local time.
     """
     vault = vault.resolve()
     output = output.resolve()
@@ -153,7 +166,7 @@ def build_site(vault: Path, output: Path, hugo: Sequence[str] = ("hugo",)) -> No
     try:
         check_output(vault, output)
         config = load_config(vault)
-        selection = select_notes(vault)
+        selection = select_notes(vault, now or datetime.now().astimezone())
         if selection.failures:
             details = "".join(
                 f"\n  {failure.path}: {failure.reason}"
