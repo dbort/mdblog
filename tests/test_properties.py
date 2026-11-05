@@ -212,7 +212,17 @@ def test_a_link_entry_with_a_bad_url_fails(url: object) -> None:
         pytest.param(["one", "two"], ("one", "two"), id="list"),
         pytest.param([], (), id="empty-list"),
         pytest.param("project/alpha", ("project/alpha",), id="nested"),
-        pytest.param(["node.js", "c++", "a..b"], ("node.js", "c++", "a..b"), id="dots"),
+        pytest.param(
+            ["node.js", ".net", "c++", "a..b"],
+            ("node.js", ".net", "c++", "a..b"),
+            id="ascii-punctuation",
+        ),
+        pytest.param(["a_b-c", "2026"], ("a_b-c", "2026"), id="separators-and-digits"),
+        pytest.param(
+            ["日本語/カナ", "हिन्दी", "café"],
+            ("日本語/カナ", "हिन्दी", "café"),
+            id="other-scripts-and-marks",
+        ),
     ],
 )
 def test_good_tags_pass(tags: object, expected: tuple[str, ...]) -> None:
@@ -226,43 +236,85 @@ def test_bad_tags_fail(tags: object) -> None:
     )
 
 
+UNSAFE_TAG = (
+    "must be /-separated parts using only letters, digits, -, _, + and ., each "
+    "holding a letter or digit, and any part with . an ASCII one"
+)
+
+
 @pytest.mark.parametrize(
     "tag",
     [
-        "..",
-        ".",
-        "...",
-        "",
-        " ",
-        "../../evil",
-        "a/../../evil",
-        "a/..",
-        "../",
-        "./a",
-        "/evil",
-        "a/",
-        "a//b",
-        " .. /evil",
-        "..\t/evil",
-        "..\\..\\evil",
-        "%2e%2e/evil",
-        "..%2fevil",
+        pytest.param("..", id="parent"),
+        pytest.param(".", id="current"),
+        pytest.param("...", id="dots"),
+        pytest.param("", id="empty"),
+        pytest.param(" ", id="space"),
+        pytest.param("my tag", id="inner-space"),
+        pytest.param("../../evil", id="traversal"),
+        pytest.param("a/../../evil", id="inner-traversal"),
+        pytest.param("a/..", id="trailing-parent"),
+        pytest.param("../", id="parent-slash"),
+        pytest.param("./a", id="current-slash"),
+        pytest.param("/evil", id="leading-slash"),
+        pytest.param("a/", id="trailing-slash"),
+        pytest.param("a//b", id="double-slash"),
+        pytest.param(" .. /evil", id="spaced-parent"),
+        pytest.param("..\t/evil", id="tabbed-parent"),
+        pytest.param("..\\..\\evil", id="backslash"),
+        pytest.param("%2e%2e/evil", id="percent-encoded"),
+        pytest.param("..%2fevil", id="percent-encoded-slash"),
+        # Hugo removes each of these characters, which leaves `..` behind.
+        pytest.param("!..", id="removed-before"),
+        pytest.param("..!", id="removed-after"),
+        pytest.param("!../posts/a-note", id="removed-onto-another-page"),
+        pytest.param("!../evil", id="exclamation"),
+        pytest.param(".!./evil", id="exclamation-between"),
+        pytest.param(".?./evil", id="question"),
+        pytest.param(".,./evil", id="comma"),
+        pytest.param(".:./evil", id="colon"),
+        pytest.param(".'./evil", id="apostrophe"),
+        pytest.param("(..)/evil", id="parentheses"),
+        pytest.param("<..>/evil", id="angle-brackets"),
+        pytest.param('".."/evil', id="quotes"),
+        pytest.param("..*/evil", id="asterisk"),
+        pytest.param("..;/evil", id="semicolon"),
+        pytest.param(".\u200b./evil", id="zero-width-between"),
+        pytest.param("\u200b../evil", id="zero-width-before"),
+        pytest.param("..\u200b/evil", id="zero-width-after"),
+        pytest.param("\u202e../evil", id="bidi-control"),
+        pytest.param("..\x00/evil", id="null-character"),
+        pytest.param("\uff0f../evil", id="fullwidth-slash"),
+        pytest.param("a/!../!../evil", id="repeated"),
+        pytest.param("..²/evil", id="superscript"),
+        pytest.param("\uff0e\uff0e/evil", id="fullwidth-dots"),
+        pytest.param("\u2024\u2024/evil", id="one-dot-leaders"),
+        pytest.param("\xa0../evil", id="no-break-space"),
+        # A letter Hugo's older Unicode tables might not know, so it could vanish too.
+        pytest.param("..\U00010d50/evil", id="letter-newer-than-hugo"),
+        pytest.param("..\u0301/evil", id="combining-mark"),
+        pytest.param("日本語../evil", id="dots-without-an-ascii-word-character"),
+        # These reduce to nothing in Hugo, which builds no page and reports no error.
+        pytest.param("!", id="only-removed"),
+        pytest.param("?", id="only-question"),
+        pytest.param("\u200b", id="only-zero-width"),
+        pytest.param("a/!/b", id="removed-segment"),
+        pytest.param("\u0301", id="only-a-mark"),
+        pytest.param("-", id="only-a-hyphen"),
     ],
 )
 def test_a_tag_that_could_leave_the_tags_section_fails(tag: str) -> None:
-    reason = (
-        f"tag {tag!r} must not hold an empty or dot-only path segment, "
-        "a backslash or a percent sign"
-    )
+    reason = f"tag {tag!r} {UNSAFE_TAG}"
 
     assert _failures(tags=tag) == (reason,)
     assert _failures(tags=["fine", tag]) == (reason,)
 
 
 def test_every_unsafe_tag_is_reported() -> None:
-    failures = _failures(tags=["..", "fine", "a/../b"])
-
-    assert [reason.split("'")[1] for reason in failures] == ["..", "a/../b"]
+    assert _failures(tags=["..", "fine", "a/../b"]) == (
+        f"tag '..' {UNSAFE_TAG}",
+        f"tag 'a/../b' {UNSAFE_TAG}",
+    )
 
 
 def _front_matter(**changes: object) -> dict[str, object]:

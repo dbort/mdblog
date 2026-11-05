@@ -2,6 +2,7 @@
 
 import json
 import re
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -11,6 +12,7 @@ SLUG_PATTERN = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 ENTRY_TYPES = ("post", "til", "link")
 LINK_ENTRY = "link"
 URL_SCHEMES = ("http", "https")
+TAG_PUNCTUATION = "-_+."
 
 
 @dataclass(frozen=True)
@@ -94,13 +96,26 @@ def _entry_type(value: object, failures: list[str]) -> str | None:
     return None
 
 
-def _is_safe_tag(tag: str) -> bool:
-    # Hugo makes a tag's text the page's path, so a `..` segment writes outside `/tags/`
-    # and a bare `..` writes over the home page. Browsers read a backslash as a slash and
-    # `%2e` as a dot, so those would send a tag's link elsewhere.
-    if "\\" in tag or "%" in tag:
+def _is_word_character(character: str) -> bool:
+    category = unicodedata.category(character)
+    return category == "Nd" or category.startswith("L")
+
+
+def _is_safe_tag_segment(segment: str) -> bool:
+    # Hugo makes a tag's text the page's path after removing the characters it dislikes,
+    # so `!..` becomes `..`, which writes outside `/tags/` or over the home page. An
+    # allowlist holds only characters Hugo keeps. Its Unicode tables can be older than
+    # Python's and drop a letter they do not know, so a dot needs an ASCII neighbor.
+    if not all(
+        character in TAG_PUNCTUATION
+        or _is_word_character(character)
+        or unicodedata.category(character).startswith("M")
+        for character in segment
+    ):
         return False
-    return all(segment.strip(" \t\r\n.") for segment in tag.split("/"))
+    if "." in segment:
+        return any(c.isascii() and c.isalnum() for c in segment)
+    return any(_is_word_character(character) for character in segment)
 
 
 def _tag_list(value: object) -> tuple[str, ...] | None:
@@ -120,10 +135,14 @@ def _tags(value: object, failures: list[str]) -> tuple[str, ...] | None:
     if tags is None:
         failures.append(f"tags must be a string or a list of strings, not {value!r}")
         return None
-    unsafe = [tag for tag in tags if not _is_safe_tag(tag)]
+    unsafe = [
+        tag
+        for tag in tags
+        if not all(_is_safe_tag_segment(segment) for segment in tag.split("/"))
+    ]
     failures.extend(
-        f"tag {tag!r} must not hold an empty or dot-only path segment, "
-        "a backslash or a percent sign"
+        f"tag {tag!r} must be /-separated parts using only letters, digits, -, _, + "
+        "and ., each holding a letter or digit, and any part with . an ASCII one"
         for tag in unsafe
     )
     return None if unsafe else tags

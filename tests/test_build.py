@@ -628,3 +628,30 @@ def test_a_note_dated_today_builds_while_that_date_is_ahead_of_utc(
 
     page = (output / "posts" / "today" / "index.html").read_text(encoding="utf-8")
     assert "TODAY-TEXT" in page
+
+
+def test_accepted_tags_write_only_under_the_tags_section(tmp_path: Path) -> None:
+    # Hugo decides a tag's path, so a rule change there would silently move these pages.
+    tags = ["c++", "node.js", ".net", "a..b", "日本語/カナ", "a_b-c", "project/alpha"]
+    plain = _make_vault(tmp_path / "plain")
+    tagged = _make_vault(tmp_path / "tagged")
+    (tagged / "notes" / "published.md").write_text(
+        published_text(
+            "published", extra=f"tags: {json.dumps(tags)}\n", body="PUBLISHED-TEXT\n"
+        ),
+        encoding="utf-8",
+    )
+
+    build_site(plain, tmp_path / "plain-site", ("hugo",))
+    build_site(tagged, tmp_path / "tagged-site", ("hugo",))
+
+    def outside_tags(site: Path) -> set[str]:
+        ignored = ("tags/", "sitemap.xml")
+        return {name for name in _snapshot(site) if not name.startswith(ignored)}
+
+    assert outside_tags(tmp_path / "tagged-site") == outside_tags(
+        tmp_path / "plain-site"
+    )
+    for tag in tags:
+        page = tmp_path / "tagged-site" / "tags" / tag / "index.html"
+        assert page.is_file(), tag
