@@ -41,7 +41,7 @@ Turn Obsidian's Markdown into what Hugo expects.
 Build the reader-facing site from the default Hugo layouts in the `mdblog` package, using fixtures until real content arrives.
 
 - Three entry types: posts, TILs and links, all at `/posts/<slug>/`. The converter records the type as `.Params.entry_type` and a link's target as `.Params.link_url`, so list pages filter on those. A link entry points to the external page and carries a short commentary and its own permalink.
-- A home page with the bio from the vault's `_site/bio.md` and the latest 15 entries of every type, plus a full archive by year and tag pages.
+- A home page with the bio from the vault's `_site/bio.md`, when it has one, and the latest 15 entries of every type, plus a full archive by year and tag pages.
 - A full-text RSS feed of the latest 50 entries of all types, advertised from each page's `<head>`, and one feed per tag. Hugo generates these as `index.xml`, newest first, and M6 and M7 can read them too. A link entry's feed item links to its permalink on the site, and its body starts with the external link.
 - A visual design of its own in plain CSS, with no Node: system fonts, light and dark palettes that follow the reader's system, and syntax highlighting in both. It works at phone width, and there is a 404 page.
 - h-entry microformats in entry templates and lists, so M6 and M7 need no template retrofit.
@@ -58,6 +58,7 @@ Serve the built site from a Cloudflare Worker as static assets, with no custom W
 - `tools/check` installs from the npm lockfile itself, so callers need no setup step, and fails on a stale lockfile, which `pixi run --locked` does not detect. Under `--offline`, the install and any check that depends on it skip.
 - A deploy command that runs a fresh production build of the current working directories, then uploads it without `mdblog build`'s output marker, so the site reflects their current state and local preview output cannot reach Cloudflare.
 - A separate command that takes a deployed URL and fails if it does not serve the home page and feed, runnable at any time and independent of a deploy.
+- A site whose `base_url` holds a path, such as `https://example.org/blog/`, served under that path. Hugo writes files at the output's root, so the upload places them under the path, including `404.html`.
 - A preview deployment separate from production, built with its own site URL because Hugo writes the URL into links and feeds, and kept out of search indexes.
 - Worker configuration checked in `tools/check`: a `wrangler deploy --dry-run` if it works without network access or credentials, otherwise a test of the fields the deploy relies on.
 
