@@ -24,7 +24,7 @@ A future date fails the build because nothing rebuilds the site when that date a
 
 ## Generated front matter
 
-Each page's Hugo front matter is written from scratch, holding only `title`, `date`, `tags` when there are any, and `params`. `params` holds `entry_type` and, on a link entry, `link_url`. The note's body after its front matter reaches Hugo byte for byte.
+Each page's Hugo front matter is written from scratch, holding only `title`, `date`, `tags` when there are any, and `params`. `params` holds `entry_type` and, on a link entry, `link_url`. The note's body after its front matter reaches Hugo byte for byte, apart from the conversions under [Obsidian syntax](#obsidian-syntax).
 
 ## Hugo collisions
 
@@ -45,3 +45,56 @@ A vault property that shares a name with a Hugo front matter key would change th
 | `outputs` | Changes which formats the page renders to. |
 
 A Hugo feature wanted later, such as a redirect after a rename, gets its own property and is never passed through by name.
+
+## Obsidian syntax
+
+The build converts the Obsidian syntax below in each published note. Any other syntax reaches Hugo as written. None of it applies inside fenced code, indented code or inline code, which stay byte for byte, and none of it applies to unpublished notes.
+
+| Syntax | Result |
+|---|---|
+| `[[note]]`, `[[note\|alias]]` | A link to the note's page. The link text is the alias, or otherwise the target as written. Inside a table, write the alias as `[[note\\|alias]]`. |
+| `[[note#heading]]`, `[[#heading]]` | A link to that heading of the note, or of the current note. `[[note#a#b]]` targets heading `b`. |
+| `[[note#^id]]`, `[[#^id]]` | A link to the top of the note, because Hugo gives a block nothing to link to. The block ID must exist. |
+| `![[note]]` | The same link as `[[note]]`. Notes are never transcluded. |
+| `![[image.png]]` | The image. `![[image.png\|300]]` sets its width, `![[image.png\|300x200]]` its width and height, and any other alias its alt text, which is otherwise the file name. |
+| `[[image.png]]` | A link to the image file. |
+| `%%comment%%` | Removed, inline or across lines, along with any links inside it. A `%%` with no closing `%%` removes the rest of the note, because leaking a private aside is worse than losing text. A comment hides text only on the site, since the vault itself is not secret. |
+| `^block-id` | Removed when it ends a line or stands alone on one. |
+| `> [!type] Title` | A callout with the type as its class and the title, or the capitalized type, as its heading. `[!type]-` renders a closed `<details>` and `[!type]+` an open one. A plain quote stays a `<blockquote>`. |
+| `==text==` | `<mark>text</mark>`. |
+| `#tag` in the body | Literal text. Only the `tags` property creates site tags. |
+
+Every URL the build writes is root-relative and starts with the path of `base_url`, so with `base_url = "https://example.test/blog/"` a link reads `/blog/posts/<slug>/`. An image is copied next to the page of each note that uses it and served at `/blog/posts/<slug>/<file name>`. An image no published note uses is never copied.
+
+A site can replace the default image and callout rendering with its own `_site/layouts/_markup/render-image.html` or `render-blockquote.html`. The default image layout reads an embed's size from `mdblog-width` and `mdblog-height` query parameters on the image's destination.
+
+### Finding a link's target
+
+The part of a target before the first `#` names a file, found in this order:
+
+1. A target starting with `./` or `../` is a path from the note's folder.
+2. Any other target holding `/` is a path from the vault root.
+3. Anything else is a file name, which must be unique across the vault, ignoring folders.
+
+Case never matters. A note matches with or without `.md`, and a note wins over any other file with the same name, so `[[v1.2 notes]]` finds `v1.2 notes.md`. A heading matches ignoring case and treating each run of punctuation and spaces as one space, so `[[note#Café Über]]` matches the heading `Café & Über:`. When two headings match, the link goes to the first. Files in `_site/`, in a folder or with a name starting with `.`, and symbolic links are never found.
+
+### Build failures
+
+A published note fails the build when it holds any of these, and the message names the note and the link as written:
+
+- a link or embed that matches no file, matches more than one, resolves outside the vault, or targets a path under `_site/` or a hidden folder
+- a link or embed of a note that is not published, or that fails its own validation
+- a heading or block ID the target note does not have, outside its comments
+- a link or embed of a file other than a note or an `avif`, `bmp`, `gif`, `jpeg`, `jpg`, `png`, `svg` or `webp` image (in any case), such as `paper.pdf` or `clip.mp4`
+- two different images with the same file name, because they would share one URL on the page
+- a standard Markdown link or image, inline or reference-style, whose destination has no URL scheme and does not start with `#`, such as `[text](note.md)`; keep Obsidian's "Use [[Wikilinks]]" setting on
+
+One build reports every failure in every note, together with the property failures above, and leaves the output directory unchanged. A note goes live only when everything it links to is published.
+
+Raw HTML in a note renders as nothing, so an `<img>` or `<a>` written in a note cannot bypass these rules.
+
+### Known limits
+
+- Math, note transclusion and audio, video and PDF players are unsupported.
+- A callout type holding a hyphen, such as `[!custom-thing]`, renders as a plain quote with its marker as literal text.
+- Heading links follow Hugo's heading IDs, which are rebuilt here. A heading whose ID Hugo builds from a numeric character reference, such as `&#42;`, can get a different ID than the build expects, and its link then fails silently.

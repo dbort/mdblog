@@ -1,0 +1,16 @@
+{{- /* mdblog carries an embed's size as query parameters on its destination. */ -}}
+{{- $src := .Destination -}}
+{{- $width := "" -}}
+{{- $height := "" -}}
+{{- with findRESubmatch `\?mdblog-width=(\d+)(?:&mdblog-height=(\d+))?$` $src 1 -}}
+  {{- $match := index . 0 -}}
+  {{- $width = index $match 1 -}}
+  {{- $height = index $match 2 -}}
+  {{- $src = strings.TrimSuffix (index $match 0) $src -}}
+{{- end -}}
+{{- /* .PlainText keeps backslash escapes, and .Text removes them. */ -}}
+<img src="{{ $src }}" alt="{{ .Text }}"
+  {{- with .Title }} title="{{ . }}"{{ end }}
+  {{- with $width }} width="{{ . }}"{{ end }}
+  {{- with $height }} height="{{ . }}"{{ end }}>
+{{- /* Trims the newline that ends this file, which would add a space after an inline image. */ -}}

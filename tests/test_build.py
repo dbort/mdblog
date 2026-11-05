@@ -1,11 +1,13 @@
 import datetime as dt
 import json
 import os
+import re
 import stat
 import sys
 import tomllib
 from collections.abc import Callable
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 import pytest
 
@@ -182,7 +184,13 @@ def test_build_supplies_the_packaged_theme_and_vault_layouts(tmp_path: Path) -> 
     build_site(vault, output, FAKE_HUGO)
 
     seen = _seen(output)
-    assert seen["theme"] == ["home.html", "list.html", "page.html", "section.html"]
+    assert seen["theme"] == [
+        "_markup",
+        "home.html",
+        "list.html",
+        "page.html",
+        "section.html",
+    ]
     assert seen["layouts"] == ["page.html"]
 
 
@@ -526,7 +534,25 @@ def test_fixture_vault_builds_end_to_end(tmp_path: Path) -> None:
     )
     assert b"The fixture link note." in files["posts/a-link/index.html"]
     assert "tags/project/alpha/index.html" in files
+    syntax = files["posts/syntax/index.html"].decode("utf-8")
+    for fragment in (
+        '<a href="/posts/first-note/">the first note</a>',
+        '<a href="/posts/a-link/#details">a-link#Details</a>',
+        '<a href="/posts/a-link/">projects/a-link#^detail-block</a>',
+        '<a href="/posts/syntax/#linking-out">#Linking Out</a>',
+        '<img src="/posts/syntax/diagram.svg" alt="diagram.svg" width="120" height="80">',
+        '<details class="callout callout-tip">',
+        "<mark>FIXTURE-HIGHLIGHT</mark> text.</p>",
+        "<code>[[first-note]] %% kept %% ^kept\n</code>",
+    ):
+        assert fragment in syntax, fragment
+    assert "^syntax-block" not in syntax
+    assert b"FIXTURE-DIAGRAM" in files["posts/syntax/diagram.svg"]
+    assert "^detail-block" not in files["posts/a-link/index.html"].decode("utf-8")
     for needle in (
+        b"UNPUBLISHED-COMMENT",
+        b"UNPUBLISHED-UNUSED-IMAGE",
+        b"UNPUBLISHED-DRAFT-IMAGE",
         b"UNPUBLISHED-MARKED-FALSE",
         b"UNPUBLISHED-NO-PROPERTY",
         b"UNPUBLISHED-NO-FRONT-MATTER",
@@ -655,3 +681,200 @@ def test_accepted_tags_write_only_under_the_tags_section(tmp_path: Path) -> None
     for tag in tags:
         page = tmp_path / "tagged-site" / "tags" / tag / "index.html"
         assert page.is_file(), tag
+
+
+def _set_base_url(vault: Path, base_url: str) -> None:
+    config = CONFIG.replace("https://example.test/blog/", base_url)
+    (vault / "_site" / "mdblog.toml").write_text(config, encoding="utf-8")
+
+
+def _page_html(output: Path, slug: str) -> str:
+    return (output / "posts" / slug / "index.html").read_text(encoding="utf-8")
+
+
+ANCHOR_TARGET = published_text(
+    "target",
+    body="# Café & Über: 100%!\n## Same\n## Same\n## C++ and `code` stuff\n",
+)
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "https://example.test/blog/",
+        "https://example.test/blog",
+        "https://example.test/",
+    ],
+)
+def test_generated_links_reach_their_targets_in_hugos_output(
+    tmp_path: Path, base_url: str
+) -> None:
+    vault = _make_vault(tmp_path)
+    _set_base_url(vault, base_url)
+    (vault / "target.md").write_text(ANCHOR_TARGET, encoding="utf-8")
+    (vault / "my pic.png").write_bytes(b"PNG")
+    (vault / "source.md").write_text(
+        published_text(
+            "source",
+            body=(
+                "[[target]] [[target#Café & Über: 100%!]] [[target#Same]]\n"
+                "[[target#C++ and code stuff]] ![[my pic.png|40]] [[my pic.png]]\n"
+            ),
+        ),
+        encoding="utf-8",
+    )
+    output = tmp_path / "output"
+
+    build_site(vault, output, ("hugo",))
+
+    target = _page_html(output, "target")
+    for anchor in ("café--über-100", "same", "same-1", "c-and-code-stuff"):
+        assert f'id="{anchor}"' in target
+    prefix = urlsplit(base_url).path.rstrip("/")
+    urls = re.findall(r'(?:href|src)="([^"]*)"', _page_html(output, "source"))
+    reached: list[str] = []
+    for url in urls:
+        assert url.startswith(f"{prefix}/posts/"), url
+        parts = urlsplit(url)
+        path = output / unquote(parts.path).removeprefix(prefix).lstrip("/")
+        file = path / "index.html" if path.is_dir() else path
+        assert file.is_file(), url
+        if parts.fragment:
+            assert f'id="{unquote(parts.fragment)}"' in file.read_text(encoding="utf-8")
+        reached.append(
+            f"{file.relative_to(output).as_posix()}#{unquote(parts.fragment)}"
+        )
+    assert reached == [
+        "posts/target/index.html#",
+        "posts/target/index.html#café--über-100",
+        "posts/target/index.html#same",
+        "posts/target/index.html#c-and-code-stuff",
+        "posts/source/my pic.png#",
+        "posts/source/my pic.png#",
+    ]
+
+
+def test_default_render_hooks_and_extensions(tmp_path: Path) -> None:
+    vault = _make_vault(tmp_path)
+    (vault / "a.png").write_bytes(b"PNG")
+    (vault / "hooks.md").write_text(
+        published_text(
+            "hooks",
+            body=(
+                "> [!note]\n> Note body\n\n"
+                "> [!warning] Careful *now*\n> Warning body\n\n"
+                "> [!faq]- Folded\n> Closed body\n\n"
+                "> [!tip]+\n> Open body\n\n"
+                "> A plain quote\n\n"
+                "Some ==highlighted== text with #inline-tag.\n\n"
+                "![[a.png|300x200]] ![[a.png|40]] ![[a.png|alt words]] ![[a.png]]\n\n"
+                '<img src="draft.png">\n\n'
+                'Inline <img src="inline-draft.png"> HTML.\n'
+            ),
+        ),
+        encoding="utf-8",
+    )
+    output = tmp_path / "output"
+
+    build_site(vault, output, ("hugo",))
+
+    page = _page_html(output, "hooks")
+    assert (
+        '<div class="callout callout-note">\n<p class="callout-title">Note</p>' in page
+    )
+    assert '<p class="callout-title">Careful <em>now</em></p>' in page
+    assert (
+        '<details class="callout callout-faq">\n<summary class="callout-title">Folded'
+        in page
+    )
+    assert (
+        '<details class="callout callout-tip" open>\n<summary class="callout-title">Tip'
+        in page
+    )
+    assert "<blockquote>\n<p>A plain quote</p>\n</blockquote>" in page
+    assert "<mark>highlighted</mark>" in page
+    assert "#inline-tag" in page
+    assert not (output / "tags" / "inline-tag").exists()
+    src = "/blog/posts/hooks/a.png"
+    assert f'<img src="{src}" alt="a.png" width="300" height="200">' in page
+    assert f'<img src="{src}" alt="a.png" width="40"> ' in page
+    assert f'<img src="{src}" alt="alt words"> ' in page
+    assert f'<img src="{src}" alt="a.png"></p>' in page
+    assert "draft.png" not in page
+
+
+def test_a_site_overrides_a_default_markup_layout(tmp_path: Path) -> None:
+    vault = _make_vault(tmp_path)
+    markup = vault / "_site" / "layouts" / "_markup"
+    markup.mkdir(parents=True)
+    (markup / "render-image.html").write_text(
+        "SITE-IMAGE {{ .Destination }}", encoding="utf-8"
+    )
+    (vault / "a.png").write_bytes(b"PNG")
+    (vault / "note.md").write_text(
+        published_text("note", body="![[a.png]]\n\n> [!note]\n> Body\n"),
+        encoding="utf-8",
+    )
+    output = tmp_path / "output"
+
+    build_site(vault, output, ("hugo",))
+
+    page = _page_html(output, "note")
+    assert "SITE-IMAGE /blog/posts/note/a.png" in page
+    assert '<div class="callout callout-note">' in page
+
+
+def test_only_images_that_published_notes_use_are_copied(tmp_path: Path) -> None:
+    vault = _make_vault(tmp_path)
+    for name in ("shared.png", "unused.png", "draft-only.png", "commented.png"):
+        (vault / name).write_bytes(name.encode())
+    (vault / "one.md").write_text(
+        published_text("one", body="![[shared.png]] %%![[commented.png]]%%\n"),
+        encoding="utf-8",
+    )
+    (vault / "two.md").write_text(
+        published_text("two", body="[[shared.png]]\n"), encoding="utf-8"
+    )
+    (vault / "draft.md").write_text(
+        "---\npublish: false\n---\n![[draft-only.png]]\n", encoding="utf-8"
+    )
+    output = tmp_path / "output"
+
+    build_site(vault, output, FAKE_HUGO)
+
+    images = sorted(name for name in _snapshot(output) if name.endswith(".png"))
+    assert images == ["posts/one/shared.png", "posts/two/shared.png"]
+    assert (output / "posts" / "one" / "shared.png").read_bytes() == b"shared.png"
+
+
+def test_links_to_unpublished_material_fail_and_leak_nothing(tmp_path: Path) -> None:
+    vault = _make_vault(tmp_path)
+    (vault / "draft.md").write_text(
+        "---\npublish: false\n---\nDRAFT-TEXT ![[draft.png]]\n", encoding="utf-8"
+    )
+    (vault / "draft.png").write_bytes(b"DRAFT-IMAGE")
+    (vault / ".private").mkdir()
+    (vault / ".private" / "secret.png").write_bytes(b"SECRET-IMAGE")
+    (vault / "linking.md").write_text(
+        published_text(
+            "linking", body="[[draft]] ![[draft]] ![[.private/secret.png]]\n"
+        ),
+        encoding="utf-8",
+    )
+    (vault / "typo.md").write_text("---\npublish: yes\n---\n", encoding="utf-8")
+    output = _make_previous_output(tmp_path)
+    before = _snapshot(output)
+
+    with pytest.raises(BuildError) as exc:
+        build_site(vault, output, FAKE_HUGO)
+
+    message = str(exc.value)
+    assert "linking.md: [[draft]]: draft.md is not published" in message
+    assert "linking.md: ![[draft]]: draft.md is not published" in message
+    assert "linking.md: ![[.private/secret.png]]: targets a path under" in message
+    assert "typo.md: publish must be true or false" in message
+    assert _snapshot(output) == before
+    for needle in (b"DRAFT-TEXT", b"DRAFT-IMAGE", b"SECRET-IMAGE"):
+        assert not [
+            name for name, data in _snapshot(output).items() if needle in (data or b"")
+        ]

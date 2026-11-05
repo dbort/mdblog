@@ -1,4 +1,4 @@
 ---
 publish: false
 ---
-UNPUBLISHED-MARKED-FALSE
+UNPUBLISHED-MARKED-FALSE ![[draft-only.svg]] [[missing note]]
