@@ -40,6 +40,7 @@ Removes tests of the gate, of config files and of third-party tools that a loud 
 - Standing obligation, scripts stay simple: `tools/check` is unchanged, and no shell is added.
 - Standing obligation, test where the risk is: this task creates it, and its own changes follow it.
 - No roadmap edit: this task delivers no milestone. The order 002, 005, 003, 004 comes from the `blocked_by` entries.
+- 2026-11-04: the grep Must Have's allowed match changed from task-002's own file to this task's own file. task-002's file is now in `tasks/completed/`, and this file has to name those strings, so the original wording could not be met.
 
 ## Plan
 - [x] **Step 1** (`tools/check_runner.py`): reduce the gate to the four tool steps. Remove `hugo_fixture_build`, `pytest_argv`, `FIXTURE_NOTE_TEXT`, `FIXTURE_PAGE`, `HUGO_STEP`, the `hugo` command in `Commands`, `--nested`, and the `mdblog` imports. `--smoke` and `--offline` stay accepted and change nothing, with help text saying so.
@@ -51,3 +52,8 @@ Removes tests of the gate, of config files and of third-party tools that a loud 
 - [x] **Step 7** (`tasks/active/task-004-obsidian-syntax.md`): drop the `hugo` mark clause from the `tools/check` Must Have. In the Must Have on linking an unpublished note or image, replace "Tests with real Hugo" with "Tests", since validation fails before Hugo runs. Rewrite Step 6 to add fixture notes and images using each supported syntax, with the end-to-end test building them, and remove its `tools/check_runner.py` and `FIXTURE_NOTE_TEXT` references. Add the `Test where the risk is` obligation to its `## Advice`.
 
 ## Review log
+
+### Round 1: APPROVED
+- **N1: Must Have rewritten without a record** (`tasks/active/task-005-test-scope.md:16`): the branch changes the grep Must Have's allowed match from "task-002's own file" (the approved copy on `main`) to "this task's own file". Neither `## Advice` nor the commit message records the change. The edit looks correct, because this task file has to name those strings and the original wording could not be met. It still alters an acceptance condition of the approved plan, and `pipeline.md` § Priorities ranks the decision record second. Add an `## Advice` line stating the correction and its reason, and mention it to the user at `/ship`.
+- **N2: No test pins the value in the `publish` error** (`src/mdblog/publish.py:126`): the `{value!r}` Must Have is met by the source, but every assertion stops at "publish must be". A scratch-copy mutation from `{value!r}` to `{value}` passed all 119 tests. This is novel-code message coverage, and would normally block. The gap predates this task, and Advice says to "tighten nothing else here", so it does not block. Assert the rendered value in a later task, for example `not 'yes'` in `test_is_published_raises_with_the_reason`.
+- **N3: Gate behavior checked by hand, as the Must Haves require** (`tools/check_runner.py:62`): nothing tests the four-step order, running from another directory, `--smoke`/`--offline` exiting 0, or an unknown flag exiting 2. Each was confirmed by running it. The Must Have limiting `tests/test_check_runner.py` to the false-green cases rules out such tests there, and a break in them fails loudly or is an accepted loss under the task's Advice. The flags cannot change the steps, because `main` discards the parsed arguments.
