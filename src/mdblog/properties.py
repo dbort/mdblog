@@ -141,8 +141,9 @@ def _tags(value: object, failures: list[str]) -> tuple[str, ...] | None:
         if not all(_is_safe_tag_segment(segment) for segment in tag.split("/"))
     ]
     failures.extend(
-        f"tag {tag!r} must be /-separated parts using only letters, digits, -, _, + "
-        "and ., each holding a letter or digit, and any part with . an ASCII one"
+        f"tag {tag!r} must be /-separated parts using only letters, combining marks, "
+        "digits, -, _, + and ., each holding a letter or digit, and any part with . "
+        "an ASCII one"
         for tag in unsafe
     )
     return None if unsafe else tags

@@ -237,8 +237,8 @@ def test_bad_tags_fail(tags: object) -> None:
 
 
 UNSAFE_TAG = (
-    "must be /-separated parts using only letters, digits, -, _, + and ., each "
-    "holding a letter or digit, and any part with . an ASCII one"
+    "must be /-separated parts using only letters, combining marks, digits, -, _, + "
+    "and ., each holding a letter or digit, and any part with . an ASCII one"
 )
 
 
@@ -287,6 +287,10 @@ UNSAFE_TAG = (
         pytest.param("\uff0f../evil", id="fullwidth-slash"),
         pytest.param("a/!../!../evil", id="repeated"),
         pytest.param("..²/evil", id="superscript"),
+        # str.isalnum accepts a superscript, which Hugo removes from the path.
+        pytest.param("²", id="only-a-superscript"),
+        pytest.param("a²", id="trailing-superscript"),
+        pytest.param("²/evil", id="superscript-segment"),
         pytest.param("\uff0e\uff0e/evil", id="fullwidth-dots"),
         pytest.param("\u2024\u2024/evil", id="one-dot-leaders"),
         pytest.param("\xa0../evil", id="no-break-space"),
