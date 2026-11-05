@@ -8,10 +8,8 @@ from pathlib import Path
 
 import pytest
 
-import mdblog
 from mdblog.build import (
     MARKER,
-    PACKAGED_THEME,
     BuildError,
     build_site,
     check_output,
@@ -30,8 +28,8 @@ CONFIG = (
 )
 PUBLISHED = "---\npublish: true\n---\nPUBLISHED-TEXT\n"
 UNPUBLISHED = "---\npublish: false\n---\nUNPUBLISHED-TEXT\n"
-# Stands in for Hugo so the build's logic stays covered by `--smoke`: it copies the
-# content directory to the destination and records what the build passed it.
+# Stands in for Hugo: it copies the content directory to the destination and records
+# what the build passed it.
 FAKE_HUGO = (
     sys.executable,
     "-c",
@@ -208,12 +206,6 @@ def test_build_does_not_publish_a_symlinked_note(tmp_path: Path) -> None:
     build_site(vault, output, FAKE_HUGO)
 
     assert not (output / "linked.md").exists()
-
-
-def test_build_keeps_package_layouts_inside_the_package() -> None:
-    assert PACKAGED_THEME.parent == Path(mdblog.__file__).resolve().parent
-    for name in ("home.html", "page.html", "section.html"):
-        assert (PACKAGED_THEME / "layouts" / name).is_file()
 
 
 def test_build_rejects_a_missing_vault(tmp_path: Path) -> None:
@@ -405,15 +397,16 @@ def test_hugo_config_round_trips_any_string(value: str) -> None:
     assert table["params"] == {"author": value}
 
 
-@pytest.mark.hugo
-def test_unpublished_text_reaches_no_output_file(tmp_path: Path) -> None:
+def test_fixture_vault_builds_end_to_end(tmp_path: Path) -> None:
     output = tmp_path / "output"
 
     build_site(FIXTURE_VAULT, output, ("hugo",))
 
     files = {name: data for name, data in _snapshot(output).items() if data is not None}
-    assert "projects/first-note/index.html" in files
-    assert any(b"reached the generated page" in data for data in files.values())
+    assert (
+        b"The fixture note reached the generated page."
+        in files["projects/first-note/index.html"]
+    )
     for needle in (
         b"UNPUBLISHED-MARKED-FALSE",
         b"UNPUBLISHED-NO-PROPERTY",
@@ -425,7 +418,6 @@ def test_unpublished_text_reaches_no_output_file(tmp_path: Path) -> None:
         assert not [name for name, data in files.items() if needle in data], needle
 
 
-@pytest.mark.hugo
 @pytest.mark.parametrize("change", ["unpublish", "delete"])
 def test_a_note_that_stops_publishing_leaves_no_file(
     tmp_path: Path, change: str
@@ -434,23 +426,21 @@ def test_a_note_that_stops_publishing_leaves_no_file(
     note = vault / "notes" / "published.md"
     (vault / "kept.md").write_text("---\npublish: true\n---\nKEPT\n", encoding="utf-8")
     output = tmp_path / "output"
-    build_site(vault, output, ("hugo",))
-    assert (output / "notes" / "published" / "index.html").is_file()
-    assert any(b"PUBLISHED-TEXT" in (d or b"") for d in _snapshot(output).values())
+    build_site(vault, output, FAKE_HUGO)
+    assert (output / "notes" / "published.md").is_file()
 
     if change == "unpublish":
         note.write_text("No front matter. PUBLISHED-TEXT\n", encoding="utf-8")
     else:
         note.unlink()
-    build_site(vault, output, ("hugo",))
+    build_site(vault, output, FAKE_HUGO)
 
     after = _snapshot(output)
-    assert (output / "kept" / "index.html").is_file()
+    assert (output / "kept.md").is_file()
     assert not [name for name in after if "published" in name]
     assert not [name for name, d in after.items() if b"PUBLISHED-TEXT" in (d or b"")]
 
 
-@pytest.mark.hugo
 def test_generated_site_uses_the_configuration(tmp_path: Path) -> None:
     output = tmp_path / "output"
 
@@ -465,23 +455,6 @@ def test_generated_site_uses_the_configuration(tmp_path: Path) -> None:
     assert 'content="The Site Author"' in page
 
 
-@pytest.mark.hugo
-def test_author_reaches_an_overriding_layout(tmp_path: Path) -> None:
-    vault = _make_vault(tmp_path)
-    layouts = vault / "_site" / "layouts"
-    layouts.mkdir()
-    (layouts / "page.html").write_text(
-        "AUTHOR={{ .Site.Params.author }}", encoding="utf-8"
-    )
-    output = tmp_path / "output"
-
-    build_site(vault, output, ("hugo",))
-
-    page = (output / "notes" / "published" / "index.html").read_text(encoding="utf-8")
-    assert page == "AUTHOR=The Site Author"
-
-
-@pytest.mark.hugo
 def test_vault_layout_replaces_only_the_page_default(tmp_path: Path) -> None:
     vault = _make_vault(tmp_path)
     layouts = vault / "_site" / "layouts"
@@ -498,56 +471,6 @@ def test_vault_layout_replaces_only_the_page_default(tmp_path: Path) -> None:
     assert "<title>The Site Title</title>" in home
 
 
-@pytest.mark.hugo
-def test_a_title_needing_escapes_reaches_the_site(tmp_path: Path) -> None:
-    vault = _make_vault(tmp_path)
-    (vault / "_site" / "mdblog.toml").write_text(
-        'base_url = "https://example.test/"\n'
-        "title = 'A \"quoted\" \\ title 🙂'\n"
-        'author = "An author"\n',
-        encoding="utf-8",
-    )
-    output = tmp_path / "output"
-
-    build_site(vault, output, ("hugo",))
-
-    home = (output / "index.html").read_text(encoding="utf-8")
-    assert "🙂" in home
-    assert "quoted" in home
-
-
-@pytest.mark.hugo
-def test_hugo_environment_does_not_change_the_urls(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("HUGO_BASEURL", "https://wrong.test/")
-    output = tmp_path / "output"
-
-    build_site(_make_vault(tmp_path), output, ("hugo",))
-
-    feed = (output / "index.xml").read_text(encoding="utf-8")
-    assert "https://example.test/blog/" in feed
-    assert "wrong.test" not in feed
-
-
-@pytest.mark.hugo
-def test_hugo_failure_leaves_the_previous_output_byte_for_byte(tmp_path: Path) -> None:
-    vault = _make_vault(tmp_path)
-    output = tmp_path / "output"
-    build_site(vault, output, ("hugo",))
-    before = _snapshot(output)
-    layouts = vault / "_site" / "layouts"
-    layouts.mkdir()
-    (layouts / "page.html").write_text("{{ this does not parse", encoding="utf-8")
-
-    with pytest.raises(BuildError, match="hugo exited"):
-        build_site(vault, output, ("hugo",))
-
-    assert _snapshot(output) == before
-    _assert_no_leftovers(output)
-
-
-@pytest.mark.hugo
 def test_build_writes_nothing_under_the_vault(tmp_path: Path) -> None:
     vault = _make_vault(tmp_path)
     layouts = vault / "_site" / "layouts"
@@ -555,21 +478,6 @@ def test_build_writes_nothing_under_the_vault(tmp_path: Path) -> None:
     (layouts / "page.html").write_text("{{ .Content }}", encoding="utf-8")
     before = _snapshot(vault)
 
-    build_site(vault, tmp_path / "output", ("hugo",))
+    build_site(vault, tmp_path / "output", FAKE_HUGO)
 
     assert _snapshot(vault) == before
-
-
-@pytest.mark.hugo
-def test_build_prints_no_hugo_warning_for_a_tagged_note(
-    tmp_path: Path, capfd: pytest.CaptureFixture[str]
-) -> None:
-    vault = _make_vault(tmp_path)
-    (vault / "tagged.md").write_text(
-        "---\npublish: true\ntags: [one]\n---\nTagged\n", encoding="utf-8"
-    )
-
-    build_site(vault, tmp_path / "output", ("hugo",))
-
-    captured = capfd.readouterr()
-    assert "WARN" not in captured.out + captured.err

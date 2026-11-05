@@ -40,9 +40,7 @@ def load_config(vault: Path) -> SiteConfig:
         raise ConfigError(f"{path}: file not found") from None
     except OSError as exc:
         raise ConfigError(f"{path}: cannot read: {exc.strerror}") from exc
-    # UnicodeDecodeError and TOMLDecodeError are ValueErrors, as is the error for an
-    # integer past Python's digit limit. Deep nesting exhausts the parser's recursion.
-    except (ValueError, RecursionError) as exc:
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
         raise ConfigError(f"{path}: invalid TOML: {exc}") from exc
 
     names = [field.name for field in fields(SiteConfig)]

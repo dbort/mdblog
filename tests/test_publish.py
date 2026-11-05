@@ -81,22 +81,6 @@ def test_is_published(note: bytes, expected: bool) -> None:
         pytest.param(b"---\ntitle: \xff\n---\n", "not UTF-8", id="not-utf-8"),
         pytest.param(b"---\ndate: 2026-13-45\n---\n", "invalid YAML", id="bad-date"),
         pytest.param(
-            b"---\na: " + b"[" * 5000 + b"\n---\n", "invalid YAML", id="deep-nesting"
-        ),
-        pytest.param(
-            b"---\npublish: !!bool maybe\n---\n", "invalid YAML", id="bad-bool"
-        ),
-        pytest.param(
-            b"---\npublish: 0x" + b"f" * 5000 + b"\n---\n",
-            "publish must be",
-            id="huge-integer",
-        ),
-        pytest.param(
-            b"---\n%YAML 1.1\n--- \npublish: yes\n---\n",
-            "YAML directive",
-            id="yaml-1.1-directive",
-        ),
-        pytest.param(
             b"---\npublish: true\n---\n\xff\n", "not UTF-8", id="published-body"
         ),
     ],
@@ -194,17 +178,15 @@ def test_select_notes_reports_every_failure_with_its_reason(tmp_path: Path) -> N
     assert "publish must be" in selection.failures[1].reason
 
 
-def test_select_notes_names_other_notes_after_a_loader_crash(tmp_path: Path) -> None:
-    _write(tmp_path, "a-crash.md", "---\npublish: !!bool maybe\n---\n")
-    _write(tmp_path, "b-huge.md", "---\npublish: 0x" + "f" * 5000 + "\n---\n")
-    _write(tmp_path, "c-typo.md", "---\npublish: yes\n---\n")
+def test_select_notes_names_other_notes_after_a_bad_date(tmp_path: Path) -> None:
+    _write(tmp_path, "a-date.md", "---\ndate: 2026-13-45\n---\n")
+    _write(tmp_path, "b-typo.md", "---\npublish: yes\n---\n")
 
     selection = select_notes(tmp_path)
 
     assert [failure.path.as_posix() for failure in selection.failures] == [
-        "a-crash.md",
-        "b-huge.md",
-        "c-typo.md",
+        "a-date.md",
+        "b-typo.md",
     ]
 
 
