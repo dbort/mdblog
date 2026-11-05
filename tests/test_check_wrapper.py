@@ -104,7 +104,8 @@ def test_smoke_passes_with_a_broken_hugo_fixture(tmp_path: Path) -> None:
         shutil.copy2(REPO_ROOT / name, repo / name)
     # test_project_config asks git about .gitignore.
     assert _run(["git", "init", "-q"], repo).returncode == 0
-    layout = repo / "tests" / "fixtures" / "site" / "layouts" / "page.html"
+    layout = repo / "tests" / "fixtures" / "vault" / "_site" / "layouts" / "page.html"
+    layout.parent.mkdir(parents=True)
     layout.write_text("{{ this does not parse", encoding="utf-8")
 
     # Python runs the copy's runner directly because pixi would install a new environment.

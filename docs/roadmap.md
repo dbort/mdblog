@@ -10,22 +10,6 @@ M1 to M5 make up v1. M6 and M7 follow it. Each milestone's decisions are settled
 
 Search, comments, series, scheduled publishing, and packaging mdblog for other people's sites are outside v1. Each site's settings live in its own vault, so in the long run this repo can host multiple independent sites.
 
-## M1: Publish command and configuration
-
-**Status:** Tasks task-002
-
-- [ ] task-002: Add the mdblog build command and the publish rule
-
-Build a site from one vault with `mdblog build VAULT --output DIR`, publishing only the notes marked for it.
-
-- A configuration file at `_site/mdblog.toml` in the vault for site URL, title and author, from which the command generates `hugo.toml`.
-- Default layouts in the `mdblog` package, which a site can override from its vault's `_site/layouts/`. M1's defaults are minimal until M3 replaces them.
-- The `publish` rule: only a boolean `publish: true` publishes. A missing property, `false`, or a note with no front matter does not. A non-boolean value or front matter that does not parse fails the build, naming each note, so a typo cannot go unnoticed. A production build leaves unpublished notes out of Hugo's content directory, so `.obsidian/` and note templates need no special handling. Files under `_site/` and dot-folders, including Obsidian's `.trash/`, are never selected.
-- Content and output directories regenerated on every build, so a note that is deleted or changed to unpublished disappears from the site. Hugo leaves a deleted page's files in its output directory, so regenerating the content directory alone does not remove them.
-- A marker file in the output directory. The build refuses to replace a non-empty directory without one, so a wrong path cannot wipe real files, and a failed build leaves the previous output in place.
-
-**Done when:** a fixture vault with published and unpublished notes builds, the unpublished text appears nowhere in the output, and removing `publish: true` from a note removes its files from the output directory on the next build.
-
 ## M2: Obsidian Markdown conversion
 
 **Status:** Tasks task-003, task-004
@@ -75,7 +59,7 @@ Serve the built site from a Cloudflare Worker as static assets, with no custom W
 
 - Node from conda-forge, and wrangler from npm with a committed `package-lock.json`. No wrangler package turned up on conda-forge, so `CLAUDE.md`'s line about adding wrangler to the pixi environment needs correcting.
 - `tools/check` installs from the npm lockfile itself, so callers need no setup step, and fails on a stale lockfile, which `pixi run --locked` does not detect. Under `--offline`, the install and any check that depends on it skip.
-- A deploy command that runs a fresh production build of the current working directories, then uploads it without M1's output marker, so the site reflects their current state and local preview output cannot reach Cloudflare.
+- A deploy command that runs a fresh production build of the current working directories, then uploads it without `mdblog build`'s output marker, so the site reflects their current state and local preview output cannot reach Cloudflare.
 - A separate command that takes a deployed URL and fails if it does not serve the home page and feed, runnable at any time and independent of a deploy.
 - A preview deployment separate from production, built with its own site URL because Hugo writes the URL into links and feeds, and kept out of search indexes.
 - Worker configuration checked in `tools/check`: a `wrangler deploy --dry-run` if it works without network access or credentials, otherwise a test of the fields the deploy relies on.

@@ -45,6 +45,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pyrefly-1.4.0-hf19af3b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/python-3.14.10-hcd007b5_100_cp314.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/readline-8.3-hd6e31c0_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/ruamel.yaml.clib-0.2.15-py314hfe1a184_5.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ruff-0.17.3-hf19af3b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h1df4ec4_4.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_7.conda
@@ -57,6 +58,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.2.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/python_abi-3.14-9_cp314.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ruamel.yaml-0.19.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.5.0-pyh5ded981_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.16.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2026e-h5d301ff_0.conda
@@ -82,6 +84,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pyrefly-1.4.0-h328a733_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/python-3.14.10-hbec3b18_100_cp314.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/readline-8.3-ha7194a6_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ruamel.yaml.clib-0.2.15-py314ha22a00f_5.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ruff-0.17.3-h328a733_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/tk-8.6.13-noxft_hf03c496_4.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/zstd-1.5.7-h9d15635_7.conda
@@ -94,6 +97,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.2.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/python_abi-3.14-9_cp314.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ruamel.yaml-0.19.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.5.0-pyh5ded981_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.16.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2026e-h5d301ff_0.conda
@@ -108,6 +112,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.2.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/python_abi-3.14-9_cp314.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ruamel.yaml-0.19.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.5.0-pyh5ded981_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.16.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2026e-h5d301ff_0.conda
@@ -126,6 +131,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pyrefly-1.4.0-hc2d82ec_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/python-3.14.10-h0ae1c2c_100_cp314.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/readline-8.3-h8b90a29_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ruamel.yaml.clib-0.2.15-py314hd98292b_5.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ruff-0.17.3-ha19a7bb_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/tk-8.6.13-hbeba79b_4.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hf451053_7.conda
@@ -437,6 +443,21 @@ packages:
     - readline >=8.3,<9.0a0
   size: 348899
   timestamp: 1787033801506
+- conda: https://conda.anaconda.org/conda-forge/linux-64/ruamel.yaml.clib-0.2.15-py314hfe1a184_5.conda
+  sha256: a1e3159f6d131fb7c6a17a1812ec9b53e03e485a78901781ccaef82c8196774c
+  md5: 2c8de2bca562cd68bdcfd0920a6395b9
+  depends:
+  - python
+  - libgcc >=15
+  - __glibc >=2.17,<3.0.a0
+  - python_abi 3.14.* *_cp314
+  license: MIT
+  license_family: MIT
+  purls:
+  - pkg:pypi/ruamel-yaml-clib?source=hash-mapping
+  run_exports: {}
+  size: 160103
+  timestamp: 1788881212732
 - conda: https://conda.anaconda.org/conda-forge/linux-64/ruff-0.17.3-hf19af3b_0.conda
   sha256: 0fa86916266c0a9e1e94858020b3748372a72c0322ec606ede691f8bc1fd799c
   md5: ef22fda7cf64c677fe2b27f949682358
@@ -766,6 +787,20 @@ packages:
     - readline >=8.3,<9.0a0
   size: 364344
   timestamp: 1787033761576
+- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ruamel.yaml.clib-0.2.15-py314ha22a00f_5.conda
+  sha256: fe3e39500b22455651d58d11e7640fdf151b650678c70c7d0086e80986ab4f86
+  md5: 84ef81c0a41c2522f230150cafa85619
+  depends:
+  - python
+  - libgcc >=15
+  - python_abi 3.14.* *_cp314
+  license: MIT
+  license_family: MIT
+  purls:
+  - pkg:pypi/ruamel-yaml-clib?source=hash-mapping
+  run_exports: {}
+  size: 151286
+  timestamp: 1788882471972
 - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ruff-0.17.3-h328a733_0.conda
   sha256: 8c3d620da4ccf884224195fc5cb16c07830215809098462866588f5ce3e5e553
   md5: d164b37352c7d269dd2f45e02ec69c90
@@ -876,7 +911,7 @@ packages:
   license: MIT
   license_family: MIT
   purls:
-  - pkg:pypi/pluggy?source=compressed-mapping
+  - pkg:pypi/pluggy?source=hash-mapping
   run_exports: {}
   size: 30111
   timestamp: 1792063298993
@@ -927,6 +962,20 @@ packages:
   run_exports: {}
   size: 6791
   timestamp: 1788302824440
+- conda: https://conda.anaconda.org/conda-forge/noarch/ruamel.yaml-0.19.1-pyhcf101f3_0.conda
+  sha256: b48bebe297a63ae60f52e50be328262e880702db4d9b4e86731473ada459c2a1
+  md5: 06ad944772941d5dae1e0d09848d8e49
+  depends:
+  - python >=3.10
+  - ruamel.yaml.clib >=0.2.15
+  - python
+  license: MIT
+  license_family: MIT
+  purls:
+  - pkg:pypi/ruamel-yaml?source=hash-mapping
+  run_exports: {}
+  size: 98448
+  timestamp: 1767538149184
 - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.5.0-pyh5ded981_0.conda
   sha256: 93b6f517fb7adff00b62be02b798d384a1b34d0e368fdb576fb248bcb3bb9ec7
   md5: 36d6a162326c52d6339c8b606f43932d
@@ -1175,6 +1224,20 @@ packages:
     - readline >=8.3,<9.0a0
   size: 314395
   timestamp: 1787033878899
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/ruamel.yaml.clib-0.2.15-py314hd98292b_5.conda
+  sha256: ab2b09a80bd70c1fc7c589959abc8ee3394a1b3178197696a594d224bba5243f
+  md5: 5ce723bf0ba143a8caa534609a5be881
+  depends:
+  - python
+  - __osx >=11.0
+  - python_abi 3.14.* *_cp314
+  license: MIT
+  license_family: MIT
+  purls:
+  - pkg:pypi/ruamel-yaml-clib?source=hash-mapping
+  run_exports: {}
+  size: 127818
+  timestamp: 1788881217705
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ruff-0.17.3-ha19a7bb_0.conda
   sha256: 945d86e2be4b50a4f0b02354af4f66d342b49a434bb13169fd15c874a4c0bc47
   md5: 163208563b274065a94db26f321db693
@@ -1218,4 +1281,6 @@ packages:
   timestamp: 1786599629846
 - pypi: ./
   name: mdblog
+  requires_dist:
+  - ruamel-yaml
   requires_python: '>=3.14'

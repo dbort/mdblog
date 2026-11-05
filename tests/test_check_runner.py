@@ -154,7 +154,7 @@ def _copy_fixtures(repo_root: Path) -> Path:
 def test_hugo_build_fails_when_the_note_text_is_missing(tmp_path: Path) -> None:
     fixtures = _copy_fixtures(tmp_path)
     note = fixtures / "vault" / "projects" / "first-note.md"
-    note.write_text("Some other text.\n", encoding="utf-8")
+    note.write_text("---\npublish: true\n---\nSome other text.\n", encoding="utf-8")
 
     assert hugo_fixture_build(tmp_path, ("hugo",)) != 0
 
@@ -162,9 +162,9 @@ def test_hugo_build_fails_when_the_note_text_is_missing(tmp_path: Path) -> None:
 @pytest.mark.hugo
 def test_hugo_build_fails_on_a_broken_layout(tmp_path: Path) -> None:
     fixtures = _copy_fixtures(tmp_path)
-    (fixtures / "site" / "layouts" / "page.html").write_text(
-        BROKEN_LAYOUT, encoding="utf-8"
-    )
+    layouts = fixtures / "vault" / "_site" / "layouts"
+    layouts.mkdir()
+    (layouts / "page.html").write_text(BROKEN_LAYOUT, encoding="utf-8")
 
     assert hugo_fixture_build(tmp_path, ("hugo",)) != 0
 

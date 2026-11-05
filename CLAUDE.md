@@ -1,6 +1,6 @@
 # Agent Instructions
 
-mdblog is a framework for publishing a set of Obsidian-managed files as a static website formatted with Hugo and hosted on Cloudflare. Longer term it will also include tools for [POSSE](https://indieweb.org/POSSE) and [backfeed](https://indieweb.org/backfeed) workflows. It is built for its author's own vault and site first, and keeps site-specific settings in configuration so others could adopt it later. The overall shape and scope are still open.
+mdblog is a framework for publishing a set of Obsidian-managed files as a static website formatted with Hugo and hosted on Cloudflare. Longer term it will also include tools for [POSSE](https://indieweb.org/POSSE) and [backfeed](https://indieweb.org/backfeed) workflows. It is built for its author's own vault and site first. Each site's settings live in its own vault, so this repo holds no site-specific information and others could adopt it later. The overall shape and scope are still open.
 
 Work is planned, implemented, and reviewed through the task pipeline:
 `/new-task` → `/work task-XXX` → `/ship task-XXX`. Its rules live in
@@ -27,6 +27,7 @@ in `.claude/docs/`, even when a human also reads them.
 - **Gate:** `tools/check` runs `ruff format --check`, `ruff check`, pyrefly, pytest, and a Hugo build of a fixture vault. `--smoke` leaves out the Hugo build.
 - **Platforms:** the repo runs on Linux and macOS.
 - **Vault:** the Obsidian vault is never part of this repo. Tools point at a parallel checkout of it.
+- **Sites:** one vault is one site, and building several sites means running `mdblog build` once per vault. A site's settings (`_site/mdblog.toml`) and overriding layouts (`_site/layouts/`) live in its vault. The repo's only site configs are test fixtures.
 
 ## Standing task-planning obligations
 
