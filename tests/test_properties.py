@@ -1,10 +1,15 @@
 import datetime as dt
 import json
+from collections.abc import Callable
 
 import pytest
 
 from mdblog.properties import PageProperties, front_matter, validate_properties
 
+# POSIX counts offsets west of UTC as positive, so this is UTC-5.
+LOCAL_ZONE = "XXX5"
+# Eastern time's daylight saving rule, UTC-5 in winter and UTC-4 in summer.
+DAYLIGHT_ZONE = "EST5EDT,M3.2.0,M11.1.0"
 ZONE = dt.timezone(dt.timedelta(hours=-5))
 NOW = dt.datetime(2026, 6, 15, 12, 0, tzinfo=ZONE)
 VALID: dict[object, object] = {
@@ -12,6 +17,11 @@ VALID: dict[object, object] = {
     "slug": "a-note",
     "type": "post",
 }
+
+
+@pytest.fixture(autouse=True)
+def _local_zone_matches_the_clock(local_zone: Callable[[str], None]) -> None:
+    local_zone(LOCAL_ZONE)
 
 
 def _validate(**changes: object) -> PageProperties | tuple[str, ...]:
@@ -93,7 +103,6 @@ def test_a_title_of_another_type_fails(title: object) -> None:
     "value",
     [
         pytest.param(dt.date(2026, 6, 15), id="today"),
-        pytest.param(dt.datetime(2026, 6, 15, 11, 59), id="naive-past"),
         pytest.param(dt.datetime(2026, 6, 15, 11, 59, tzinfo=ZONE), id="aware-past"),
         # 16:59 UTC is 11:59 at the clock's offset, so the instant has passed.
         pytest.param(
@@ -103,6 +112,12 @@ def test_a_title_of_another_type_fails(title: object) -> None:
 )
 def test_a_date_that_has_arrived_passes(value: dt.date) -> None:
     assert _page(date=value).date == value
+
+
+def test_a_naive_datetime_that_has_arrived_gains_the_local_offset() -> None:
+    page = _page(date=dt.datetime(2026, 6, 15, 11, 59))
+
+    assert page.date == dt.datetime(2026, 6, 15, 11, 59, tzinfo=ZONE)
 
 
 @pytest.mark.parametrize(
@@ -241,6 +256,25 @@ def test_front_matter_keeps_a_datetime_and_its_offset() -> None:
     value = dt.datetime(2026, 1, 1, 10, 0, tzinfo=ZONE)
 
     assert _front_matter(date=value)["date"] == "2026-01-01T10:00:00-05:00"
+
+
+@pytest.mark.parametrize(
+    ("value", "written"),
+    [
+        pytest.param(
+            dt.datetime(2026, 1, 1, 10, 0), "2026-01-01T10:00:00-05:00", id="winter"
+        ),
+        pytest.param(
+            dt.datetime(2026, 6, 1, 10, 0), "2026-06-01T10:00:00-04:00", id="summer"
+        ),
+    ],
+)
+def test_front_matter_writes_a_naive_datetime_with_the_offset_for_its_date(
+    local_zone: Callable[[str], None], value: dt.datetime, written: str
+) -> None:
+    local_zone(DAYLIGHT_ZONE)
+
+    assert _front_matter(date=value)["date"] == written
 
 
 @pytest.mark.parametrize("title", ['yes: "quoted" } { \\ é 🙂', "yes", "123"])

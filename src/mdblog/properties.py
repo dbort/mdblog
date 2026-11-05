@@ -18,7 +18,7 @@ class PageProperties:
     """The validated properties of one published note."""
 
     title: str
-    # A `date` is a whole day and a `datetime` is an instant; a naive `datetime` is local.
+    # A `date` is a whole day. A `datetime` is an instant and always holds its offset.
     date: date
     # Sets the page's URL, `/posts/<slug>/`.
     slug: str
@@ -45,10 +45,18 @@ def _title(value: object, stem: str, failures: list[str]) -> str | None:
     return None
 
 
+def _with_local_offset(value: date) -> date:
+    # Hugo reads a datetime with no offset as UTC, so a local time has to carry its offset
+    # to reach the site as the same instant. astimezone uses the offset for that date,
+    # which can differ from today's across a daylight saving change.
+    if isinstance(value, datetime) and value.tzinfo is None:
+        return value.astimezone()
+    return value
+
+
 def _is_future(value: date, now: datetime) -> bool:
     if isinstance(value, datetime):
-        instant = value if value.tzinfo else value.replace(tzinfo=now.tzinfo)
-        return instant > now
+        return value > now
     return value > now.date()
 
 
@@ -57,10 +65,11 @@ def _date(value: object, now: datetime, failures: list[str]) -> date | None:
         failures.append("date is required")
     elif not isinstance(value, date):
         failures.append(f"date must be a YAML date or datetime, not {value!r}")
-    elif _is_future(value, now):
-        failures.append(f"date {value.isoformat()} is in the future")
     else:
-        return value
+        resolved = _with_local_offset(value)
+        if not _is_future(resolved, now):
+            return resolved
+        failures.append(f"date {value.isoformat()} is in the future")
     return None
 
 
@@ -125,8 +134,9 @@ def validate_properties(
     """The validated properties of a published note, or the reason for every failure.
 
     `stem` is the note's file name without its suffix, and is the title when `title` is
-    missing. `now` is the timezone-aware current time in the local zone, which decides
-    whether a date is in the future. A null property counts as missing. Reads `title`,
+    missing. `now` is the timezone-aware current time, and its date is today, so it
+    should be in the local zone. A datetime with no offset means local time and is
+    returned with its offset. A null property counts as missing. Reads `title`,
     `date`, `slug`, `type`, `tags` and, on a link entry only, `url`. Other properties
     have no effect.
     """

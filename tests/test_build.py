@@ -323,14 +323,26 @@ def test_a_notes_body_reaches_hugo_byte_for_byte(tmp_path: Path) -> None:
     )
 
 
-def test_build_asks_hugo_to_keep_dates_validation_accepted(tmp_path: Path) -> None:
+def test_build_judges_dates_by_the_local_clock(
+    tmp_path: Path, local_zone: Callable[[str], None]
+) -> None:
+    # These zones are 26 hours apart, so they are never on the same date.
+    ahead = dt.timezone(dt.timedelta(hours=14))
+    today_ahead = dt.datetime.now(ahead).date().isoformat()
+    vault = _make_vault(tmp_path)
+    (vault / "dated.md").write_text(
+        published_text("dated", date=today_ahead), encoding="utf-8"
+    )
     output = tmp_path / "output"
 
-    build_site(_make_vault(tmp_path), output, FAKE_HUGO)
+    # POSIX counts offsets west of UTC as positive, so XXX-14 is UTC+14.
+    local_zone("XXX-14")
+    build_site(vault, output, FAKE_HUGO)
+    assert (output / "posts" / "dated" / "index.md").is_file()
 
-    argv = _seen(output)["argv"]
-    assert isinstance(argv, list)
-    assert "--buildFuture" in argv
+    local_zone("XXX12")
+    with pytest.raises(BuildError, match="is in the future"):
+        build_site(vault, output, FAKE_HUGO)
 
 
 def test_build_leaves_the_output_on_a_bad_config(tmp_path: Path) -> None:
