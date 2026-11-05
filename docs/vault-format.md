@@ -1,10 +1,10 @@
 # Vault format
 
-How `mdblog build` reads a vault's notes. A note reaches the site only when its front matter holds the boolean `publish: true`. The other rules on this page apply only to those notes, so a draft can hold any properties.
+How `mdblog build` reads a vault's notes. A note reaches the site only when its front matter holds the boolean `publish: true`. The other rules on this page apply only to those notes, so a draft can hold any properties, as long as its front matter parses. Every selected note fails the build on invalid YAML, including an impossible date like `2026-13-45`, a duplicate key, a block that is not a mapping or text that is not UTF-8.
 
 ## Properties
 
-The build reads these properties and ignores every other one. An empty property in Obsidian is null, and null counts as missing.
+The build reads these properties and ignores every other one. An empty property in Obsidian is null, and null counts as missing, except on `publish`, where it fails the build.
 
 | Property | Required | Meaning | Validation |
 |---|---|---|---|

@@ -303,6 +303,7 @@ UNSAFE_TAG = (
         pytest.param("?", id="only-question"),
         pytest.param("\u200b", id="only-zero-width"),
         pytest.param("a/!/b", id="removed-segment"),
+        # Hugo keeps these and builds a page, but a part must hold a letter or digit.
         pytest.param("\u0301", id="only-a-mark"),
         pytest.param("-", id="only-a-hyphen"),
     ],
