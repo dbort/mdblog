@@ -14,7 +14,7 @@ Search, comments, series, scheduled publishing, and packaging mdblog for other p
 
 **Status:** Tasks task-003, task-004
 
-- [ ] task-003: Write front matter from a fixed property list and place pages by slug (blocked on task-002)
+- [x] task-003: Write front matter from a fixed property list and place pages by slug (blocked on task-002)
 - [ ] task-004: Convert Obsidian links, embeds and syntax (blocked on task-003)
 
 Turn Obsidian's Markdown into what Hugo expects.

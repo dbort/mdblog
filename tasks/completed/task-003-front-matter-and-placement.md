@@ -10,24 +10,24 @@ blocked_by: [task-002, task-005]
 Stops vault properties from changing the site by accident: the converter writes each page's Hugo front matter from scratch using a short list of properties, and drops everything else. Every published note lands at `/posts/<slug>/` whatever its vault folder, and a published note with a missing or invalid `date`, `slug` or `type` fails the build. Note bodies still pass through unchanged until task-004 converts Obsidian syntax.
 
 ## Must Have
-- [ ] A published note builds at `/posts/<slug>/`. A test moves a note to another vault folder and renames its file, and asserts the output tree is byte-identical.
-- [ ] Generated front matter parses to a mapping holding only `title`, `date`, `tags` (only when non-empty) and `params`, and `params` holds only `entry_type` plus, on a link entry, `link_url`.
-- [ ] A test builds one vault with a note carrying `aliases`, a clipped `url`, `weight`, `published`, `expiryDate`, `headless`, `build`, `layout`, `draft`, `cascade` and `outputs`, and a second vault with the same note without them, and asserts the two output trees are byte-identical.
-- [ ] `title` comes from the `title` string. A missing or null `title` comes from the file name without `.md`, and any other type fails the build.
-- [ ] `date` must be a YAML date or datetime. A missing, null or other value fails the build, and so does a date after the local date or a datetime after the current time.
-- [ ] A note dated with today's local date builds and is present in the output in any time zone: a test with real Hugo uses a date that is already today locally and still in the future in UTC.
-- [ ] `slug` is required and matches `^[a-z0-9]+(-[a-z0-9]+)*$`. Anything else fails the build.
-- [ ] `type` is required and is exactly `post`, `til` or `link`. It reaches layouts as `.Params.entry_type`. A missing or other value fails the build. Hugo's own `type` key is never written.
-- [ ] A `type: link` note requires `url`, an `http` or `https` URL string, which reaches layouts as `.Params.link_url`. Any other value fails the build. On `post` and `til` notes, `url` has no effect, whatever its value.
-- [ ] `tags` may be missing, null, one string or a list of strings. Any other value fails the build. `project/alpha` builds a tag page at `/tags/project/alpha/`.
-- [ ] Each `/`-separated part of a tag may use only letters, combining marks, digits, `-`, `_`, `+` and `.`, must hold a letter or digit, and when it holds a `.` must hold an ASCII letter or digit. Anything else fails the build, naming the tag: `..`, `../../evil`, `a/../b`, `/evil`, `..\evil`, `%2e%2e/evil`, `!..`, `..²/evil` and `my tag` all fail. `c++`, `node.js`, `.net` and `日本語/カナ` pass.
-- [ ] A real-Hugo test builds accepted tags and asserts each page is under `/tags/<tag>/` and no other path appears outside `/tags/`.
-- [ ] Two published notes with the same `slug` fail the build, and the message names both notes.
-- [ ] These rules apply only to published notes: an unpublished note with no `date`, `slug` or `type` causes no failure. A bad `publish` value still fails for any selected note.
-- [ ] One run reports every failure across all published notes, naming the note and reason for each, and leaves the output directory unchanged.
-- [ ] A published note's body after its front matter reaches Hugo byte-for-byte.
-- [ ] `docs/vault-format.md` lists each property the converter reads, its meaning and validation, and each tested Hugo collision.
-- [ ] `tools/check` exits 0 on the finished branch.
+- [x] A published note builds at `/posts/<slug>/`. A test moves a note to another vault folder and renames its file, and asserts the output tree is byte-identical.
+- [x] Generated front matter parses to a mapping holding only `title`, `date`, `tags` (only when non-empty) and `params`, and `params` holds only `entry_type` plus, on a link entry, `link_url`.
+- [x] A test builds one vault with a note carrying `aliases`, a clipped `url`, `weight`, `published`, `expiryDate`, `headless`, `build`, `layout`, `draft`, `cascade` and `outputs`, and a second vault with the same note without them, and asserts the two output trees are byte-identical.
+- [x] `title` comes from the `title` string. A missing or null `title` comes from the file name without `.md`, and any other type fails the build.
+- [x] `date` must be a YAML date or datetime. A missing, null or other value fails the build, and so does a date after the local date or a datetime after the current time.
+- [x] A note dated with today's local date builds and is present in the output in any time zone: a test with real Hugo uses a date that is already today locally and still in the future in UTC.
+- [x] `slug` is required and matches `^[a-z0-9]+(-[a-z0-9]+)*$`. Anything else fails the build.
+- [x] `type` is required and is exactly `post`, `til` or `link`. It reaches layouts as `.Params.entry_type`. A missing or other value fails the build. Hugo's own `type` key is never written.
+- [x] A `type: link` note requires `url`, an `http` or `https` URL string, which reaches layouts as `.Params.link_url`. Any other value fails the build. On `post` and `til` notes, `url` has no effect, whatever its value.
+- [x] `tags` may be missing, null, one string or a list of strings. Any other value fails the build. `project/alpha` builds a tag page at `/tags/project/alpha/`.
+- [x] Each `/`-separated part of a tag may use only letters, combining marks, digits, `-`, `_`, `+` and `.`, must hold a letter or digit, and when it holds a `.` must hold an ASCII letter or digit. Anything else fails the build, naming the tag: `..`, `../../evil`, `a/../b`, `/evil`, `..\evil`, `%2e%2e/evil`, `!..`, `..²/evil` and `my tag` all fail. `c++`, `node.js`, `.net` and `日本語/カナ` pass.
+- [x] A real-Hugo test builds accepted tags and asserts each page is under `/tags/<tag>/` and no other path appears outside `/tags/`.
+- [x] Two published notes with the same `slug` fail the build, and the message names both notes.
+- [x] These rules apply only to published notes: an unpublished note with no `date`, `slug` or `type` causes no failure. A bad `publish` value still fails for any selected note.
+- [x] One run reports every failure across all published notes, naming the note and reason for each, and leaves the output directory unchanged.
+- [x] A published note's body after its front matter reaches Hugo byte-for-byte.
+- [x] `docs/vault-format.md` lists each property the converter reads, its meaning and validation, and each tested Hugo collision.
+- [x] `tools/check` exits 0 on the finished branch.
 
 ## Advice
 - User decisions: every entry type lives at `/posts/<slug>/`, so slugs are unique across the site and changing a note's type never moves it. `type` and `slug` are required on published notes. Slugs are lowercase ASCII, so URLs copy cleanly and two slugs cannot collide on a case-insensitive filesystem.
