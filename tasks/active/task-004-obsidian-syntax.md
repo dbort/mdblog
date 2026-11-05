@@ -70,3 +70,8 @@ Turns the Obsidian syntax in published notes into what Hugo renders: wikilinks, 
 
 ### Round 2: REJECTED
 - **F1: Escaping link text puts heading IDs out of step with Hugo again** (`src/mdblog/markdown.py:262`, `src/mdblog/links.py:151`): the converter now backslash-escapes link text, so Hugo reads it literally, but `headings()` still parses the unconverted wikilink with markdown-it, which reads the alias or target as Markdown before `wikilink_text` sees it: `_x_` becomes emphasis, `<b>` dropped raw HTML and `&amp;` an `&`. Real Hugo: `## See [[_draft notes_]]` gives `see-_draft-notes_` against our `see-draft-notes`; `## Alias [[_draft notes_|<b>x</b> &amp; y]]` gives `alias-bxb-amp-y` against `alias-x--y`; `## Under [[_draft notes_|_lead and trail_]]` gives `under-_lead-and-trail_` against `under-lead-and-trail`. A link to such a heading silently goes nowhere. Fix: before parsing, replace each wikilink outside code with its escaped display text, sharing the escaping function between both modules, and add a heading with `_`, inline HTML and an entity in its wikilink text to `HEADINGS`.
+
+### Round 3: APPROVED
+- **N1: Ragged rewrap in the `build_site` docstring** (`src/mdblog/build.py:153`): the edited sentence breaks after "every failed" and again after "`now`", leaving a short line mid-paragraph. Reflow it; non-blocking.
+
+Round 2's F1 is fixed in 0591b34: `headings()` parses `_with_wikilinks_as_text(text)`, which replaces each wikilink outside code with `escape_text(wikilink_text(...))`, the same function the converter uses. `HEADINGS` gained a heading whose wikilinks hold `_`, inline HTML and an entity, and `test_heading_ids_match_hugos` checks it against real Hugo. Every Must Have is checked off. `tools/check` exits 0 with 439 tests passing.
