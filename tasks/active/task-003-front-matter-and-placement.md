@@ -40,12 +40,14 @@ Stops vault properties from changing the site by accident: the converter writes 
 - Standing obligation, strict static checks: the validated note is a frozen dataclass with precise field types. Narrow from `object` with `isinstance` checks instead of casts.
 - Standing obligation, scripts stay simple: all logic is Python in importable functions, tested directly.
 - Standing obligation, test where the risk is: the property rules and page placement are novel code, so unit tests cover each rule and message. Real Hugo runs in the end-to-end fixture build and in the time-zone Must Have, because Hugo hides that page silently. The byte-identical output trees may use real Hugo or the fake, whichever proves it.
+- 2026-11-04: generated front matter is JSON, which Hugo reads natively when a page starts with `{`. JSON has one reading of each string, where a YAML reader could take a title of `yes` for a boolean, and needs no serializer settings. Tested on Hugo 0.169 with quotes, braces, `yes` and `123`.
+- 2026-11-04, user request: this task also closes task-005's review note N2, by asserting the rendered value in the `publish` error (`not 'yes'`).
 
 ## Plan
-- [ ] **Step 1** (`src/mdblog/properties.py`, tests): a function taking a note's parsed front matter, its file name and the clock, returning a validated value or every failure for that note. Cover each Must Have rule directly.
-- [ ] **Step 2** (`src/mdblog/publish.py`, `src/mdblog/build.py`, tests): write validated pages to `content/posts/<slug>/index.md` with generated front matter and the original body. Detect slug collisions across notes, report all failures in one run, and pass `--buildFuture` to Hugo.
-- [ ] **Step 3** (`tests/fixtures/vault/`): add `type`, `slug` and `date` to `projects/first-note.md` and every other published fixture note, and add a `type: link` note.
-- [ ] **Step 4** (tests from task-002): grep task-002's tests for `projects/first-note`, relative-path placement assertions, and notes holding only `publish: true`, and update each: published test notes need the required properties, so add a shared helper that writes them.
-- [ ] **Step 5** (`docs/vault-format.md`): the property reference. Move the collision evidence there from the roadmap's M2 section.
+- [x] **Step 1** (`src/mdblog/properties.py`, tests): a function taking a note's parsed front matter, its file name and the clock, returning a validated value or every failure for that note. Cover each Must Have rule directly.
+- [x] **Step 2** (`src/mdblog/publish.py`, `src/mdblog/build.py`, tests): write validated pages to `content/posts/<slug>/index.md` with generated front matter and the original body. Detect slug collisions across notes, report all failures in one run, and pass `--buildFuture` to Hugo.
+- [x] **Step 3** (`tests/fixtures/vault/`): add `type`, `slug` and `date` to `projects/first-note.md` and every other published fixture note, and add a `type: link` note.
+- [x] **Step 4** (tests from task-002): grep task-002's tests for `projects/first-note`, relative-path placement assertions, and notes holding only `publish: true`, and update each: published test notes need the required properties, so add a shared helper that writes them.
+- [x] **Step 5** (`docs/vault-format.md`): the property reference. Move the collision evidence there from the roadmap's M2 section.
 
 ## Review log

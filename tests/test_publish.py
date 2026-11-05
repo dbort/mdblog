@@ -1,26 +1,30 @@
+import datetime as dt
 from pathlib import Path
 
 import pytest
 
 from mdblog.publish import (
     FrontMatterError,
-    front_matter_block,
-    is_published,
+    published_parts,
     select_notes,
+    split_note,
 )
+from notes import published_text
+
+NOW = dt.datetime(2026, 6, 15, 12, 0, tzinfo=dt.UTC)
 
 
-def _write(
-    vault: Path, relative: str, data: str | bytes = "---\npublish: true\n---\n"
-) -> Path:
+def _write(vault: Path, relative: str, data: str | bytes | None = None) -> Path:
     path = vault / relative
     path.parent.mkdir(parents=True, exist_ok=True)
+    if data is None:
+        data = published_text(path.stem.lstrip("."))
     path.write_bytes(data.encode("utf-8") if isinstance(data, str) else data)
     return path
 
 
 def _published(vault: Path) -> list[str]:
-    selection = select_notes(vault)
+    selection = select_notes(vault, NOW)
     assert selection.failures == ()
     return [note.path.as_posix() for note in selection.published]
 
@@ -44,8 +48,26 @@ def _published(vault: Path) -> list[str]:
         pytest.param(b"\xff\xfe\n", None, id="binary-body"),
     ],
 )
-def test_front_matter_block(data: bytes, expected: bytes | None) -> None:
-    assert front_matter_block(data) == expected
+def test_split_note_finds_the_block(data: bytes, expected: bytes | None) -> None:
+    parts = split_note(data)
+
+    assert (parts[0] if parts else None) == expected
+
+
+@pytest.mark.parametrize(
+    ("data", "body"),
+    [
+        pytest.param(b"---\na: 1\n---\nbody\n", b"body\n", id="lf"),
+        pytest.param(b"---\r\na: 1\r\n---\r\nb\r\n\r\n", b"b\r\n\r\n", id="crlf"),
+        pytest.param(b"---\na: 1\n---", b"", id="closing-at-end-of-file"),
+        pytest.param(b"---\n---\n\n\n  x\n---\ny", b"\n\n  x\n---\ny", id="exact"),
+    ],
+)
+def test_split_note_keeps_the_body_exactly(data: bytes, body: bytes) -> None:
+    parts = split_note(data)
+
+    assert parts is not None
+    assert parts[1] == body
 
 
 @pytest.mark.parametrize(
@@ -62,17 +84,31 @@ def test_front_matter_block(data: bytes, expected: bytes | None) -> None:
         pytest.param(b"body in latin-1: \xe9\n", False, id="unpublished-any-encoding"),
     ],
 )
-def test_is_published(note: bytes, expected: bool) -> None:
-    assert is_published(note) is expected
+def test_published_parts_finds_only_marked_notes(note: bytes, expected: bool) -> None:
+    assert (published_parts(note) is not None) is expected
 
 
 @pytest.mark.parametrize(
     ("note", "reason"),
     [
-        pytest.param(b'---\npublish: "true"\n---\n', "publish must be", id="string"),
-        pytest.param(b"---\npublish: yes\n---\n", "publish must be", id="yes"),
-        pytest.param(b"---\npublish: 1\n---\n", "publish must be", id="one"),
-        pytest.param(b"---\npublish:\n---\n", "publish must be", id="null"),
+        pytest.param(
+            b'---\npublish: "true"\n---\n',
+            "publish must be true or false, not 'true'",
+            id="string",
+        ),
+        pytest.param(
+            b"---\npublish: yes\n---\n",
+            "publish must be true or false, not 'yes'",
+            id="yes",
+        ),
+        pytest.param(
+            b"---\npublish: 1\n---\n", "publish must be true or false, not 1", id="one"
+        ),
+        pytest.param(
+            b"---\npublish:\n---\n",
+            "publish must be true or false, not None",
+            id="null",
+        ),
         pytest.param(b"---\na: [\n---\n", "invalid YAML", id="invalid-yaml"),
         pytest.param(b"---\na: 1\na: 2\n---\n", "duplicate key", id="duplicate-key"),
         pytest.param(b"---\n- a\n---\n", "not a mapping", id="sequence"),
@@ -85,26 +121,101 @@ def test_is_published(note: bytes, expected: bool) -> None:
         ),
     ],
 )
-def test_is_published_raises_with_the_reason(note: bytes, reason: str) -> None:
+def test_published_parts_raises_with_the_reason(note: bytes, reason: str) -> None:
     with pytest.raises(FrontMatterError, match=reason):
-        is_published(note)
+        published_parts(note)
 
 
-def test_select_notes_keeps_relative_paths_sorted_and_bytes_verbatim(
+def test_select_notes_keeps_relative_paths_sorted_and_bodies_verbatim(
     tmp_path: Path,
 ) -> None:
-    deep = b"---\r\npublish: true\r\nurl: https://example.test\r\n---\r\n# Deep\r\n"
+    deep = published_text("deep").replace("\n", "\r\n") + "# Deep\r\n\r\n"
     _write(tmp_path, "z.md")
     _write(tmp_path, "a/b/deep.md", deep)
     _write(tmp_path, "m.md", "---\npublish: false\n---\n")
 
-    selection = select_notes(tmp_path)
+    selection = select_notes(tmp_path, NOW)
 
     assert [note.path.as_posix() for note in selection.published] == [
         "a/b/deep.md",
         "z.md",
     ]
-    assert selection.published[0].content == deep
+    assert selection.published[0].page.slug == "deep"
+    assert selection.published[0].body == b"# Deep\r\n\r\n"
+
+
+def test_select_notes_takes_a_missing_title_from_the_file_name(tmp_path: Path) -> None:
+    _write(tmp_path, "My Note.md", published_text())
+
+    assert select_notes(tmp_path, NOW).published[0].page.title == "My Note"
+
+
+def test_select_notes_applies_property_rules_only_to_published_notes(
+    tmp_path: Path,
+) -> None:
+    _write(tmp_path, "false.md", "---\npublish: false\nslug: BAD\ntype: x\n---\n")
+    _write(tmp_path, "none.md", "---\ntitle: 1\ndate: soon\n---\n")
+    _write(tmp_path, "plain.md", "No front matter.\n")
+
+    assert _published(tmp_path) == []
+
+
+def test_select_notes_lists_each_reason_for_a_published_note(tmp_path: Path) -> None:
+    _write(tmp_path, "bad.md", "---\npublish: true\n---\n")
+    _write(tmp_path, "other.md", published_text("other", entry_type="nope"))
+    _write(tmp_path, "good.md")
+
+    selection = select_notes(tmp_path, NOW)
+
+    assert [
+        (failure.path.as_posix(), failure.reason) for failure in selection.failures
+    ] == [
+        ("bad.md", "date is required"),
+        ("bad.md", "slug is required"),
+        ("bad.md", "type is required"),
+        ("other.md", "type must be one of post, til, link, not 'nope'"),
+    ]
+    assert [note.path.as_posix() for note in selection.published] == ["good.md"]
+
+
+def test_select_notes_uses_the_clock_for_future_dates(tmp_path: Path) -> None:
+    _write(tmp_path, "today.md", published_text("today", date="2026-06-15"))
+    _write(tmp_path, "tomorrow.md", published_text("tomorrow", date="2026-06-16"))
+
+    selection = select_notes(tmp_path, NOW)
+
+    assert [note.page.slug for note in selection.published] == ["today"]
+    assert [failure.reason for failure in selection.failures] == [
+        "date 2026-06-16 is in the future"
+    ]
+
+
+def test_select_notes_names_every_note_sharing_a_slug(tmp_path: Path) -> None:
+    _write(tmp_path, "a/one.md", published_text("same"))
+    _write(tmp_path, "b/two.md", published_text("same"))
+    _write(tmp_path, "other.md")
+
+    selection = select_notes(tmp_path, NOW)
+
+    assert [note.page.slug for note in selection.published] == ["other"]
+    reason = "slug 'same' is used by more than one note: a/one.md, b/two.md"
+    assert [
+        (failure.path.as_posix(), failure.reason) for failure in selection.failures
+    ] == [("a/one.md", reason), ("b/two.md", reason)]
+
+
+def test_select_notes_reports_a_shared_slug_beside_other_failures(
+    tmp_path: Path,
+) -> None:
+    _write(tmp_path, "a.md", published_text("same"))
+    _write(tmp_path, "b.md", published_text("same", entry_type="nope"))
+
+    selection = select_notes(tmp_path, NOW)
+
+    assert selection.published == ()
+    reasons = [failure.reason for failure in selection.failures]
+    assert sum("used by more than one note" in reason for reason in reasons) == 2
+    assert "type must be one of post, til, link, not 'nope'" in reasons
 
 
 def test_select_notes_ignores_files_that_are_not_notes(tmp_path: Path) -> None:
@@ -167,7 +278,7 @@ def test_select_notes_reports_every_failure_with_its_reason(tmp_path: Path) -> N
     _write(tmp_path, "b/typo.md", "---\npublish: yes\n---\n")
     _write(tmp_path, "a/broken.md", "---\na: [\n---\n")
 
-    selection = select_notes(tmp_path)
+    selection = select_notes(tmp_path, NOW)
 
     assert [note.path.as_posix() for note in selection.published] == ["good.md"]
     assert [failure.path.as_posix() for failure in selection.failures] == [
@@ -182,7 +293,7 @@ def test_select_notes_names_other_notes_after_a_bad_date(tmp_path: Path) -> None
     _write(tmp_path, "a-date.md", "---\ndate: 2026-13-45\n---\n")
     _write(tmp_path, "b-typo.md", "---\npublish: yes\n---\n")
 
-    selection = select_notes(tmp_path)
+    selection = select_notes(tmp_path, NOW)
 
     assert [failure.path.as_posix() for failure in selection.failures] == [
         "a-date.md",
@@ -198,7 +309,7 @@ def test_select_notes_reports_an_unreadable_note(tmp_path: Path) -> None:
         pytest.skip("this user can read a file with no permissions")
 
     try:
-        selection = select_notes(tmp_path)
+        selection = select_notes(tmp_path, NOW)
     finally:
         note.chmod(0o644)
 
@@ -215,7 +326,7 @@ def test_select_notes_reports_an_unreadable_directory(tmp_path: Path) -> None:
         pytest.skip("this user can read a directory with no permissions")
 
     try:
-        selection = select_notes(tmp_path)
+        selection = select_notes(tmp_path, NOW)
     finally:
         directory.chmod(0o755)
 

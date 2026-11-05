@@ -2,12 +2,14 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 
 from mdblog.config import SITE_DIR
+from mdblog.properties import PageProperties, valid_slug, validate_properties
 
 NOTE_SUFFIX = ".md"
 FENCE = b"---"
@@ -23,8 +25,9 @@ class PublishedNote:
 
     # Relative to the vault.
     path: Path
-    # The bytes that were validated, so a later edit to the file cannot bypass the rule.
-    content: bytes
+    page: PageProperties
+    # The bytes after the front matter, read once so a later edit cannot bypass the rules.
+    body: bytes
 
 
 @dataclass(frozen=True)
@@ -46,20 +49,22 @@ class Selection:
     failures: tuple[NoteFailure, ...]
 
 
-def front_matter_block(data: bytes) -> bytes | None:
-    """The bytes between a note's fences with LF line endings, or None if it has no block.
+def split_note(data: bytes) -> tuple[bytes, bytes] | None:
+    """A note's front matter block with LF line endings and its exact body, or None.
 
-    A block opens only with `---` alone on the first line and closes at the next line
-    holding only `---`. Works on bytes because a note with no block may hold any encoding.
+    None means the note has no block. A block opens only with `---` alone on the first
+    line and closes at the next line holding only `---`, and the body starts on the line
+    after that. Works on bytes because a note with no block may hold any encoding.
     """
-    lines = [line.removesuffix(b"\r") for line in data.split(b"\n")]
+    raw_lines = data.split(b"\n")
+    lines = [line.removesuffix(b"\r") for line in raw_lines]
     if lines[0] != FENCE:
         return None
     try:
         closing = lines.index(FENCE, 1)
     except ValueError:
         return None
-    return b"\n".join(lines[1:closing])
+    return b"\n".join(lines[1:closing]), b"\n".join(raw_lines[closing + 1 :])
 
 
 def _is_blank(text: str) -> bool:
@@ -105,41 +110,57 @@ def parse_properties(block: bytes) -> Mapping[object, object]:
     return loaded
 
 
-def is_published(data: bytes) -> bool:
-    """Whether a note's bytes mark it for publishing.
+def published_parts(data: bytes) -> tuple[Mapping[object, object], bytes] | None:
+    """The properties and body of a note marked for publishing, otherwise None.
 
-    True only for the boolean `publish: true`. False for `publish: false`, no `publish`
-    property and no front matter. Raises `FrontMatterError` for a non-boolean `publish`,
-    any failure of `parse_properties`, or a published note whose body is not UTF-8.
+    Returns them only for the boolean `publish: true`. None for `publish: false`, no
+    `publish` property and no front matter. Raises `FrontMatterError` for a non-boolean
+    `publish`, any failure of `parse_properties`, or a published note whose body is not
+    UTF-8.
     """
-    block = front_matter_block(data)
-    if block is None:
-        return False
+    parts = split_note(data)
+    if parts is None:
+        return None
+    block, body = parts
     properties = parse_properties(block)
     if "publish" not in properties:
-        return False
+        return None
     value = properties["publish"]
     # An identity check, because `1 == True` in Python.
     if value is False:
-        return False
+        return None
     if value is not True:
         raise FrontMatterError(f"publish must be true or false, not {value!r}")
     try:
         data.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise FrontMatterError("note is not UTF-8") from exc
-    return True
+    return properties, body
 
 
-def select_notes(vault: Path) -> Selection:
+def _slug_collisions(users: Mapping[str, list[Path]]) -> list[NoteFailure]:
+    failures: list[NoteFailure] = []
+    for slug, paths in users.items():
+        if len(paths) > 1:
+            names = ", ".join(sorted(path.as_posix() for path in paths))
+            reason = f"slug {slug!r} is used by more than one note: {names}"
+            failures.extend(NoteFailure(path, reason) for path in paths)
+    return failures
+
+
+def select_notes(vault: Path, now: datetime) -> Selection:
     """Validates each selected note in `vault` and returns the published ones and all failures.
 
     A selected note is a regular `*.md` file outside `_site/` at the vault's root, with
     no path component starting with `.`. Symbolic links are neither followed nor selected.
-    An unreadable note or directory is a failure.
+    An unreadable note or directory is a failure, and so is a published note whose
+    properties fail `validate_properties` at the time `now`, with one failure per reason.
+    Every note sharing a slug is a failure that names the others, even when the note has
+    other failures. A note with any failure is not in `published`.
     """
     published: list[PublishedNote] = []
     failures: list[NoteFailure] = []
+    slug_users: dict[str, list[Path]] = {}
 
     def record_walk_error(error: OSError) -> None:
         path = Path(error.filename).relative_to(vault)
@@ -162,14 +183,32 @@ def select_notes(vault: Path) -> Selection:
                 continue
             relative = note.relative_to(vault)
             try:
-                data = note.read_bytes()
-                if is_published(data):
-                    published.append(PublishedNote(relative, data))
+                parts = published_parts(note.read_bytes())
             except OSError as exc:
                 failures.append(NoteFailure(relative, f"cannot read: {exc.strerror}"))
+                continue
             except FrontMatterError as exc:
                 failures.append(NoteFailure(relative, str(exc)))
+                continue
+            if parts is None:
+                continue
+            properties, body = parts
+            slug = valid_slug(properties.get("slug"))
+            if slug is not None:
+                slug_users.setdefault(slug, []).append(relative)
+            page = validate_properties(properties, note.stem, now)
+            if isinstance(page, PageProperties):
+                published.append(PublishedNote(relative, page, body))
+            else:
+                failures.extend(NoteFailure(relative, reason) for reason in page)
+    failures.extend(_slug_collisions(slug_users))
+    failed = {failure.path for failure in failures}
     return Selection(
-        published=tuple(sorted(published, key=lambda note: note.path)),
+        published=tuple(
+            sorted(
+                (note for note in published if note.path not in failed),
+                key=lambda note: note.path,
+            )
+        ),
         failures=tuple(sorted(failures, key=lambda failure: failure.path)),
     )

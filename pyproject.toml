@@ -17,7 +17,7 @@ mdblog = "mdblog.cli:main"
 packages = ["src/mdblog"]
 
 [tool.ruff]
-src = ["src", "tools"]
+src = ["src", "tools", "tests"]
 
 [tool.ruff.lint]
 select = ["B", "E", "F", "I", "PTH", "RUF", "SIM", "UP", "W"]
@@ -26,14 +26,14 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["tools"]
+pythonpath = ["tools", "tests"]
 addopts = ["--strict-markers", "--strict-config"]
 xfail_strict = true
 
 [tool.pyrefly]
 preset = "strict"
 project-includes = ["src", "tests", "tools"]
-search-path = ["src", "tools"]
+search-path = ["src", "tools", "tests"]
 # A suppression aimed at another checker must not hide a pyrefly error.
 enabled-ignores = ["pyrefly"]
 

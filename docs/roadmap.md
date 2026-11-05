@@ -19,7 +19,7 @@ Search, comments, series, scheduled publishing, and packaging mdblog for other p
 
 Turn Obsidian's Markdown into what Hugo expects.
 
-- Front matter: the converter writes each page's front matter from scratch, reading `title`, `date`, `tags`, `slug`, `type` and a link entry's `url`. A missing title comes from the file name. Every other property is dropped, because the same name can mean something else to Hugo: `aliases` generates redirect pages, `url` moves the page, `weight` reorders the feed, and `published` or `expiryDate` can hide the page or fail the build. A Hugo feature wanted later, such as a redirect after a rename, gets its own property and is never passed through by name.
+- Front matter: the converter writes each page's front matter from scratch, reading `title`, `date`, `tags`, `slug`, `type` and a link entry's `url`. A missing title comes from the file name. Every other property is dropped, because the same name can mean something else to Hugo, and `docs/vault-format.md` lists the collisions. A Hugo feature wanted later, such as a redirect after a rename, gets its own property and is never passed through by name.
 - Page placement: every entry type lives at `/posts/<slug>/`, so a note's vault folder, file name and type have no effect on its URL. `slug` and `type` are required on published notes.
 - `date` means the publish date, so a note started months ago does not land months back in the stream and the feed. Hugo dates a note with no `date` as year 0001 and lists it last in the feed, and it leaves out a future-dated note with no warning, so the converter validates dates itself.
 - Tags: the `tags` property sets site tags, and nested tags keep Hugo's nested paths. Inline `#tags` stay literal text.
