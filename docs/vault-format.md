@@ -18,6 +18,8 @@ The build reads these properties and ignores every other one. An empty property 
 
 A note's vault folder, file name and type have no effect on its URL, so moving or retyping a note never moves its page.
 
+Hugo lowercases tag paths, so `Project/Alpha` builds at `/tags/project/alpha/` and shares a page with `project/alpha`. A tag holding `page/<number>`, such as `a/page/2`, can replace a page of tag `a`'s listing if a site's layouts paginate tag pages. The packaged layouts do not.
+
 A future date fails the build because nothing rebuilds the site when that date arrives. Hugo compares a date-only value as UTC midnight and would hide a note dated today at some local times, so the build runs Hugo with `--buildFuture` and applies the rule itself.
 
 ## Generated front matter

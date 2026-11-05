@@ -103,9 +103,10 @@ def _is_word_character(character: str) -> bool:
 
 def _is_safe_tag_segment(segment: str) -> bool:
     # Hugo makes a tag's text the page's path after removing the characters it dislikes,
-    # so `!..` becomes `..`, which writes outside `/tags/` or over the home page. An
-    # allowlist holds only characters Hugo keeps. Its Unicode tables can be older than
-    # Python's and drop a letter they do not know, so a dot needs an ASCII neighbor.
+    # so `!..` becomes `..`, which writes outside `/tags/` or over the home page. The
+    # allowlist holds only characters Hugo keeps. Hugo's Unicode tables can be older than
+    # Python's and drop a letter they do not know, so a part with a dot must hold an
+    # ASCII letter or digit, which no table can drop.
     if not all(
         character in TAG_PUNCTUATION
         or _is_word_character(character)

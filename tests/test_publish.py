@@ -1,4 +1,5 @@
 import datetime as dt
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -187,6 +188,33 @@ def test_select_notes_uses_the_clock_for_future_dates(tmp_path: Path) -> None:
     assert [note.page.slug for note in selection.published] == ["today"]
     assert [failure.reason for failure in selection.failures] == [
         "date 2026-06-16 is in the future"
+    ]
+
+
+def test_select_notes_reads_each_date_form_from_note_text(
+    tmp_path: Path, local_zone: Callable[[str], None]
+) -> None:
+    # POSIX counts offsets west of UTC as positive, so this is UTC-5.
+    local_zone("XXX5")
+    for slug, date in (
+        ("day", "2026-06-01"),
+        ("offset", "2026-06-01T10:00:00+09:00"),
+        ("utc", "2026-06-01T10:00:00Z"),
+        ("naive", "2026-06-01T10:00:00"),
+    ):
+        _write(tmp_path, f"{slug}.md", published_text(slug, date=date))
+    _write(tmp_path, "quoted.md", published_text("quoted", date='"2026-06-01"'))
+
+    selection = select_notes(tmp_path, NOW)
+
+    dates = {note.page.slug: note.page.date for note in selection.published}
+    assert dates["day"] == dt.date(2026, 6, 1)
+    assert not isinstance(dates["day"], dt.datetime)
+    assert dates["offset"].isoformat() == "2026-06-01T10:00:00+09:00"
+    assert dates["utc"].isoformat() == "2026-06-01T10:00:00+00:00"
+    assert dates["naive"].isoformat() == "2026-06-01T10:00:00-05:00"
+    assert [failure.reason for failure in selection.failures] == [
+        "date must be a YAML date or datetime, not '2026-06-01'"
     ]
 
 
