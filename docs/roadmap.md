@@ -42,11 +42,11 @@ Build the reader-facing site from the default Hugo layouts in the `mdblog` packa
 
 - Three entry types: posts, TILs and links, all at `/posts/<slug>/`. The converter records the type as `.Params.entry_type` and a link's target as `.Params.link_url`, so list pages filter on those. A link entry points to the external page and carries a short commentary and its own permalink.
 - A home page with the bio from the vault's `_site/bio.md`, when it has one, and the latest 15 entries of every type, plus a full archive by year and tag pages.
-- A full-text RSS feed of the latest 50 entries of all types, advertised from each page's `<head>`, and one feed per tag. Hugo generates these as `index.xml`, newest first, and M6 and M7 can read them too. A link entry's feed item links to its permalink on the site, and its body starts with the external link.
+- Full-text RSS feeds of the latest 50 entries: one of all types, one per type at `/types/<type>/index.xml` and one per tag, with the site and type feeds advertised from each page's `<head>`. Hugo generates these as `index.xml`, newest first, and M6 and M7 can read them too. A link entry's feed item links to its permalink on the site, and its body starts with the external link.
 - A visual design of its own in plain CSS, with no Node: system fonts, light and dark palettes that follow the reader's system, and syntax highlighting in both. It works at phone width, and there is a 404 page.
 - h-entry microformats in entry templates and lists, so M6 and M7 need no template retrofit.
 
-**Done when:** a fixture build generates every page type, the tests assert each entry's date, tags, permalink and h-entry markup, and `index.xml` parses as RSS and lists entries of all three types.
+**Done when:** a fixture build generates every page type, the tests assert each entry's date, tags, permalink and h-entry markup, `index.xml` parses as RSS and lists entries of all three types, and each type feed lists only its type.
 
 ## M4: Deploy to Cloudflare
 
