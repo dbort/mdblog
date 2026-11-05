@@ -136,6 +136,10 @@ def test_headings_follow_hugos_ids() -> None:
         Heading("See Alias and target", "see-alias-and-target"),
         Heading("Sized a.png and a.png", "sized-apng-and-apng"),
         Heading("Alt alt words and a.png", "alt-alt-words-and-apng"),
+        Heading(
+            "Odd _lead_ <b>x</b> &amp; and _draft notes_",
+            "odd-_lead_-bxb-amp-and-_draft-notes_",
+        ),
         Heading("Auto  y", "auto--y"),
         Heading("raw html", "raw-html"),
         # Hugo builds a multi-line setext heading's ID from its last line.

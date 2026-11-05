@@ -12,6 +12,7 @@ from mdblog.markdown import (
     IMAGE_SUFFIXES,
     WIKILINK,
     CodeMap,
+    escape_text,
     heading_key,
     headings,
     internal_destinations,
@@ -145,12 +146,6 @@ def _fragment(subpath: str, path: Path, target: LinkTarget) -> str:
     return "#" + quote(anchor, safe="")
 
 
-def _link_text(text: str) -> str:
-    # Escaping every ASCII punctuation character keeps the text literal: `_a_` stays
-    # underscores and `<b>` stays visible instead of becoming omitted raw HTML.
-    return re.sub(r"([!-/:-@\[-`{-~])", r"\\\1", text)
-
-
 @dataclass(frozen=True)
 class Converted:
     """One note's text with its wikilinks converted."""
@@ -191,13 +186,13 @@ class _NoteContext:
         self.images.add(path)
         url = self.page_url(self.slug) + quote(path.name)
         if not embed:
-            return f"[{_link_text(alias or target)}]({url})"
+            return f"[{escape_text(alias or target)}]({url})"
         size = IMAGE_SIZE.fullmatch(alias or "")
         if size is not None:
             url += f"?{WIDTH_PARAMETER}={size[1]}"
             if size[2] is not None:
                 url += f"&{HEIGHT_PARAMETER}={size[2]}"
-        return f"![{_link_text(wikilink_text(True, target, alias))}]({url})"
+        return f"![{escape_text(wikilink_text(True, target, alias))}]({url})"
 
     def _note_link(self, path: Path, subpath: str, text: str) -> str:
         target = self.index.published.get(path)
@@ -206,7 +201,7 @@ class _NoteContext:
                 raise LinkError(f"{path.as_posix()} has failures of its own")
             raise LinkError(f"{path.as_posix()} is not published")
         url = self.page_url(target.slug) + _fragment(subpath, path, target)
-        return f"[{_link_text(text)}]({url})"
+        return f"[{escape_text(text)}]({url})"
 
 
 def convert_wikilinks(

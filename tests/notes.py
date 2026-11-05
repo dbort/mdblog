@@ -38,6 +38,7 @@ HEADINGS = (
     "## See [[target|Alias]] and [[target]]\n"
     "## Sized ![[a.png|300]] and ![[images/a.png]]\n"
     "## Alt ![[a.png|alt words]] and [[a.png]]\n"
+    "## Odd [[target|_lead_ <b>x</b> &amp;]] and [[_draft notes_]]\n"
     "## Auto <https://a.test/x> y\n"
     "## <span>raw</span> html\n"
     "First line\nsecond line\n===\n"

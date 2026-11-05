@@ -889,6 +889,9 @@ def test_heading_ids_match_hugos(tmp_path: Path) -> None:
     (vault / "target.md").write_text(
         published_text("target", body=HEADINGS), encoding="utf-8"
     )
+    (vault / "_draft notes_.md").write_text(
+        published_text("draft-notes"), encoding="utf-8"
+    )
     output = tmp_path / "output"
 
     build_site(vault, output, ("hugo",))

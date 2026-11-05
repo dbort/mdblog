@@ -195,8 +195,22 @@ def wikilink_text(embed: bool, target: str, alias: str | None) -> str:
     return alias or target
 
 
-def _wikilink_display(match: re.Match[str]) -> str:
-    return wikilink_text(match[1] == "!", *split_wikilink(match[2]))
+def escape_text(text: str) -> str:
+    """`text` with every ASCII punctuation character backslash-escaped, so Markdown
+    renders it literally: `_a_` stays underscores and `<b>` stays visible."""
+    return re.sub(r"([!-/:-@\[-`{-~])", r"\\\1", text)
+
+
+def _with_wikilinks_as_text(text: str) -> str:
+    # Hugo reads a heading after conversion, where a wikilink is its escaped link text.
+    code = CodeMap(text)
+
+    def replace(match: re.Match[str]) -> str:
+        if code.overlaps(match.start(), match.end()):
+            return match[0]
+        return escape_text(wikilink_text(match[1] == "!", *split_wikilink(match[2])))
+
+    return WIKILINK.sub(replace, text)
 
 
 def _plain_text(children: Sequence[Token]) -> str:
@@ -253,13 +267,13 @@ def headings(text: str) -> tuple[Heading, ...]:
     `heading` for an empty result and `-1`, `-2` and so on appended to avoid any ID
     already given.
     """
-    tokens = _PARSER.parse(text)
+    tokens = _PARSER.parse(_with_wikilinks_as_text(text))
     found: list[Heading] = []
     given: set[str] = set()
     for opening, inline in itertools.pairwise(tokens):
         if opening.type != "heading_open" or inline.type != "inline":
             continue
-        plain = WIKILINK.sub(_wikilink_display, _plain_text(inline.children or []))
+        plain = _plain_text(inline.children or [])
         if not plain.strip():
             # Hugo gives an empty heading no ID.
             continue
