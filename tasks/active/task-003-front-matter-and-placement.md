@@ -95,3 +95,10 @@ Round 1 findings: F1 is fixed, confirmed with `TZ=America/New_York` and real Hug
 - **N2: Round 4's N7 is fixed** (`docs/vault-format.md:16`): combining marks now appear in the docs, the error message, the Must Have and the test's `UNSAFE_TAG`.
 - **N3: The rest of the tag rule and the Hugo flag still hold** (`src/mdblog/properties.py:104`): scratch mutations of the letter-or-digit requirement and the dot rule each fail a test, and removing `--buildFuture` fails `test_a_note_dated_today_builds_while_that_date_is_ahead_of_utc`. `tools/check` passes with 275 tests.
 - **N4: The tag rule's comment is loosely worded** (`src/mdblog/properties.py:107`): "Its Unicode tables" follows "An allowlist" but means Hugo's. "ASCII neighbor" suggests adjacency, while the code accepts an ASCII letter or digit anywhere in the part. Worth tidying in the same fix.
+
+### Round 6: APPROVED
+Scoped by user decision to commit 15b78d5, live bugs and Must Have misses.
+- **N1: Round 5's F1 is fixed** (`tests/test_publish.py:194`): `test_select_notes_reads_each_date_form_from_note_text` runs real note text through `select_notes` with no Hugo, covering date-only, offset, `Z` and naive datetimes under `local_zone`, plus the quoted-string failure. Round 5's mutation of `create_timestamp` now fails this test. It also passes with ambient `TZ` set to Asia/Tokyo, Pacific/Kiritimati and America/Los_Angeles.
+- **N2: Round 5's N4 is fixed** (`src/mdblog/properties.py:105`): the comment now matches the code.
+- **N3: The rest of commit 15b78d5 holds up** (`docs/vault-format.md:21`): a real Hugo build of `Project/Alpha` and `project/alpha` produced the single page `tags/project/alpha/index.html`, and the packaged theme does not paginate. `a/page/2` was not rerun; round 4 reproduced it and the Advice accepts it.
+- **N4: The gate passes** (`tools/check`): 276 tests pass with none skipped. The full branch diff shows no live correctness bug or unmet Must Have. The tag and mutation sweeps were not repeated, as scoped.
