@@ -42,17 +42,18 @@ Adds `mdblog serve VAULT`, which runs Hugo's development server on the vault's s
 - Stop on SIGINT and SIGTERM: terminate Hugo if it is still running, wait for it, then remove the temporary directories. If Hugo exits unexpectedly, serve exits 1 with a message naming Hugo's status.
 - Pass Hugo's own output through to the terminal. It prints the server URL and its own template errors, which it also shows in the browser.
 - Update `task-007`'s Advice to preview with `mdblog serve` on the fixture vault in place of `python3 -m http.server`.
+- Implementation findings (2026-11-05), tested against Hugo 0.169: Hugo's server never deletes a removed page's files from `--destination` and keeps serving them with status 200, and `--cleanDestinationDir` deletes the marker without removing those files on a rebuild. So serve restarts Hugo into an emptied output directory, with the marker rewritten, whenever a sync removes a path or writes a top-level path (`hugo.toml`, or a new directory Hugo would not be watching). Hugo rejects a bracketed IPv6 `--baseURL` without a port, so an explicit `--bind` passes `--baseURL http://ADDRESS:PORT<base path>/ --appendPort=false` in place of relying on `--appendPort`. Hugo runs in its own process group so a terminal's Ctrl+C reaches only mdblog, which then stops Hugo; any other Hugo exit is a failure.
 - Standing obligation, strict static checks: all new code is typed under pyrefly strict. `watchfiles` ships type hints; if any call still erases a type, comment why at that line.
 - Standing obligation, scripts stay simple: no shell scripts. Port selection, syncing and the watch loop are importable Python functions.
 - Standing obligation, test where the risk is: unit-test port selection, the directory name, the sync (changed, unchanged, removed and nested files), the hidden-path filter, the bind and base-URL rules, the Hugo argument list, the startup wait, keeping the last good source on failure, and the restart on a `hugo.toml` change, all with fakes. Run one real-Hugo, real-watchfiles end-to-end test: start serve on a copy of the fixture vault, fetch a page over HTTP, edit a note and see the change, break a note and see the old page stay, then send SIGTERM and confirm the directories are gone. Live reload in a browser and LAN access are manual QA, since no test here drives a browser or a second device.
 
 ## Plan
-- [ ] **Step 1** (`pixi.toml`, `pyproject.toml`, `pixi.lock`): add `watchfiles`.
-- [ ] **Step 2** (`src/mdblog/serve.py`, tests): port selection, bind and base-URL rules, output-directory choice and checks, source sync, the hidden-path filter, the watch-and-rebuild loop, and the Hugo server process with clean shutdown. Expose a `serve_site(vault, output, port, bind)` entry point. Factor any part of `build_site` that serve shares, such as the validation and conversion that produce pages or a `BuildError`, into a function both call, leaving `build_site`'s contract unchanged.
-- [ ] **Step 3** (`src/mdblog/cli.py`, tests): the `serve` subcommand with `VAULT`, `--output DIR`, `--port N` and `--bind ADDRESS`, reporting refusals as `mdblog: <error>` with exit 1.
-- [ ] **Step 4** (`tests/`): the real-Hugo end-to-end test.
-- [ ] **Step 5** (`README.md`): installation and usage, deferring to `docs/vault-format.md` for the vault.
-- [ ] **Step 6** (`tasks/active/task-007-visual-design.md`): replace the `python3 -m http.server` preview in its Advice with `mdblog serve`.
+- [x] **Step 1** (`pixi.toml`, `pyproject.toml`, `pixi.lock`): add `watchfiles`.
+- [x] **Step 2** (`src/mdblog/serve.py`, tests): port selection, bind and base-URL rules, output-directory choice and checks, source sync, the hidden-path filter, the watch-and-rebuild loop, and the Hugo server process with clean shutdown. Expose a `serve_site(vault, output, port, bind)` entry point. Factor any part of `build_site` that serve shares, such as the validation and conversion that produce pages or a `BuildError`, into a function both call, leaving `build_site`'s contract unchanged.
+- [x] **Step 3** (`src/mdblog/cli.py`, tests): the `serve` subcommand with `VAULT`, `--output DIR`, `--port N` and `--bind ADDRESS`, reporting refusals as `mdblog: <error>` with exit 1.
+- [x] **Step 4** (`tests/`): the real-Hugo end-to-end test.
+- [x] **Step 5** (`README.md`): installation and usage, deferring to `docs/vault-format.md` for the vault.
+- [x] **Step 6** (`tasks/active/task-007-visual-design.md`): replace the `python3 -m http.server` preview in its Advice with `mdblog serve`.
 - [ ] **Step 7**: run the manual QA with the author and record their approval, dated, in `## Advice`.
 
 ## Review log
