@@ -1,0 +1,5 @@
+{{- with .GetTerms "tags" -}}
+<span class="tags">
+{{- range . }} <a class="p-category tag" href="{{ .RelPermalink }}">{{ lower .Data.Term }}</a>{{ end -}}
+</span>
+{{- end -}}

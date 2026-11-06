@@ -14,7 +14,7 @@ Search, comments, series, scheduled publishing, and packaging mdblog for other p
 
 **Status:** Tasks task-006, task-007
 
-- [ ] task-006: Build the site's pages, feeds and entry markup (blocked on task-004)
+- [x] task-006: Build the site's pages, feeds and entry markup (blocked on task-004)
 - [ ] task-007: Give the site its visual design and 404 page (blocked on task-006)
 
 Build the reader-facing site from the default Hugo layouts in the `mdblog` package, using fixtures until real content arrives.

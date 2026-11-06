@@ -1,0 +1,7 @@
+{{- partial "feed.xml" (dict
+  "page" .
+  "pages" site.RegularPages
+  "format" "rss"
+  "title" site.Title
+  "description" (printf "Every entry on %s" site.Title)
+) -}}

@@ -1,13 +1,13 @@
-<!doctype html>
-<html>
-  <head>
-    <title>{{ .Title }}</title>
-    <meta name="author" content="{{ .Site.Params.author }}">
-  </head>
-  <body>
-    {{ .Content }}
-    <ul>
-      {{ range .Pages }}<li><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>{{ end }}
-    </ul>
-  </body>
-</html>
+{{ define "main" }}
+<h1>Archive</h1>
+{{- range .Pages.GroupByDate "2006" }}
+<section class="archive-year">
+<h2>{{ .Key }}</h2>
+<ul class="archive-list">
+{{- range .Pages }}
+<li>{{ partial "entry-label.html" . }} <a href="{{ .RelPermalink }}">{{ .Title }}</a> {{ partial "date.html" . }}</li>
+{{- end }}
+</ul>
+</section>
+{{- end }}
+{{ end }}

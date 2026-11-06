@@ -27,7 +27,7 @@ in `.claude/docs/`, even when a human also reads them.
 - **Gate:** `tools/check` runs `ruff format --check`, `ruff check`, pyrefly and pytest. `--smoke` and `--offline` run the same steps.
 - **Platforms:** the repo runs on Linux and macOS.
 - **Vault:** the Obsidian vault is never part of this repo. Tools point at a parallel checkout of it.
-- **Sites:** one vault is one site, and building several sites means running `mdblog build` once per vault. A site's settings (`_site/mdblog.toml`) and overriding layouts (`_site/layouts/`) live in its vault. The repo's only site configs are test fixtures.
+- **Sites:** one vault is one site, and building several sites means running `mdblog build` once per vault. A site's settings (`_site/mdblog.toml`), optional bio (`_site/bio.md`), overriding layouts (`_site/layouts/`), assets (`_site/assets/`) and static files (`_site/static/`) live in its vault. The repo's only site configs are test fixtures.
 
 ## Standing task-planning obligations
 

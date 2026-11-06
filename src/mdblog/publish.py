@@ -13,6 +13,8 @@ from mdblog.properties import PageProperties, valid_slug, validate_properties
 
 NOTE_SUFFIX = ".md"
 FENCE = b"---"
+# Relative to the vault.
+BIO_PATH = Path(SITE_DIR, "bio.md")
 
 
 class FrontMatterError(Exception):
@@ -217,3 +219,28 @@ def select_notes(vault: Path, now: datetime) -> Selection:
         failures=tuple(sorted(failures, key=lambda failure: failure.path)),
         files=tuple(sorted(files)),
     )
+
+
+def read_bio(vault: Path) -> str | NoteFailure | None:
+    """The body of `vault`'s `BIO_PATH`, after any front matter block, or None if absent.
+
+    The front matter is never parsed, so nothing in it has an effect. Returns a failure
+    naming `BIO_PATH` when the file is a symbolic link, is unreadable or has a body that
+    is not UTF-8.
+    """
+    path = vault / BIO_PATH
+    # The same rule as `load_config`: `_site/` content must come from the vault.
+    if path.is_symlink():
+        return NoteFailure(BIO_PATH, "is a symbolic link")
+    try:
+        data = path.read_bytes()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        return NoteFailure(BIO_PATH, f"cannot read: {exc.strerror}")
+    parts = split_note(data)
+    body = data if parts is None else parts[1]
+    try:
+        return body.decode("utf-8")
+    except UnicodeDecodeError:
+        return NoteFailure(BIO_PATH, "is not UTF-8")

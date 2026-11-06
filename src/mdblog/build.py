@@ -10,13 +10,17 @@ from datetime import datetime
 from pathlib import Path
 
 from mdblog.config import SITE_DIR, SiteConfig, load_config
-from mdblog.links import Page, convert_notes
-from mdblog.properties import front_matter
-from mdblog.publish import select_notes
+from mdblog.links import Bio, Page, convert_notes
+from mdblog.properties import ENTRY_TYPES, front_matter
+from mdblog.publish import NoteFailure, read_bio, select_notes
 
 MARKER = ".mdblog-output"
 THEME = "mdblog"
 PACKAGED_THEME = Path(__file__).resolve().parent / "theme"
+# Every feed holds at most this many of its latest entries.
+FEED_LIMIT = 50
+# A vault's `_site/` directories that Hugo reads beside the packaged theme's.
+SITE_DIRECTORIES = ("layouts", "assets", "static")
 
 
 class BuildError(Exception):
@@ -68,8 +72,28 @@ def _toml_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=False).replace("\x7f", "\\u007f")
 
 
+def _type_feed_format(entry_type: str) -> str:
+    # The theme renders each of these formats from its `home.<format>.xml` layout.
+    return f"{entry_type}feed"
+
+
 def hugo_config(config: SiteConfig) -> str:
-    """The text of a `hugo.toml` that applies `config` and the packaged theme."""
+    """The text of a `hugo.toml` that applies `config` and the packaged theme.
+
+    The site renders a feed at `/index.xml`, one per entry type at
+    `/types/<type>/index.xml` and one per tag, and no other feed.
+    """
+    type_formats = [_type_feed_format(entry_type) for entry_type in ENTRY_TYPES]
+    home_outputs = ", ".join(
+        _toml_string(name) for name in ("html", "rss", *type_formats)
+    )
+    format_tables = "".join(
+        f"\n[outputFormats.{_type_feed_format(entry_type)}]\n"
+        'mediaType = "application/rss+xml"\n'
+        'baseName = "index"\n'
+        f"path = {_toml_string(f'types/{entry_type}')}\n"
+        for entry_type in ENTRY_TYPES
+    )
     return (
         f"baseURL = {_toml_string(config.base_url)}\n"
         f"title = {_toml_string(config.title)}\n"
@@ -82,6 +106,22 @@ def hugo_config(config: SiteConfig) -> str:
         # link rules with an <img> or <a> of its own.
         "[markup.goldmark.extensions.extras.mark]\n"
         "enable = true\n"
+        "\n"
+        # Naming only `tag` drops Hugo's default `categories` taxonomy.
+        "[taxonomies]\n"
+        'tag = "tags"\n'
+        "\n"
+        "[outputs]\n"
+        f"home = [{home_outputs}]\n"
+        'section = ["html"]\n'
+        'taxonomy = ["html"]\n'
+        'term = ["html", "rss"]\n'
+        'page = ["html"]\n'
+        f"{format_tables}"
+        "\n"
+        # The feed layouts read the limit here, so a site's own feed layout can too.
+        "[services.rss]\n"
+        f"limit = {FEED_LIMIT}\n"
     )
 
 
@@ -90,7 +130,11 @@ def _symlinks_in(directory: str | os.PathLike[str], names: list[str]) -> list[st
 
 
 def _assemble_source(
-    source: Path, vault: Path, config: SiteConfig, pages: Sequence[Page]
+    source: Path,
+    vault: Path,
+    config: SiteConfig,
+    pages: Sequence[Page],
+    bio: Bio | None,
 ) -> None:
     (source / "hugo.toml").write_text(hugo_config(config), encoding="utf-8")
     content = source / "content"
@@ -104,12 +148,20 @@ def _assemble_source(
         # get their own URLs and two notes never compete for one name.
         for image in page.images:
             shutil.copyfile(vault / image, bundle / image.name)
+    if bio is not None:
+        # Hugo renders this file as the home page's `.Content`. The empty front matter
+        # keeps a bio that starts with `---` or `{` from being read as front matter.
+        (content / "_index.md").write_bytes(b"{}\n" + bio.body)
+        # The home page's own files, served at its URL, where the converter points them.
+        for image in bio.images:
+            shutil.copyfile(vault / image, content / image.name)
     shutil.copytree(PACKAGED_THEME, source / "themes" / THEME)
-    # Hugo prefers a project layout to the theme's with the same name, and the theme
+    # Hugo prefers a project file to the theme's with the same name, and the theme
     # supplies the rest.
-    layouts = vault / SITE_DIR / "layouts"
-    if layouts.is_dir() and not layouts.is_symlink():
-        shutil.copytree(layouts, source / "layouts", ignore=_symlinks_in)
+    for name in SITE_DIRECTORIES:
+        directory = vault / SITE_DIR / name
+        if directory.is_dir() and not directory.is_symlink():
+            shutil.copytree(directory, source / name, ignore=_symlinks_in)
 
 
 def _run_hugo(hugo: Sequence[str], source: Path, destination: Path) -> None:
@@ -166,9 +218,9 @@ def build_site(
     On success `output` holds Hugo's output plus the marker file. Raises `BuildError`
     or `ConfigError` on any refusal or failure, with `output` unchanged. A `BuildError`
     for bad notes lists every one with each of its reasons, including every failed
-    link. Writes nothing under `vault`. `now`
-    is the timezone-aware time that decides which dates are in the future, by default
-    the current local time.
+    link, and lists the bio's failures in the same message. Writes nothing under
+    `vault`. `now` is the timezone-aware time that decides which dates are in the
+    future, by default the current local time.
     """
     vault = vault.resolve()
     output = output.resolve()
@@ -178,10 +230,14 @@ def build_site(
         check_output(vault, output)
         config = load_config(vault)
         selection = select_notes(vault, now or datetime.now().astimezone())
-        conversion = convert_notes(selection, config.base_url)
+        bio = read_bio(vault)
+        bio_failures = [bio] if isinstance(bio, NoteFailure) else []
+        conversion = convert_notes(
+            selection, config.base_url, bio if isinstance(bio, str) else None
+        )
         # A stable sort keeps each note's reasons in the order they were found.
         failures = sorted(
-            (*selection.failures, *conversion.failures),
+            (*selection.failures, *bio_failures, *conversion.failures),
             key=lambda failure: failure.path,
         )
         if failures:
@@ -193,7 +249,7 @@ def build_site(
         # a temporary directory that keeps them out of the vault and the repo.
         with tempfile.TemporaryDirectory(prefix="mdblog-") as source_name:
             source = Path(source_name)
-            _assemble_source(source, vault, config, conversion.pages)
+            _assemble_source(source, vault, config, conversion.pages, conversion.bio)
             output.parent.mkdir(parents=True, exist_ok=True)
             # A sibling shares the output's filesystem, which the renames require.
             with tempfile.TemporaryDirectory(

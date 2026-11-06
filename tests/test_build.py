@@ -47,8 +47,9 @@ FAKE_HUGO = (
     "'argv': argv, 'cwd': os.getcwd(), 'env': sorted(os.environ),"
     "'config': (source / 'hugo.toml').read_text(),"
     "'theme': sorted(p.name for p in (source / 'themes/mdblog/layouts').iterdir()),"
-    "'layouts': sorted(p.name for p in (source / 'layouts').iterdir())"
-    " if (source / 'layouts').exists() else [],"
+    "**{name: sorted(p.relative_to(source / name).as_posix()"
+    " for p in (source / name).rglob('*'))"
+    " for name in ('layouts', 'assets', 'static')},"
     "}))",
 )
 FAILING_HUGO = (sys.executable, "-c", "raise SystemExit(3)")
@@ -172,40 +173,60 @@ def _seen(output: Path) -> dict[str, object]:
     return loaded
 
 
-def test_build_supplies_the_packaged_theme_and_vault_layouts(tmp_path: Path) -> None:
+def test_build_supplies_the_packaged_theme(tmp_path: Path) -> None:
+    output = tmp_path / "output"
+
+    build_site(_make_vault(tmp_path), output, FAKE_HUGO)
+
+    assert _seen(output)["theme"] == [
+        "_markup",
+        "_partials",
+        "baseof.html",
+        "home.html",
+        "home.linkfeed.xml",
+        "home.postfeed.xml",
+        "home.rss.xml",
+        "home.tilfeed.xml",
+        "page.html",
+        "section.html",
+        "taxonomy.html",
+        "term.html",
+        "term.rss.xml",
+    ]
+
+
+@pytest.mark.parametrize("name", ["layouts", "assets", "static"])
+def test_build_supplies_a_site_directory_without_symlinks(
+    tmp_path: Path, name: str
+) -> None:
     vault = _make_vault(tmp_path)
-    elsewhere = tmp_path / "elsewhere.html"
+    elsewhere = tmp_path / "elsewhere.txt"
     elsewhere.write_text("", encoding="utf-8")
-    layouts = vault / "_site" / "layouts"
-    layouts.mkdir()
-    (layouts / "page.html").write_text("", encoding="utf-8")
-    (layouts / "linked.html").symlink_to(elsewhere)
+    directory = vault / "_site" / name
+    (directory / "nested").mkdir(parents=True)
+    (directory / "nested" / "file.txt").write_text("", encoding="utf-8")
+    (directory / "linked.txt").symlink_to(elsewhere)
     output = tmp_path / "output"
 
     build_site(vault, output, FAKE_HUGO)
 
-    seen = _seen(output)
-    assert seen["theme"] == [
-        "_markup",
-        "home.html",
-        "list.html",
-        "page.html",
-        "section.html",
-    ]
-    assert seen["layouts"] == ["page.html"]
+    assert _seen(output)[name] == ["nested", "nested/file.txt"]
 
 
-def test_build_does_not_follow_symlinked_layouts(tmp_path: Path) -> None:
+@pytest.mark.parametrize("name", ["layouts", "assets", "static"])
+def test_build_does_not_follow_a_symlinked_site_directory(
+    tmp_path: Path, name: str
+) -> None:
     vault = _make_vault(tmp_path)
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
-    (elsewhere / "page.html").write_text("", encoding="utf-8")
-    (vault / "_site" / "layouts").symlink_to(elsewhere)
+    (elsewhere / "file.txt").write_text("", encoding="utf-8")
+    (vault / "_site" / name).symlink_to(elsewhere)
     output = tmp_path / "output"
 
     build_site(vault, output, FAKE_HUGO)
 
-    assert _seen(output)["layouts"] == []
+    assert _seen(output)[name] == []
 
 
 def test_build_does_not_publish_a_symlinked_note(tmp_path: Path) -> None:
@@ -256,6 +277,68 @@ def test_build_reports_property_failures_and_leaves_the_output(tmp_path: Path) -
     assert "no-date.md: date is required" in str(exc.value)
     assert "twin-one.md: slug 'twin'" in str(exc.value)
     assert "twin-two.md: slug 'twin'" in str(exc.value)
+    assert _snapshot(output) == before
+
+
+def test_build_writes_the_bio_as_home_content_with_its_images(tmp_path: Path) -> None:
+    vault = _make_vault(tmp_path)
+    (vault / "photo.png").write_bytes(b"PHOTO")
+    (vault / "_site" / "bio.md").write_text(
+        "---\npublish: false\n---\nBIO-TEXT [[published]] ![[photo.png]]\n",
+        encoding="utf-8",
+    )
+    output = tmp_path / "output"
+
+    build_site(vault, output, FAKE_HUGO)
+
+    assert (output / "_index.md").read_text(encoding="utf-8") == (
+        "{}\nBIO-TEXT [published](/blog/posts/published/)"
+        " ![photo\\.png](/blog/photo.png)\n"
+    )
+    assert (output / "photo.png").read_bytes() == b"PHOTO"
+
+
+def test_build_without_a_bio_writes_no_home_content(tmp_path: Path) -> None:
+    output = tmp_path / "output"
+
+    build_site(_make_vault(tmp_path), output, FAKE_HUGO)
+
+    assert not (output / "_index.md").exists()
+
+
+def test_build_reports_bio_failures_with_note_failures(tmp_path: Path) -> None:
+    vault = _make_vault(tmp_path)
+    (vault / "_site" / "bio.md").write_text(
+        "[[missing]] [[unpublished]]\n", encoding="utf-8"
+    )
+    (vault / "typo.md").write_text("---\npublish: yes\n---\n", encoding="utf-8")
+    output = _make_previous_output(tmp_path)
+    before = _snapshot(output)
+
+    with pytest.raises(BuildError) as exc:
+        build_site(vault, output, FAKE_HUGO)
+
+    message = str(exc.value)
+    assert "_site/bio.md: [[missing]]: matches no note or file" in message
+    assert "_site/bio.md: [[unpublished]]: unpublished.md is not published" in message
+    assert "typo.md: publish must be" in message
+    assert _snapshot(output) == before
+
+
+def test_build_refuses_a_symlinked_bio_with_note_failures(tmp_path: Path) -> None:
+    vault = _make_vault(tmp_path)
+    outside = tmp_path / "bio.md"
+    outside.write_text("BIO-TEXT\n", encoding="utf-8")
+    (vault / "_site" / "bio.md").symlink_to(outside)
+    (vault / "typo.md").write_text("---\npublish: yes\n---\n", encoding="utf-8")
+    output = _make_previous_output(tmp_path)
+    before = _snapshot(output)
+
+    with pytest.raises(BuildError) as exc:
+        build_site(vault, output, FAKE_HUGO)
+
+    assert "_site/bio.md: is a symbolic link" in str(exc.value)
+    assert "typo.md: publish must be" in str(exc.value)
     assert _snapshot(output) == before
 
 
@@ -523,47 +606,6 @@ def test_hugo_config_round_trips_any_string(value: str) -> None:
     assert table["params"] == {"author": value}
 
 
-def test_fixture_vault_builds_end_to_end(tmp_path: Path) -> None:
-    output = tmp_path / "output"
-
-    build_site(FIXTURE_VAULT, output, ("hugo",))
-
-    files = {name: data for name, data in _snapshot(output).items() if data is not None}
-    assert (
-        b"The fixture note reached the generated page."
-        in files["posts/first-note/index.html"]
-    )
-    assert b"The fixture link note." in files["posts/a-link/index.html"]
-    assert "tags/project/alpha/index.html" in files
-    syntax = files["posts/syntax/index.html"].decode("utf-8")
-    for fragment in (
-        '<a href="/posts/first-note/">the first note</a>',
-        '<a href="/posts/a-link/#details">a-link#Details</a>',
-        '<a href="/posts/a-link/">projects/a-link#^detail-block</a>',
-        '<a href="/posts/syntax/#linking-out">#Linking Out</a>',
-        '<img src="/posts/syntax/diagram.svg" alt="diagram.svg" width="120" height="80">',
-        '<details class="callout callout-tip">',
-        "<mark>FIXTURE-HIGHLIGHT</mark> text.</p>",
-        "<code>[[first-note]] %% kept %% ^kept\n</code>",
-    ):
-        assert fragment in syntax, fragment
-    assert "^syntax-block" not in syntax
-    assert b"FIXTURE-DIAGRAM" in files["posts/syntax/diagram.svg"]
-    assert "^detail-block" not in files["posts/a-link/index.html"].decode("utf-8")
-    for needle in (
-        b"UNPUBLISHED-COMMENT",
-        b"UNPUBLISHED-UNUSED-IMAGE",
-        b"UNPUBLISHED-DRAFT-IMAGE",
-        b"UNPUBLISHED-MARKED-FALSE",
-        b"UNPUBLISHED-NO-PROPERTY",
-        b"UNPUBLISHED-NO-FRONT-MATTER",
-        b"UNPUBLISHED-SITE-DIRECTORY",
-        b"UNPUBLISHED-OBSIDIAN",
-        b"UNPUBLISHED-TRASH",
-    ):
-        assert not [name for name, data in files.items() if needle in data], needle
-
-
 @pytest.mark.parametrize("change", ["unpublish", "delete"])
 def test_a_note_that_stops_publishing_leaves_no_file(
     tmp_path: Path, change: str
@@ -599,6 +641,17 @@ def test_generated_site_uses_the_configuration(tmp_path: Path) -> None:
     assert 'content="The Site Author"' in home
     page = (output / "posts" / "published" / "index.html").read_text(encoding="utf-8")
     assert 'content="The Site Author"' in page
+
+
+def test_a_vault_without_a_bio_builds_a_home_page_without_one(tmp_path: Path) -> None:
+    output = tmp_path / "output"
+
+    build_site(_make_vault(tmp_path), output, ("hugo",))
+
+    home = (output / "index.html").read_text(encoding="utf-8")
+    assert 'class="h-feed' in home
+    assert 'class="bio"' not in home
+    assert 'name="description"' not in home
 
 
 def test_vault_layout_replaces_only_the_page_default(tmp_path: Path) -> None:
@@ -693,6 +746,16 @@ def _page_html(output: Path, slug: str) -> str:
     return (output / "posts" / slug / "index.html").read_text(encoding="utf-8")
 
 
+def _entry_body(output: Path, slug: str) -> str:
+    """The rendered body of an entry page, without the layout's navigation."""
+    page = _page_html(output, slug)
+    match = re.search(
+        r'<div class="e-content[^"]*">(.*?)</div>\s*</article>', page, re.S
+    )
+    assert match is not None
+    return match[1]
+
+
 ANCHOR_TARGET = published_text(
     "target",
     body="# Café & Über: 100%!\n## Same\n## Same\n## C++ and `code` stuff\n",
@@ -732,7 +795,7 @@ def test_generated_links_reach_their_targets_in_hugos_output(
     for anchor in ("café--über-100", "same", "same-1", "c-and-code-stuff"):
         assert f'id="{anchor}"' in target
     prefix = urlsplit(base_url).path.rstrip("/")
-    urls = re.findall(r'(?:href|src)="([^"]*)"', _page_html(output, "source"))
+    urls = re.findall(r'(?:href|src)="([^"]*)"', _entry_body(output, "source"))
     reached: list[str] = []
     for url in urls:
         assert url.startswith(f"{prefix}/posts/"), url

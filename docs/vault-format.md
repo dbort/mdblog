@@ -18,7 +18,7 @@ The build reads these properties and ignores every other one. An empty property 
 
 A note's vault folder, file name and type have no effect on its URL, so moving or retyping a note never moves its page.
 
-Hugo lowercases tag paths, so `Project/Alpha` builds at `/tags/project/alpha/` and shares a page with `project/alpha`. A tag holding `page/<number>`, such as `a/page/2`, can replace a page of tag `a`'s listing if a site's layouts paginate tag pages. The packaged layouts do not.
+Hugo lowercases tag paths, so `Project/Alpha` builds at `/tags/project/alpha/` and shares a page with `project/alpha`. Tag text also displays in lowercase, so `Node.JS` shows as `node.js`. A nested tag builds a page only for itself: a note tagged only `project/alpha` builds no page at `/tags/project/`. A tag holding `page/<number>`, such as `a/page/2`, can replace a page of tag `a`'s listing if a site's layouts paginate tag pages. The packaged layouts do not.
 
 A future date fails the build because nothing rebuilds the site when that date arrives. Hugo compares a date-only value as UTC midnight and would hide a note dated today at some local times, so the build runs Hugo with `--buildFuture` and applies the rule itself.
 
@@ -98,3 +98,21 @@ Raw HTML in a note renders as nothing, so an `<img>` or `<a>` written in a note 
 - Math, note transclusion and audio, video and PDF players are unsupported.
 - A callout type holding a hyphen, such as `[!custom-thing]`, renders as a plain quote with its marker as literal text.
 - Heading links follow Hugo's heading IDs, which the build computes on its own. A heading whose ID Hugo builds from a numeric character reference, such as `&#42;`, can get a different ID than the build expects, and its link then fails silently.
+
+## Site folder
+
+The `_site/` folder at the vault's root holds the site's own files. Its notes are never published, and a link into it fails the build. The build never follows a symbolic link inside it.
+
+| Path | Required | Meaning |
+|---|---|---|
+| `_site/mdblog.toml` | yes | The site's `base_url`, `title` and `author`. `base_url` may hold a path, such as `https://example.test/blog/`, and every page, link and feed then lives under `/blog/`. A trailing slash makes no difference. |
+| `_site/bio.md` | no | The author's bio, rendered on the home page above the latest entries. Without it the home page has no bio. Its front matter has no effect, including `publish: false`. Its wikilinks and embeds convert as a note's do and fail the build the same way, with failures naming `_site/bio.md`. An image it embeds is served at the home page's URL. Because no link may target `_site/`, keep the bio's images elsewhere in the vault. A symbolic link at this path fails the build. |
+| `_site/layouts/` | no | Hugo layouts that replace the packaged ones with the same name, such as `page.html`, `_partials/footer.html` or `_markup/render-image.html`. |
+| `_site/assets/` | no | Files for Hugo's asset pipeline, replacing packaged assets with the same path. |
+| `_site/static/` | no | Files copied to the site's root as they are, so `_site/static/favicon.ico` is served at `/favicon.ico`. |
+
+## Pages and feeds
+
+The packaged layouts build the home page with the latest 15 entries, an archive of every entry by year at `/posts/`, a page per tag listing its entries, an index of tags at `/tags/`, and a page per entry. No list is paginated.
+
+Each feed is RSS holding the full text of its latest 50 entries: `/index.xml` for the whole site, `/types/post/index.xml`, `/types/til/index.xml` and `/types/link/index.xml` for each entry type, and `/tags/<tag>/index.xml` for each tag. A link entry's item links to its page on the site and starts with a link to its `url`.
