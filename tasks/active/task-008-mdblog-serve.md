@@ -60,3 +60,15 @@ Adds `mdblog serve VAULT`, which runs Hugo's development server on the vault's s
 - [x] **Step 8**: have the author run `tools/manual-qa` and record their approval from its log, dated, in `## Advice`.
 
 ## Review log
+
+### Round 1: REJECTED
+- **F1: Port probe refuses ports that Hugo can bind** (`src/mdblog/serve.py:73`): `_bound_port` binds its probe socket without `SO_REUSEADDR`. Go, and so Hugo, sets that option. When a port has only TIME_WAIT connections left over from a server that just stopped, the probe gets `EADDRINUSE` even though Hugo could bind the port. That leftover state is normal here. An open browser tab holds a keep-alive or live-reload connection, so stopping serve leaves TIME_WAIT on the server's side of the port for about 60 seconds.
+  - Reproduced: serve on `--port 47151` with a keep-alive client connected, SIGTERM (exit 0), then restart at once. The restart failed with `mdblog: cannot listen on 127.0.0.1 port 47151: Address already in use`, and `ss` showed only `TIME-WAIT 127.0.0.1:47151`. A scratch script that leaves a server-side TIME_WAIT gets the same refusal from `choose_port`, while a probe with `SO_REUSEADDR` binds fine.
+  - This breaks Must Have 2: a free `--port N` exits 1 as busy. In default mode it also hits Must Have 1: an author who stops and restarts serve with a tab open is moved off 1313 to a random port and a different `mdblog-serve-P` directory, and the open tab stops working.
+  - Fix: set `SO_REUSEADDR` on the probe so it answers "can Hugo bind this port", and add a `choose_port` unit test on a port held only in server-side TIME_WAIT.
+- **F2: Unwritable `--output` gives a traceback, not `mdblog: <error>`** (`src/mdblog/serve.py:388`): `reset_output` runs inside `start()`, and nothing catches its `OSError`.
+  - `mdblog serve tests/fixtures/vault --output /proc/mdblog-x` ends in a Python traceback (`FileNotFoundError: ... '/proc/mdblog-x'`). `mdblog build` with the same `DIR` prints `mdblog: cannot build into /proc/mdblog-x: ...`.
+  - Plan Step 3 requires refusals to be reported as `mdblog: <error>` with exit 1, and Must Have 3 ties serve's refusals to build's. A restart whose reset fails partway through a session gives the same traceback.
+  - Fix: turn the `OSError` from `reset_output` (and the output setup) into a `ServeError` naming the directory, and add a unit test.
+- **N1: Hidden-path filter wiring is untested** (`src/mdblog/serve.py:404`): `is_hidden` is unit-tested, but nothing tests that `serve_site` passes it to `watchfiles.watch`. A wiring mistake would only cause extra rebuilds, never wrong output, so this does not block.
+- **N2: Checks done** (`tests/test_serve_hugo.py`): `tools/check` passed (567 tests). SIGINT checked by hand: exit 0 and the temp directories were removed, consistent with the SIGTERM path the end-to-end test covers. `pixi.lock` resolves `watchfiles` 1.3.0 on all three platforms, the README is 43 lines, the task-007 Advice is updated, and the manual-QA approval is recorded with its date and commit.
