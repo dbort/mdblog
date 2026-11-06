@@ -12,6 +12,7 @@ pytest = "*"
 "ruamel.yaml" = ">=0.19.1,<0.20"
 ruff = "*"
 markdown-it-py = ">=4.2,<5"
+watchfiles = ">=1,<2"
 
 [pypi-dependencies]
 mdblog = { path = ".", editable = true }
