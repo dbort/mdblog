@@ -1,0 +1,31 @@
+<meta charset="utf-8">
+{{- $title := site.Title }}
+{{- if eq .Kind "term" }}
+{{- $title = printf "%s | %s" (lower .Data.Term) site.Title }}
+{{- else if not .IsHome }}
+{{- $title = printf "%s | %s" .Title site.Title }}
+{{- end }}
+<title>{{ $title }}</title>
+<meta name="author" content="{{ site.Params.author }}">
+<link rel="canonical" href="{{ .Permalink }}">
+<meta property="og:title" content="{{ $title }}">
+<meta property="og:url" content="{{ .Permalink }}">
+<meta property="og:site_name" content="{{ site.Title }}">
+<meta property="og:type" content="{{ if .IsPage }}article{{ else }}website{{ end }}">
+{{- if or .IsPage .IsHome }}
+{{- /* htmlUnescape undoes the summary's own escaping, so the attribute escapes once. */}}
+{{- with .Summary | plainify | htmlUnescape | strings.TrimSpace }}
+<meta name="description" content="{{ . }}">
+<meta property="og:description" content="{{ . }}">
+{{- end }}
+{{- end }}
+{{- if eq .Kind "term" }}
+{{- with .OutputFormats.Get "rss" }}
+<link rel="alternate" type="application/rss+xml" href="{{ .Permalink }}" title="{{ $title }}">
+{{- end }}
+{{- end }}
+{{- range site.Home.OutputFormats }}
+{{- if eq .MediaType.Type "application/rss+xml" }}
+<link rel="alternate" type="application/rss+xml" href="{{ .Permalink }}">
+{{- end }}
+{{- end }}

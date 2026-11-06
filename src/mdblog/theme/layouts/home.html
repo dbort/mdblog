@@ -1,13 +1,16 @@
-<!doctype html>
-<html>
-  <head>
-    <title>{{ .Site.Title }}</title>
-    <meta name="author" content="{{ .Site.Params.author }}">
-  </head>
-  <body>
-    {{ .Content }}
-    <ul>
-      {{ range .Site.RegularPages }}<li><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>{{ end }}
-    </ul>
-  </body>
-</html>
+{{ define "main" }}
+{{- $latest := 15 }}
+{{- with .Content }}
+<section class="bio">
+{{ . }}
+</section>
+{{- end }}
+<section class="h-feed entry-list">
+{{- range first $latest site.RegularPages }}
+{{ partial "entry-item.html" . }}
+{{- end }}
+</section>
+{{- with site.GetPage "/posts" }}
+<p class="more"><a href="{{ .RelPermalink }}">All entries</a></p>
+{{- end }}
+{{ end }}

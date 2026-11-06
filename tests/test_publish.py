@@ -5,8 +5,11 @@ from pathlib import Path
 import pytest
 
 from mdblog.publish import (
+    BIO_PATH,
     FrontMatterError,
+    NoteFailure,
     published_parts,
+    read_bio,
     select_notes,
     split_note,
 )
@@ -371,3 +374,52 @@ def _can_read(path: Path) -> bool:
     except PermissionError:
         return False
     return True
+
+
+def test_read_bio_returns_the_body_and_ignores_front_matter(tmp_path: Path) -> None:
+    _write(tmp_path, "_site/bio.md", "---\npublish: false\na: [\n---\nBIO-TEXT\n")
+
+    assert read_bio(tmp_path) == "BIO-TEXT\n"
+
+
+def test_read_bio_returns_a_bio_with_no_front_matter_whole(tmp_path: Path) -> None:
+    _write(tmp_path, "_site/bio.md", "BIO-TEXT\n---\n")
+
+    assert read_bio(tmp_path) == "BIO-TEXT\n---\n"
+
+
+def test_read_bio_returns_none_without_a_bio(tmp_path: Path) -> None:
+    (tmp_path / "_site").mkdir()
+
+    assert read_bio(tmp_path) is None
+
+
+def test_read_bio_refuses_a_symbolic_link(tmp_path: Path) -> None:
+    outside = _write(tmp_path, "outside.md", "BIO-TEXT\n")
+    (tmp_path / "_site").mkdir()
+    (tmp_path / BIO_PATH).symlink_to(outside)
+
+    assert read_bio(tmp_path) == NoteFailure(BIO_PATH, "is a symbolic link")
+
+
+def test_read_bio_refuses_a_body_that_is_not_utf8(tmp_path: Path) -> None:
+    _write(tmp_path, "_site/bio.md", b"---\ntitle: x\n---\n\xff\n")
+
+    assert read_bio(tmp_path) == NoteFailure(BIO_PATH, "is not UTF-8")
+
+
+def test_read_bio_reports_an_unreadable_bio(tmp_path: Path) -> None:
+    bio = _write(tmp_path, "_site/bio.md", "BIO-TEXT\n")
+    bio.chmod(0o000)
+    if _can_read(bio):
+        bio.chmod(0o644)
+        pytest.skip("this user can read a file with no permissions")
+
+    try:
+        failure = read_bio(tmp_path)
+    finally:
+        bio.chmod(0o644)
+
+    assert isinstance(failure, NoteFailure)
+    assert failure.path == BIO_PATH
+    assert failure.reason.startswith("cannot read")

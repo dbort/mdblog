@@ -1,0 +1,16 @@
+<article class="h-entry entry-item">
+<header class="entry-header">
+{{ partial "entry-label.html" . }}
+<h2 class="p-name">{{ partial "entry-title.html" . }}</h2>
+{{ partial "entry-meta.html" . }}
+</header>
+{{- if eq .Params.entry_type "link" }}
+<div class="e-content entry-content">
+{{ .Content }}
+</div>
+{{- else }}
+<div class="p-summary entry-summary">
+{{ .Summary }}
+</div>
+{{- end }}
+</article>

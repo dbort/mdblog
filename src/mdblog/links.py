@@ -21,7 +21,13 @@ from mdblog.markdown import (
     split_wikilink,
     wikilink_text,
 )
-from mdblog.publish import NOTE_SUFFIX, NoteFailure, PublishedNote, Selection
+from mdblog.publish import (
+    BIO_PATH,
+    NOTE_SUFFIX,
+    NoteFailure,
+    PublishedNote,
+    Selection,
+)
 
 # The default render-image hook reads these and removes them from `src`.
 WIDTH_PARAMETER = "mdblog-width"
@@ -161,12 +167,12 @@ class Converted:
 @dataclass
 class _NoteContext:
     path: Path
-    slug: str
+    page_url: str
     index: LinkIndex
     base_path: str
     images: set[Path]
 
-    def page_url(self, slug: str) -> str:
+    def note_url(self, slug: str) -> str:
         return f"{self.base_path}/posts/{slug}/"
 
     def convert(self, embed: bool, inner: str) -> str:
@@ -184,7 +190,7 @@ class _NoteContext:
         if path.suffix.casefold() not in IMAGE_SUFFIXES:
             raise LinkError(f"{path.as_posix()} is not a note or a supported image")
         self.images.add(path)
-        url = self.page_url(self.slug) + quote(path.name)
+        url = self.page_url + quote(path.name)
         if not embed:
             return f"[{escape_text(alias or target)}]({url})"
         size = IMAGE_SIZE.fullmatch(alias or "")
@@ -200,22 +206,24 @@ class _NoteContext:
             if path in self.index.failed:
                 raise LinkError(f"{path.as_posix()} has failures of its own")
             raise LinkError(f"{path.as_posix()} is not published")
-        url = self.page_url(target.slug) + _fragment(subpath, path, target)
+        url = self.note_url(target.slug) + _fragment(subpath, path, target)
         return f"[{escape_text(text)}]({url})"
 
 
 def convert_wikilinks(
-    text: str, note: Path, slug: str, index: LinkIndex, base_path: str
+    text: str, note: Path, page_url: str, index: LinkIndex, base_path: str
 ) -> Converted:
     """`text` with each wikilink and embed outside code replaced by a Markdown link or image.
 
-    `note` is the vault-relative path of the note holding `text`, and `slug` its slug.
-    Each URL is root-relative and starts with `base_path`, which has no trailing slash.
-    A link that fails stays as written and adds a reason naming it. Two different
-    images sharing a file name add a reason, because they would share one URL.
+    `note` is the vault-relative path of the file holding `text`, and `page_url` the
+    root-relative URL of the page it renders on, ending in `/`, under which its images
+    are served. A link to a note is root-relative and starts with `base_path`, which has
+    no trailing slash. A link that fails stays as written and adds a reason naming it.
+    Two different images sharing a file name add a reason, because they would share one
+    URL.
     """
     code = CodeMap(text)
-    context = _NoteContext(note, slug, index, base_path, set())
+    context = _NoteContext(note, page_url, index, base_path, set())
     failures: list[str] = []
 
     def replace(match: re.Match[str]) -> str:
@@ -250,13 +258,25 @@ class Page:
 
 
 @dataclass(frozen=True)
+class Bio:
+    """The site's bio ready to write as the home page's content."""
+
+    # The converted Markdown body, UTF-8.
+    body: bytes
+    # Vault-relative paths of the images to copy beside the home page.
+    images: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
 class Conversion:
-    """The pages converted from a selection, and every link failure."""
+    """The pages converted from a selection, the bio, and every link failure."""
 
     # In the selection's order. A page whose note failed is absent.
     pages: tuple[Page, ...]
-    # Grouped by note in the selection's order. Within a note, internal Markdown links
-    # come before wikilinks, each in document order.
+    # None when there is no bio or it has failures.
+    bio: Bio | None
+    # Grouped by note in the selection's order, then the bio's. Within a file, internal
+    # Markdown links come before wikilinks, each in document order.
     failures: tuple[NoteFailure, ...]
 
 
@@ -265,13 +285,29 @@ def base_path(base_url: str) -> str:
     return urlsplit(base_url).path.rstrip("/")
 
 
-def convert_notes(selection: Selection, base_url: str) -> Conversion:
-    """Every published note in `selection` with Obsidian syntax converted for Hugo.
+def _convert_body(
+    text: str, path: Path, page_url: str, index: LinkIndex, prefix: str
+) -> tuple[Converted, list[str]]:
+    reasons = [
+        f"Markdown link to {destination!r} is internal; use a wikilink"
+        for destination in internal_destinations(text)
+    ]
+    converted = convert_wikilinks(text, path, page_url, index, prefix)
+    reasons.extend(converted.failures)
+    return converted, reasons
+
+
+def convert_notes(
+    selection: Selection, base_url: str, bio: str | None = None
+) -> Conversion:
+    """Every published note in `selection`, and `bio`, with Obsidian syntax converted for Hugo.
 
     Comments are removed first, so a heading or block ID inside one is no link target,
     and block IDs next, so none stays in a heading's text. Then a standard Markdown
     link or image to an internal destination fails, and wikilinks convert against
-    every file in the selection. Unpublished notes are never read.
+    every file in the selection. Unpublished notes are never read. `bio` is the text of
+    `BIO_PATH`, which renders on the home page and is no link target itself; its
+    failures name `BIO_PATH`.
     """
     prefix = base_path(base_url)
     texts: dict[Path, str] = {}
@@ -289,15 +325,23 @@ def convert_notes(selection: Selection, base_url: str) -> Conversion:
     pages: list[Page] = []
     failures: list[NoteFailure] = []
     for note in selection.published:
-        text = texts[note.path]
-        reasons = [
-            f"Markdown link to {destination!r} is internal; use a wikilink"
-            for destination in internal_destinations(text)
-        ]
-        converted = convert_wikilinks(text, note.path, note.page.slug, index, prefix)
-        reasons.extend(converted.failures)
+        converted, reasons = _convert_body(
+            texts[note.path],
+            note.path,
+            f"{prefix}/posts/{note.page.slug}/",
+            index,
+            prefix,
+        )
         if reasons:
             failures.extend(NoteFailure(note.path, reason) for reason in reasons)
         else:
             pages.append(Page(note, converted.text.encode("utf-8"), converted.images))
-    return Conversion(tuple(pages), tuple(failures))
+    converted_bio = None
+    if bio is not None:
+        text, _ = remove_block_ids(remove_comments(bio))
+        converted, reasons = _convert_body(text, BIO_PATH, f"{prefix}/", index, prefix)
+        if reasons:
+            failures.extend(NoteFailure(BIO_PATH, reason) for reason in reasons)
+        else:
+            converted_bio = Bio(converted.text.encode("utf-8"), converted.images)
+    return Conversion(tuple(pages), converted_bio, tuple(failures))

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from mdblog.links import IMAGE_SUFFIXES, Conversion, Page, base_path, convert_notes
-from mdblog.publish import select_notes
+from mdblog.publish import BIO_PATH, select_notes
 from notes import published_text
 
 NOW = dt.datetime(2026, 6, 15, 12, 0, tzinfo=dt.UTC)
@@ -393,3 +393,40 @@ def test_unpublished_notes_are_not_checked(tmp_path: Path) -> None:
     _write(vault, "plain.md", "![[nothing.png]]\n")
 
     assert _link_failures(_convert(vault)) == []
+
+
+def test_bio_converts_against_the_vault_with_images_at_the_home_page(
+    tmp_path: Path,
+) -> None:
+    vault = _vault(tmp_path, "")
+    bio = "%% PRIVATE [[draft]] %%[[target#Target Heading]] ![[a.png|40]] line ^id\n"
+
+    conversion = convert_notes(
+        select_notes(vault, NOW), "https://example.test/blog/", bio
+    )
+
+    assert conversion.bio is not None
+    assert conversion.bio.body.decode("utf-8") == (
+        "[target\\#Target Heading](/blog/posts/target/#target-heading)"
+        " ![a\\.png](/blog/a.png?mdblog-width=40) line\n"
+    )
+    assert conversion.bio.images == (Path("images/a.png"),)
+    assert _link_failures(conversion) == []
+
+
+def test_bio_failures_name_the_bio_and_the_target(tmp_path: Path) -> None:
+    vault = _vault(tmp_path, "")
+    bio = "[[missing]] [[draft]] [text](top.md)\n"
+
+    conversion = convert_notes(select_notes(vault, NOW), "https://example.test/", bio)
+
+    assert conversion.bio is None
+    assert _link_failures(conversion) == [
+        f"{BIO_PATH.as_posix()}: Markdown link to 'top.md' is internal; use a wikilink",
+        f"{BIO_PATH.as_posix()}: [[missing]]: matches no note or file",
+        f"{BIO_PATH.as_posix()}: [[draft]]: drafts/draft.md is not published",
+    ]
+
+
+def test_no_bio_converts_to_none(tmp_path: Path) -> None:
+    assert _convert(_vault(tmp_path, "")).bio is None

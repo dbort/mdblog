@@ -1,0 +1,7 @@
+{{- partial "feed.xml" (dict
+  "page" .
+  "pages" .Pages
+  "format" "rss"
+  "title" (printf "%s: %s" site.Title (lower .Data.Term))
+  "description" (printf "Entries tagged %s on %s" (lower .Data.Term) site.Title)
+) -}}

@@ -1,0 +1,19 @@
+{{- $content := string .Content -}}
+{{- if eq .Params.entry_type "link" -}}
+  {{- $content = printf "<p><a href=\"%s\">%s</a></p>\n%s" (htmlEscape .Params.link_url) (htmlEscape .Title) $content -}}
+{{- end -}}
+{{- /* A feed reader has no page to resolve a relative URL against. Root-relative URLs
+       already hold any base path, so they resolve against the origin, and `//` would
+       be protocol-relative. Goldmark writes quotes in text as entities, so code text
+       never matches. */ -}}
+{{- $origin := replace (strings.TrimSuffix "/" (absURL "/")) "$" "$$" -}}
+{{- $content = replaceRE `(\s(?:href|src))="/([^/])` (printf `$1="%s/$2` $origin) $content -}}
+{{- $content = replaceRE `(\s(?:href|src))="#` (printf `$1="%s#` (replace .Permalink "$" "$$")) $content -}}
+<item>
+<title>{{ .Title }}</title>
+<link>{{ .Permalink }}</link>
+<guid isPermaLink="true">{{ .Permalink }}</guid>
+<pubDate>{{ .Date.Format "Mon, 02 Jan 2006 15:04:05 -0700" | safeHTML }}</pubDate>
+<description>{{ $content | transform.XMLEscape | safeHTML }}</description>
+</item>
+{{- /**/ -}}

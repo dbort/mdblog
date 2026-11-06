@@ -1,0 +1,14 @@
+<header class="site-header">
+<a class="site-title" href="{{ site.Home.RelPermalink }}">{{ site.Title }}</a>
+<nav class="site-nav">
+{{- with site.GetPage "/posts" }}
+<a href="{{ .RelPermalink }}">Archive</a>
+{{- end }}
+{{- with site.GetPage "/tags" }}
+<a href="{{ .RelPermalink }}">Tags</a>
+{{- end }}
+{{- with site.Home.OutputFormats.Get "rss" }}
+<a href="{{ .RelPermalink }}">RSS</a>
+{{- end }}
+</nav>
+</header>

@@ -1,0 +1,12 @@
+{{ define "main" }}
+<h1>Tags</h1>
+{{- $terms := slice }}
+{{- range .Data.Terms }}
+{{- $terms = $terms | append (dict "name" (lower .Page.Data.Term) "page" .Page "count" .Count) }}
+{{- end }}
+<ul class="tag-list">
+{{- range sort $terms "name" }}
+<li><a href="{{ .page.RelPermalink }}">{{ .name }}</a> <span class="tag-count">({{ .count }})</span></li>
+{{- end }}
+</ul>
+{{ end }}

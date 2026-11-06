@@ -1,8 +1,12 @@
-<!doctype html>
-<html>
-  <head>
-    <title>{{ .Title }}</title>
-    <meta name="author" content="{{ .Site.Params.author }}">
-  </head>
-  <body>{{ .Content }}</body>
-</html>
+{{ define "main" }}
+<article class="h-entry entry">
+<header class="entry-header">
+{{ partial "entry-label.html" . }}
+<h1 class="p-name">{{ partial "entry-title.html" . }}</h1>
+{{ partial "entry-meta.html" . }}
+</header>
+<div class="e-content entry-content">
+{{ .Content }}
+</div>
+</article>
+{{ end }}

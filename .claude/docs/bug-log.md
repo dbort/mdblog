@@ -1,5 +1,5 @@
 ---
-next_id: bug-002
+next_id: bug-003
 ---
 
 # Bug log
@@ -43,3 +43,5 @@ log happens only when the user asks.
   Unicode NFC before front matter is written. Fix: a task, not yet planned,
   because choosing the normalization form and where it applies is a design
   decision on the rule every tag passes through.
+
+- `bug-002` - **A footnote whose text is one word fails the build**: a note holding `text[^1]` and `[^1]: Word.` fails with "Markdown link to 'Word.' is internal; use a wikilink", though Hugo renders it as a footnote. Found while adding a footnote to the fixture in task-006. Root cause: `internal_destinations` in `src/mdblog/markdown.py` parses with plain CommonMark, which reads `[^1]: Word.` as a link reference definition and `[^1]` as a reference link. A definition holding a space is no valid reference definition, so most footnotes pass. Fix: `ad hoc`, by parsing with a footnote plugin or skipping `[^...]` labels, since the correct behavior is not in question.

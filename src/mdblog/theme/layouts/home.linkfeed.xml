@@ -1,0 +1,7 @@
+{{- partial "feed.xml" (dict
+  "page" .
+  "pages" (where site.RegularPages "Params.entry_type" "link")
+  "format" "linkfeed"
+  "title" (printf "%s: Links" site.Title)
+  "description" (printf "Links on %s" site.Title)
+) -}}

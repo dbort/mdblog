@@ -1,0 +1,17 @@
+{{- /* Renders one RSS channel of the latest `pages`, newest first. Every feed renders
+       through here, so they share item markup and the configured limit. */ -}}
+{{- $pages := first site.Config.Services.RSS.Limit .pages.ByDate.Reverse -}}
+{{- printf "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>" | safeHTML }}
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+<title>{{ .title }}</title>
+<link>{{ .page.Permalink }}</link>
+<description>{{ .description }}</description>
+{{- with .page.OutputFormats.Get .format }}
+{{ printf "<atom:link href=%q rel=\"self\" type=%q/>" .Permalink .MediaType.Type | safeHTML }}
+{{- end }}
+{{- range $pages }}
+{{ partial "feed-item.xml" . }}
+{{- end }}
+</channel>
+</rss>

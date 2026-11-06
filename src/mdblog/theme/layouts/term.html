@@ -1,0 +1,8 @@
+{{ define "main" }}
+<section class="h-feed entry-list">
+<h1 class="p-name">{{ lower .Data.Term }}</h1>
+{{- range .Pages }}
+{{ partial "entry-item.html" . }}
+{{- end }}
+</section>
+{{ end }}
