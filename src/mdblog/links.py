@@ -153,8 +153,8 @@ class Converted:
     text: str
     # Vault-relative paths of the images the text uses, sorted, each once.
     images: tuple[Path, ...]
-    # One reason per failed link or embed in document order, then one per pair of
-    # images sharing a file name.
+    # One reason per failed link or embed in document order, then one per file name
+    # that several images share.
     failures: tuple[str, ...]
 
 
@@ -268,9 +268,10 @@ def base_path(base_url: str) -> str:
 def convert_notes(selection: Selection, base_url: str) -> Conversion:
     """Every published note in `selection` with Obsidian syntax converted for Hugo.
 
-    Comments go first, then block IDs, so neither can hold a link target. Then a
-    standard Markdown link or image to an internal destination fails, and wikilinks
-    convert against every file in the selection. Unpublished notes are never read.
+    Comments are removed first, so a heading or block ID inside one is no link target,
+    and block IDs next, so none stays in a heading's text. Then a standard Markdown
+    link or image to an internal destination fails, and wikilinks convert against
+    every file in the selection. Unpublished notes are never read.
     """
     prefix = base_path(base_url)
     texts: dict[Path, str] = {}

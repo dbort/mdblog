@@ -1,7 +1,7 @@
 """mdblog.markdown: finds code, comments, block IDs, headings and links in a note's Markdown.
 
-Every function here leaves code untouched: fenced and indented code blocks, including
-ones nested in quotes and lists, and inline code spans.
+Every function that scans a note's text leaves code untouched: fenced and indented code
+blocks, including ones nested in quotes and lists, and inline code spans.
 """
 
 import bisect

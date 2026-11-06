@@ -97,4 +97,4 @@ Raw HTML in a note renders as nothing, so an `<img>` or `<a>` written in a note 
 
 - Math, note transclusion and audio, video and PDF players are unsupported.
 - A callout type holding a hyphen, such as `[!custom-thing]`, renders as a plain quote with its marker as literal text.
-- Heading links follow Hugo's heading IDs, which are rebuilt here. A heading whose ID Hugo builds from a numeric character reference, such as `&#42;`, can get a different ID than the build expects, and its link then fails silently.
+- Heading links follow Hugo's heading IDs, which the build computes on its own. A heading whose ID Hugo builds from a numeric character reference, such as `&#42;`, can get a different ID than the build expects, and its link then fails silently.
