@@ -10,27 +10,6 @@ M1 to M5 make up v1. M6 and M7 follow it. Each milestone's decisions are settled
 
 Search, comments, series, scheduled publishing, and packaging mdblog for other people's sites are outside v1. Each site's settings live in its own vault, so in the long run this repo can host multiple independent sites.
 
-## M2: Obsidian Markdown conversion
-
-**Status:** Tasks task-003, task-004
-
-- [x] task-003: Write front matter from a fixed property list and place pages by slug (blocked on task-002)
-- [ ] task-004: Convert Obsidian links, embeds and syntax (blocked on task-003)
-
-Turn Obsidian's Markdown into what Hugo expects.
-
-- Front matter: the converter writes each page's front matter from scratch, reading `title`, `date`, `tags`, `slug`, `type` and a link entry's `url`. A missing title comes from the file name. Every other property is dropped, because the same name can mean something else to Hugo, and `docs/vault-format.md` lists the collisions. A Hugo feature wanted later, such as a redirect after a rename, gets its own property and is never passed through by name.
-- Page placement: every entry type lives at `/posts/<slug>/`, so a note's vault folder, file name and type have no effect on its URL. `slug` and `type` are required on published notes.
-- `date` means the publish date, so a note started months ago does not land months back in the stream and the feed. Hugo dates a note with no `date` as year 0001 and lists it last in the feed, and it leaves out a future-dated note with no warning, so the converter validates dates itself.
-- Tags: the `tags` property sets site tags, and nested tags keep Hugo's nested paths. Inline `#tags` stay literal text.
-- Links: `[[note]]`, `[[note|alias]]`, `[[note#heading]]` and `![[note]]` become links to site URLs. Internal standard Markdown links are unsupported.
-- Images: `![[image.png]]`, with an optional size, becomes an image, and only images used by published notes are copied. Other attachments are unsupported.
-- Obsidian-only syntax: strip `%%comments%%` and block IDs, and render callouts and `==highlights==`.
-- One validation pass that fails the build on any broken or ambiguous link or embed, any link or embed of an unpublished note, any invalid `date`, `slug` or `type`, any unsupported link, and any two notes with one URL. A note goes live only when everything it links to is published, so no draft text can reach the site that way.
-- A reference in `docs/` listing each vault property, its meaning and the collisions with Hugo, so the mapping and its reasoning outlive this milestone's section.
-
-**Done when:** a fixture vault using each supported syntax renders correctly in a Hugo build, a fixture note carrying colliding properties produces the same page and feed entry as one without them, generated front matter holds only the listed keys, a broken link, a missing date and a URL collision in the fixture each fail the build with a report naming the notes involved, and tests confirm that an unpublished note's text and images do not reach the output through a link or embed.
-
 ## M3: Site design and content types
 
 **Status:** Tasks task-006, task-007

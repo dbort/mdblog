@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Publishes Obsidian-managed notes as a static site built with Hugo."
 requires-python = ">=3.14"
 license = "MIT"
-dependencies = ["ruamel.yaml"]
+dependencies = ["markdown-it-py", "ruamel.yaml"]
 
 [project.scripts]
 mdblog = "mdblog.cli:main"

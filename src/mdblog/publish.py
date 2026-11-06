@@ -47,6 +47,9 @@ class Selection:
     published: tuple[PublishedNote, ...]
     # Sorted by path.
     failures: tuple[NoteFailure, ...]
+    # Every regular file a selected note could link to, notes included, relative to the
+    # vault and sorted.
+    files: tuple[Path, ...]
 
 
 def split_note(data: bytes) -> tuple[bytes, bytes] | None:
@@ -156,10 +159,12 @@ def select_notes(vault: Path, now: datetime) -> Selection:
     An unreadable note or directory is a failure, and so is a published note whose
     properties fail `validate_properties` at the time `now`, with one failure per reason.
     Every note sharing a slug is a failure that names the others, even when the note has
-    other failures. A note with any failure is not in `published`.
+    other failures. A note with any failure is not in `published`. `files` lists every
+    regular file under the same rules as notes, whatever its suffix.
     """
     published: list[PublishedNote] = []
     failures: list[NoteFailure] = []
+    files: list[Path] = []
     slug_users: dict[str, list[Path]] = {}
 
     def record_walk_error(error: OSError) -> None:
@@ -175,13 +180,12 @@ def select_notes(vault: Path, now: datetime) -> Selection:
         ]
         for name in filenames:
             note = directory / name
-            if (
-                name.startswith(".")
-                or note.suffix != NOTE_SUFFIX
-                or not note.is_file(follow_symlinks=False)
-            ):
+            if name.startswith(".") or not note.is_file(follow_symlinks=False):
                 continue
             relative = note.relative_to(vault)
+            files.append(relative)
+            if note.suffix != NOTE_SUFFIX:
+                continue
             try:
                 parts = published_parts(note.read_bytes())
             except OSError as exc:
@@ -211,4 +215,5 @@ def select_notes(vault: Path, now: datetime) -> Selection:
             )
         ),
         failures=tuple(sorted(failures, key=lambda failure: failure.path)),
+        files=tuple(sorted(files)),
     )

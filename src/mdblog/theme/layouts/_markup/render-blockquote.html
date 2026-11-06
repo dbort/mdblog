@@ -1,0 +1,20 @@
+{{- /* Obsidian callouts: `[!type] Title`, folded closed with `-` and open with `+`. */ -}}
+{{- if eq .Type "alert" -}}
+  {{- $title := .AlertTitle | default (title .AlertType) -}}
+  {{- if .AlertSign -}}
+<details class="callout callout-{{ .AlertType }}"{{ if eq .AlertSign "+" }} open{{ end }}>
+<summary class="callout-title">{{ $title }}</summary>
+<div class="callout-content">
+{{ .Text }}</div>
+</details>
+  {{- else -}}
+<div class="callout callout-{{ .AlertType }}">
+<p class="callout-title">{{ $title }}</p>
+<div class="callout-content">
+{{ .Text }}</div>
+</div>
+  {{- end -}}
+{{- else -}}
+<blockquote>
+{{ .Text }}</blockquote>
+{{- end }}
