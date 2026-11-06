@@ -1,5 +1,5 @@
 ---
-next_id: bug-003
+next_id: bug-004
 ---
 
 # Bug log
@@ -45,3 +45,5 @@ log happens only when the user asks.
   decision on the rule every tag passes through.
 
 - `bug-002` - **A footnote whose text is one word fails the build**: a note holding `text[^1]` and `[^1]: Word.` fails with "Markdown link to 'Word.' is internal; use a wikilink", though Hugo renders it as a footnote. Found while adding a footnote to the fixture in task-006. Root cause: `internal_destinations` in `src/mdblog/markdown.py` parses with plain CommonMark, which reads `[^1]: Word.` as a link reference definition and `[^1]` as a reference link. A definition holding a space is no valid reference definition, so most footnotes pass. Fix: `ad hoc`, by parsing with a footnote plugin or skipping `[^...]` labels, since the correct behavior is not in question.
+
+- `bug-003` - **Footnote links in the home and tag lists point at the list page**: a post's summary or a link entry's full commentary renders in the list with Goldmark's page-relative footnote hrefs (`#fn:1`, `#fnref:1`). They resolve against the list page, so two link entries with footnotes on one list share the ids `fn:1`, and a footnote reference before `<!--more-->` points at a target the list does not hold. Entry pages and feeds are correct. Found by task-006's review. Hugo 0.169 has no footnote id-prefix option, so a fix rewrites the hrefs in the list layouts, as the feed item partial does, or prefixes the ids per entry. Fix: `task-XXX task`, because the choice between rewriting to the entry page and keeping footnotes in place needs a design decision.
