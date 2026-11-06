@@ -27,6 +27,22 @@ Build the reader-facing site from the default Hugo layouts in the `mdblog` packa
 
 **Done when:** a fixture build generates every page type, the tests assert each entry's date, tags, permalink and h-entry markup, `index.xml` parses as RSS and lists entries of all three types, and each type feed lists only its type.
 
+## M3.1: Local preview
+
+**Status:** Tasks task-008
+
+- [ ] task-008: Preview the site locally with mdblog serve
+
+Let the author watch the real vault's site change while writing, with nothing deployed.
+
+- `mdblog serve VAULT` runs Hugo's server on the vault's site and rebuilds whenever the vault changes, so open pages reload by themselves. Links point at the local server and keep any base path. A vault that fails validation keeps the last good site on screen until a later edit fixes it.
+- A draft mode that also shows unpublished notes and marks them as such. The converter passes them to Hugo with a generated `draft: true`, runs Hugo with `--buildDrafts`, and renders links and embeds of unpublished notes normally. Validation failures that stop a production build only warn in this mode. Authors only write `publish`.
+
+**Done when:** saving an edit to a note changes its page in an open browser with no command run, and draft mode shows an unpublished note marked as a draft while a production build of the same vault leaves it out.
+
+**Decisions:**
+- How draft mode is turned on. Recommended: a `--drafts` flag on `mdblog serve`, so no output that holds drafts can come from `mdblog build`.
+
 ## M4: Deploy to Cloudflare
 
 **Status:** Planned
@@ -54,7 +70,6 @@ Serve the built site from a Cloudflare Worker as static assets, with no custom W
 
 Make publishing part of writing, then go live.
 
-- A local preview of the real vault with live reload, which can include unpublished notes and marks them as such. In that mode the converter passes them to Hugo with a generated `draft: true`, runs Hugo with `--buildDrafts`, writes to its own output directory, and renders links and embeds of unpublished notes normally. Validation failures that stop a production build only warn in this mode. Authors only write `publish`.
 - A check command that runs the build's validation pass with nothing deployed, so problems surface before anything goes live.
 - Note templates for each entry type, for use in Obsidian. They leave out `publish` and `date`, so a new note starts unpublished with or without a template, and the author sets the date when publishing it.
 - A way to trigger a publish from the vault.
