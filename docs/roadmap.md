@@ -15,7 +15,7 @@ Search, comments, series, scheduled publishing, and packaging mdblog for other p
 **Status:** Tasks task-006, task-007
 
 - [x] task-006: Build the site's pages, feeds and entry markup (blocked on task-004)
-- [ ] task-007: Give the site its visual design and 404 page (blocked on task-006)
+- [ ] task-007: Give the site its visual design and 404 page (blocked on task-006, task-008)
 
 Build the reader-facing site from the default Hugo layouts in the `mdblog` package, using fixtures until real content arrives.
 
@@ -29,19 +29,17 @@ Build the reader-facing site from the default Hugo layouts in the `mdblog` packa
 
 ## M3.1: Local preview
 
-**Status:** Tasks task-008
+**Status:** Tasks task-008, task-009
 
 - [ ] task-008: Preview the site locally with mdblog serve
+- [ ] task-009: Preview drafts with mdblog serve --drafts (blocked on task-007, task-008)
 
 Let the author watch the real vault's site change while writing, with nothing deployed.
 
 - `mdblog serve VAULT` runs Hugo's server on the vault's site and rebuilds whenever the vault changes, so open pages reload by themselves. Links point at the local server and keep any base path. A vault that fails validation keeps the last good site on screen until a later edit fixes it.
-- A draft mode that also shows unpublished notes and marks them as such. The converter passes them to Hugo with a generated `draft: true`, runs Hugo with `--buildDrafts`, and renders links and embeds of unpublished notes normally. Validation failures that stop a production build only warn in this mode. Authors only write `publish`.
+- A draft mode, `mdblog serve --drafts`, that also shows unpublished notes with a `type` and marks them as such. The converter passes them to Hugo with a generated `draft: true`, runs Hugo with `--buildDrafts`, and renders links and embeds of unpublished notes normally. Validation failures that stop a production build only warn in this mode. Authors only write `publish`.
 
 **Done when:** saving an edit to a note changes its page in an open browser with no command run, and draft mode shows an unpublished note marked as a draft while a production build of the same vault leaves it out.
-
-**Decisions:**
-- How draft mode is turned on. Recommended: a `--drafts` flag on `mdblog serve`, so no output that holds drafts can come from `mdblog build`.
 
 ## M4: Deploy to Cloudflare
 

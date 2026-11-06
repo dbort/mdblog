@@ -1,7 +1,7 @@
 ---
 id: task-007
 title: "Give the site its visual design and 404 page"
-blocked_by: [task-006]
+blocked_by: [task-006, task-008]
 ---
 
 # task-007: Give the site its visual design and 404 page
