@@ -124,6 +124,24 @@ def test_requested_busy_port_is_refused_naming_it(busy_port: int) -> None:
         choose_port("127.0.0.1", busy_port)
 
 
+def test_requested_port_held_only_in_time_wait_is_used() -> None:
+    with socket.socket() as listener:
+        # As Hugo's listener does; Linux reuses a TIME_WAIT port only when the
+        # listener that accepted the connection set this too.
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        port: int = listener.getsockname()[1]
+        with socket.create_connection(("127.0.0.1", port)) as client:
+            accepted, _ = listener.accept()
+            # The server side closes first, so its end of the connection is left in
+            # TIME_WAIT on the port, as after serve stops with a browser tab open.
+            accepted.close()
+            assert client.recv(1) == b""
+
+    assert choose_port("127.0.0.1", port) == port
+
+
 def test_default_port_is_used_when_free(monkeypatch: pytest.MonkeyPatch) -> None:
     port = _free_port()
     monkeypatch.setattr(serve, "DEFAULT_PORT", port)
@@ -301,6 +319,14 @@ def test_reset_output_empties_the_directory_and_writes_the_marker(
     reset_output(output)
 
     assert [p.name for p in output.iterdir()] == [MARKER]
+
+
+def test_reset_output_that_cannot_be_written_names_it(tmp_path: Path) -> None:
+    output = tmp_path / "file" / "out"
+    (tmp_path / "file").write_text("", encoding="utf-8")
+
+    with pytest.raises(ServeError, match=f"cannot serve into {output}"):
+        reset_output(output)
 
 
 def test_hugo_starts_without_hugo_variables(
