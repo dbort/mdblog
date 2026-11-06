@@ -67,3 +67,9 @@ Replaces the placeholder layouts with the site's real structure: a home page wit
 - [x] **Step 6** (`docs/vault-format.md`, `CLAUDE.md`): the `_site/` files, the sub-path rule and the nested tag limit.
 
 ## Review log
+
+### Round 1: APPROVED
+- **N1: Fragment-only hrefs in list items point at the list page** (`src/mdblog/theme/layouts/_partials/entry-item.html:9`): the home and tag lists render a link entry's full `.Content` and a post's `.Summary`, so Goldmark's footnote hrefs (`#fn:1`, `#fnref:1`) resolve against the list page. Two link entries with footnotes on one list collide on `fn:1`, and a footnote reference before `<!--more-->` points at a target missing from the list. No Must Have covers it; worth a bug-log entry or a task-007 follow-up. Hugo 0.169 has no footnote id-prefix option.
+- **N2: The sub-path Must Have's "every internal href" is read as excluding fragment-only hrefs** (`tests/test_site.py:611`): on an entry page they are same-document references valid at any base path, and the feeds absolutize them, which a test asserts.
+- **N3: Archive links every title, link entries included, to the entry's page** (`src/mdblog/theme/layouts/section.html:9`): the task leaves this open; reasonable since the archive is a site index with no date link. Record it in `## Advice` if the user wants it written down.
+- **N4: The `{}` front-matter guard is only checked with fake Hugo** (`src/mdblog/build.py:164`): no test has real Hugo render a bio body starting with `---` or `{`. A broken guard would most likely fail loudly, so not blocking.
