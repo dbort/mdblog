@@ -42,6 +42,7 @@ Adds `mdblog serve VAULT`, which runs Hugo's development server on the vault's s
 - Stop on SIGINT and SIGTERM: terminate Hugo if it is still running, wait for it, then remove the temporary directories. If Hugo exits unexpectedly, serve exits 1 with a message naming Hugo's status.
 - Pass Hugo's own output through to the terminal. It prints the server URL and its own template errors, which it also shows in the browser.
 - Update `task-007`'s Advice to preview with `mdblog serve` on the fixture vault in place of `python3 -m http.server`.
+- User decision (2026-11-05): build a reusable manual-QA walker in this task. `tools/manual_qa.py`, run through the `tools/manual-qa` pixi wrapper, holds every check as data (command, URL to wait for, steps), runs each on a scratch copy of the fixture vault, records a pass, fail or skip verdict and notes, and writes a Markdown log the author hands back. The steps live only in the script; there is no manual-QA doc. The author asked for it so manual QA needs no agent-made setup and can run at any time. `CLAUDE.md` tells future tasks to add their checks there.
 - Implementation findings (2026-11-05), tested against Hugo 0.169: Hugo's server never deletes a removed page's files from `--destination` and keeps serving them with status 200, and `--cleanDestinationDir` deletes the marker without removing those files on a rebuild. So serve restarts Hugo into an emptied output directory, with the marker rewritten, whenever a sync removes a path or writes a top-level path (`hugo.toml`, or a new directory Hugo would not be watching). Hugo rejects a bracketed IPv6 `--baseURL` without a port, so an explicit `--bind` passes `--baseURL http://ADDRESS:PORT<base path>/ --appendPort=false` in place of relying on `--appendPort`. Hugo runs in its own process group so a terminal's Ctrl+C reaches only mdblog, which then stops Hugo; any other Hugo exit is a failure.
 - Standing obligation, strict static checks: all new code is typed under pyrefly strict. `watchfiles` ships type hints; if any call still erases a type, comment why at that line.
 - Standing obligation, scripts stay simple: no shell scripts. Port selection, syncing and the watch loop are importable Python functions.
@@ -54,6 +55,7 @@ Adds `mdblog serve VAULT`, which runs Hugo's development server on the vault's s
 - [x] **Step 4** (`tests/`): the real-Hugo end-to-end test.
 - [x] **Step 5** (`README.md`): installation and usage, deferring to `docs/vault-format.md` for the vault.
 - [x] **Step 6** (`tasks/active/task-007-visual-design.md`): replace the `python3 -m http.server` preview in its Advice with `mdblog serve`.
-- [ ] **Step 7**: run the manual QA with the author and record their approval, dated, in `## Advice`.
+- [x] **Step 7** (`tools/manual_qa.py`, `tools/manual-qa`, `CLAUDE.md`, tests): the manual-QA walker, with serve's live-reload and LAN checks.
+- [ ] **Step 8**: have the author run `tools/manual-qa` and record their approval from its log, dated, in `## Advice`.
 
 ## Review log

@@ -40,4 +40,4 @@ If a change makes the vault fail validation, `serve` prints the failures and kee
 tools/check
 ```
 
-runs the formatter check, linter, type checker and tests.
+runs the formatter check, linter, type checker and tests. `tools/manual-qa` walks through the checks no test can make, such as live reload in a browser, and writes a log of the results.

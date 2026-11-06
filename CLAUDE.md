@@ -27,6 +27,7 @@ in `.claude/docs/`, even when a human also reads them.
 - **Gate:** `tools/check` runs `ruff format --check`, `ruff check`, pyrefly and pytest. `--smoke` and `--offline` run the same steps.
 - **Platforms:** the repo runs on Linux and macOS.
 - **Vault:** the Obsidian vault is never part of this repo. Tools point at a parallel checkout of it.
+- **Manual QA:** each manual-QA Must Have is a check in `tools/manual_qa.py`. The author runs `tools/manual-qa [NAME...]`, which runs each check's command on a scratch copy of the fixture vault, records their verdicts and notes, and writes a log they hand back. Ask the author to run it rather than giving them ad hoc steps or setup.
 - **Sites:** one vault is one site, and building several sites means running `mdblog build` once per vault. A site's settings (`_site/mdblog.toml`), optional bio (`_site/bio.md`), overriding layouts (`_site/layouts/`), assets (`_site/assets/`) and static files (`_site/static/`) live in its vault. The repo's only site configs are test fixtures.
 
 ## Standing task-planning obligations

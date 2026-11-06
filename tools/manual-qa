@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#
+# Runs tools/manual_qa.py inside the pixi environment, which puts mdblog and Hugo on PATH.
+set -e
+
+# Clearing CDPATH stops cd from printing the directory or resolving against a decoy.
+repo=$(CDPATH="" cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+
+exec pixi run --locked --manifest-path "$repo/pixi.toml" \
+    python "$repo/tools/manual_qa.py" "$@"
