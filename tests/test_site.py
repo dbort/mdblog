@@ -494,7 +494,7 @@ def test_a_date_only_value_shows_its_own_day_in_any_zone(
     assert time.attrs["datetime"].startswith("2026-01-02T")
 
 
-def _check_h_entry(entry: Element, slug: str, tags: list[str]) -> None:
+def _check_h_entry(entry: Element, slug: str, tags: list[str], *, listed: bool) -> None:
     assert len(entry.all(cls="p-name")) == 1
     assert entry.one(cls="u-url").attrs["href"] == _posts(slug)[0]
     assert len(entry.all(cls="dt-published")) == 1
@@ -502,6 +502,8 @@ def _check_h_entry(entry: Element, slug: str, tags: list[str]) -> None:
     author = entry.one(cls="p-author")
     assert "h-card" in author.classes
     assert author.text == AUTHOR
+    # A list hides the single author's name from readers but keeps the h-card.
+    assert ("hidden" in author.attrs) == listed
 
 
 TAGS = {
@@ -516,12 +518,12 @@ def test_lists_and_entry_pages_carry_h_entry_markup(site: Site) -> None:
         feed = site.page(name).one("main").one(cls="h-feed")
         for entry in feed.all(cls="h-entry"):
             slug = urlsplit(entry.one(cls="u-url").attrs["href"]).path.split("/")[2]
-            _check_h_entry(entry, slug, TAGS.get(slug, []))
+            _check_h_entry(entry, slug, TAGS.get(slug, []), listed=True)
             assert len(entry.all(cls="p-summary")) == 1, (name, slug)
             assert entry.all(cls="e-content") == [], (name, slug)
     for slug in NEWEST_FIRST:
         entry = site.page(f"posts/{slug}/index.html").one(cls="h-entry")
-        _check_h_entry(entry, slug, TAGS.get(slug, []))
+        _check_h_entry(entry, slug, TAGS.get(slug, []), listed=False)
         assert len(entry.all(cls="e-content")) == 1
 
 
