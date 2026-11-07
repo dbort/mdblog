@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from mdblog.links import IMAGE_SUFFIXES, Conversion, Page, base_path, convert_notes
+from mdblog.properties import EntryStatus
 from mdblog.publish import BIO_PATH, select_notes
 from notes import published_text
 
@@ -430,3 +431,63 @@ def test_bio_failures_name_the_bio_and_the_target(tmp_path: Path) -> None:
 
 def test_no_bio_converts_to_none(tmp_path: Path) -> None:
     assert _convert(_vault(tmp_path, "")).bio is None
+
+
+def _preview(vault: Path, bio: str | None = None) -> Conversion:
+    selection = select_notes(vault, NOW, drafts=True)
+    return convert_notes(selection, "https://example.test/", bio, drafts=True)
+
+
+def test_draft_mode_keeps_failed_links_as_written_and_reports_them(
+    tmp_path: Path,
+) -> None:
+    vault = _vault(tmp_path, "[[missing]] [text](top.md) [[top]]\n")
+    _write(
+        vault,
+        "drafts/linking.md",
+        "---\npublish: false\nslug: linking\n---\n![[gone.png]] [[draft]]\n",
+    )
+
+    conversion = _preview(vault)
+
+    source = _page(conversion)
+    assert source.note.status is EntryStatus.INVALID
+    assert source.body.decode("utf-8").endswith(
+        "[[missing]] [text](top.md) [top](/posts/top/)\n"
+    )
+    linking = _page(conversion, "linking")
+    assert linking.note.status is EntryStatus.DRAFT
+    assert linking.body == b"![[gone.png]] [draft](/posts/draft/)\n"
+    assert _page(conversion, "draft").note.status is EntryStatus.DRAFT
+    assert _page(conversion, "top").note.status is EntryStatus.PUBLISHED
+    assert [
+        f"{failure.path.as_posix()}: {failure.reason}"
+        for failure in conversion.failures
+    ] == [
+        "drafts/linking.md: ![[gone.png]]: matches no note or file",
+        f"{SOURCE}: Markdown link to 'top.md' is internal; use a wikilink",
+        f"{SOURCE}: [[missing]]: matches no note or file",
+    ]
+
+
+def test_draft_mode_links_to_an_invalid_note(tmp_path: Path) -> None:
+    vault = _vault(tmp_path, "[[broken]]\n")
+
+    conversion = _preview(vault)
+
+    assert _body(conversion).endswith("[broken](/posts/broken/)\n")
+    assert _page(conversion, "broken").note.status is EntryStatus.INVALID
+    assert conversion.failures == ()
+
+
+def test_draft_mode_keeps_a_bio_with_failed_links(tmp_path: Path) -> None:
+    vault = _vault(tmp_path, "")
+
+    conversion = _preview(vault, "[[missing]] [[draft]]\n")
+
+    assert conversion.bio is not None
+    assert conversion.bio.body == b"[[missing]] [draft](/posts/draft/)\n"
+    assert [
+        f"{failure.path.as_posix()}: {failure.reason}"
+        for failure in conversion.failures
+    ] == [f"{BIO_PATH.as_posix()}: [[missing]]: matches no note or file"]
