@@ -27,7 +27,7 @@ The default theme gets a new look modeled on two sites the author likes: serif b
   - Links: a single thin underline (1px, offset about 0.2em) on links inside post, summary and bio text. Nav, list titles, dates, meta and sidebar links have no underline until hover. No double underlines.
   - Entry titles in lists (the `entry-item` partial on the home and tag pages) use the link color in both modes, red in light and blue in dark, and underline on hover. Plain text color left them hard to tell from summaries in dark mode. Archive and tag-index titles stay in the text color.
   - Layout: one grid with the sidebar on the right (about 16.5rem) from roughly 60rem up. Below that, one column with the sidebar after `<main>` and before the footer. The sidebar is not sticky.
-  - Sidebar sections are boxes with a 1px dashed border in the border color and 10px radius, each headed by a small uppercase sans label with a 10px ring marker in the accent color.
+  - Sidebar sections are boxes with a 1px border in the border color and 10px radius, each headed by a small uppercase sans label with a 10px ring marker in the accent color. The border is dashed in light mode and solid in dark mode, because a dashed `#353535` on `#212529` was too faint to see (user decision, 2026-11-07). The dark border color stays `#353535`.
   - Header: a brand link in the text color at weight 600, with a muted `« ` on non-home pages and no rule under the header. The header nav shows only below the sidebar breakpoint, hidden by CSS, because the sidebar's Site links cover wide screens.
   - Footer: the existing `© author` line, muted, with a thin top rule.
   - Palettes follow `prefers-color-scheme` with no toggle or JavaScript, as task-007 decided.
