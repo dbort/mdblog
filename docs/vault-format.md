@@ -22,7 +22,7 @@ A future date fails the build because nothing rebuilds the site when that date a
 
 ## Generated front matter
 
-Each page's Hugo front matter is written from scratch, holding only `title`, `date` and `tags` when there are any. The note's body after its front matter reaches Hugo byte for byte, apart from the conversions under [Obsidian syntax](#obsidian-syntax).
+Each page's Hugo front matter is written from scratch, holding only `title`, `date` and, when there are any, `tags`. The note's body after its front matter reaches Hugo byte for byte, apart from the conversions under [Obsidian syntax](#obsidian-syntax).
 
 ## Hugo collisions
 

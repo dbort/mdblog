@@ -156,7 +156,8 @@ def validate_properties(
 def front_matter(page: PageProperties) -> bytes:
     """The Hugo front matter for `page`, ending in a newline.
 
-    The result is one JSON object holding `title`, `date` and `tags` when there are any.
+    The result is one JSON object holding `title`, `date` and, when there are any,
+    `tags`.
     """
     data: dict[str, object] = {"title": page.title, "date": page.date.isoformat()}
     if page.tags:
