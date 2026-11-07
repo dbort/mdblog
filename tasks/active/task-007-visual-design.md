@@ -43,3 +43,7 @@ Gives the site a look of its own with one plain CSS file: a single readable colu
 - [x] **Step 5**: the author's browser review and any changes it asks for.
 
 ## Review log
+
+### Round 1: APPROVED
+- **N1: Fixture sample code contradicts its own annotation** (`tests/fixtures/vault/projects/syntax.md:36`): `def greet(name: str) -> str` returns `None` on one branch. Display content only, but a reader using the sampler as an example sees a type error; `return f"Hello, {name}!"` avoids it.
+- **N2: Dark line-highlight background left at the generated value** (`src/mdblog/theme/assets/css/main.css:524`): the header at `main.css:2` claims every text pair meets WCAG AA, but `.chroma .hl { background-color:#6e7681 }` under `#e6edf3` text is about 4:1. Only `hl_lines` blocks get `.hl` and the fixture has none. Darken it or narrow the header's claim.
