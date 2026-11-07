@@ -1,6 +1,6 @@
 """mdblog.publish: decides which of a vault's notes reach the site."""
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -9,7 +9,14 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 
 from mdblog.config import SITE_DIR
-from mdblog.properties import PageProperties, valid_slug, validate_properties
+from mdblog.properties import (
+    EntryStatus,
+    PageProperties,
+    file_slug,
+    preview_properties,
+    valid_slug,
+    validate_properties,
+)
 
 NOTE_SUFFIX = ".md"
 FENCE = b"---"
@@ -23,18 +30,20 @@ class FrontMatterError(Exception):
 
 @dataclass(frozen=True)
 class PublishedNote:
-    """A note that passed validation and belongs on the site."""
+    """A note that renders on the site: outside draft mode, one that passed validation."""
 
     # Relative to the vault.
     path: Path
     page: PageProperties
     # The bytes after the front matter, read once so a later edit cannot bypass the rules.
     body: bytes
+    # Always PUBLISHED outside draft mode.
+    status: EntryStatus = EntryStatus.PUBLISHED
 
 
 @dataclass(frozen=True)
 class NoteFailure:
-    """A note or directory that makes the build fail."""
+    """A note or directory that makes the build fail, or under draft mode, a warning."""
 
     # Relative to the vault.
     path: Path
@@ -115,13 +124,12 @@ def parse_properties(block: bytes) -> Mapping[object, object]:
     return loaded
 
 
-def published_parts(data: bytes) -> tuple[Mapping[object, object], bytes] | None:
-    """The properties and body of a note marked for publishing, otherwise None.
+def marked_parts(data: bytes) -> tuple[bool, Mapping[object, object], bytes] | None:
+    """The boolean `publish` value, properties and body of a note, or None.
 
-    Returns them only for the boolean `publish: true`. None for `publish: false`, no
-    `publish` property and no front matter. Raises `FrontMatterError` for a non-boolean
-    `publish`, any failure of `parse_properties`, or a published note whose body is not
-    UTF-8.
+    None for a note with no front matter or no `publish` property. Raises
+    `FrontMatterError` for a non-boolean `publish` or any failure of `parse_properties`.
+    The body may be in any encoding.
     """
     parts = split_note(data)
     if parts is None:
@@ -131,16 +139,32 @@ def published_parts(data: bytes) -> tuple[Mapping[object, object], bytes] | None
     if "publish" not in properties:
         return None
     value = properties["publish"]
-    # An identity check, because `1 == True` in Python.
-    if value is False:
-        return None
-    if value is not True:
+    # Identity checks, because `1 == True` in Python.
+    if value is not True and value is not False:
         raise FrontMatterError(f"publish must be true or false, not {value!r}")
+    return value is True, properties, body
+
+
+def _require_utf8(data: bytes) -> None:
     try:
         data.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise FrontMatterError("note is not UTF-8") from exc
-    return properties, body
+
+
+def published_parts(data: bytes) -> tuple[Mapping[object, object], bytes] | None:
+    """The properties and body of a note marked for publishing, otherwise None.
+
+    Returns them only for the boolean `publish: true`. None for `publish: false`, no
+    `publish` property and no front matter. Raises `FrontMatterError` for a non-boolean
+    `publish`, any failure of `parse_properties`, or a published note whose body is not
+    UTF-8.
+    """
+    marked = marked_parts(data)
+    if marked is None or not marked[0]:
+        return None
+    _require_utf8(data)
+    return marked[1], marked[2]
 
 
 def _slug_collisions(users: Mapping[str, list[Path]]) -> list[NoteFailure]:
@@ -153,7 +177,114 @@ def _slug_collisions(users: Mapping[str, list[Path]]) -> list[NoteFailure]:
     return failures
 
 
-def select_notes(vault: Path, now: datetime) -> Selection:
+@dataclass(frozen=True)
+class SlugClaim:
+    """What one note brings to draft mode's slug assignment."""
+
+    # Relative to the vault.
+    path: Path
+    # The note's own valid slug, or None to generate one from the file name.
+    own: str | None
+    # Marked `publish: true`, so its own slug wins over a draft's.
+    published: bool
+
+
+def assign_slugs(claims: Iterable[SlugClaim]) -> dict[Path, tuple[str, str | None]]:
+    """Each claim's slug, unique across `claims`, with a reason when it is suffixed.
+
+    A note keeps its own slug unless an earlier claim by path holds it, and a published
+    note's own slug wins over every draft's. Then, in path order, each other note takes
+    its generated `file_slug`, or its own slug when it lost, and adds the first free
+    `-2`, `-3`, ... suffix when that slug is already used. The reason for a suffix
+    names the note holding the unsuffixed slug. Every returned slug matches the slug
+    rule when every own slug does.
+    """
+    ordered = sorted(claims, key=lambda claim: claim.path)
+    holders: dict[str, Path] = {}
+    # A stable sort keeps path order among published notes and among drafts.
+    for claim in sorted(ordered, key=lambda claim: not claim.published):
+        if claim.own is not None:
+            holders.setdefault(claim.own, claim.path)
+    assigned: dict[Path, tuple[str, str | None]] = {}
+    for claim in ordered:
+        if claim.own is not None and holders[claim.own] == claim.path:
+            assigned[claim.path] = (claim.own, None)
+            continue
+        base = claim.own or file_slug(claim.path.stem)
+        holder = holders.get(base)
+        if holder is None:
+            holders[base] = claim.path
+            assigned[claim.path] = (base, None)
+            continue
+        number = 2
+        while f"{base}-{number}" in holders:
+            number += 1
+        slug = f"{base}-{number}"
+        holders[slug] = claim.path
+        reason = f"slug {base!r} is already used by {holder.as_posix()}; using {slug!r}"
+        assigned[claim.path] = (slug, reason)
+    return assigned
+
+
+@dataclass(frozen=True)
+class _MarkedNote:
+    path: Path
+    publish: bool
+    properties: Mapping[object, object]
+    body: bytes
+    # Local, with its offset.
+    modified: datetime
+
+
+def _marked_note(note: Path, relative: Path, data: bytes) -> _MarkedNote | None:
+    marked = marked_parts(data)
+    if marked is None:
+        return None
+    _require_utf8(data)
+    publish, properties, body = marked
+    modified = datetime.fromtimestamp(note.stat().st_mtime).astimezone()
+    return _MarkedNote(relative, publish, properties, body, modified)
+
+
+def _preview_entries(
+    notes: Iterable[_MarkedNote], now: datetime
+) -> tuple[list[PublishedNote], list[NoteFailure]]:
+    ordered = sorted(notes, key=lambda note: note.path)
+    previews = {
+        note.path: preview_properties(
+            note.properties, note.path.stem, now, draft=not note.publish
+        )
+        for note in ordered
+    }
+    slugs = assign_slugs(
+        SlugClaim(note.path, previews[note.path][0].slug, note.publish)
+        for note in ordered
+    )
+    entries: list[PublishedNote] = []
+    warnings: list[NoteFailure] = []
+    for note in ordered:
+        preview, reasons = previews[note.path]
+        slug, slug_reason = slugs[note.path]
+        if slug_reason is not None:
+            reasons = (*reasons, slug_reason)
+        warnings.extend(NoteFailure(note.path, reason) for reason in reasons)
+        if not note.publish:
+            status = EntryStatus.DRAFT
+        elif reasons:
+            status = EntryStatus.INVALID
+        else:
+            status = EntryStatus.PUBLISHED
+        page = PageProperties(
+            title=preview.title,
+            date=note.modified if preview.date is None else preview.date,
+            slug=slug,
+            tags=preview.tags,
+        )
+        entries.append(PublishedNote(note.path, page, note.body, status))
+    return entries, warnings
+
+
+def select_notes(vault: Path, now: datetime, drafts: bool = False) -> Selection:
     """Validates each selected note in `vault` and returns the published ones and all failures.
 
     A selected note is a regular `*.md` file outside `_site/` at the vault's root, with
@@ -163,11 +294,18 @@ def select_notes(vault: Path, now: datetime) -> Selection:
     Every note sharing a slug is a failure that names the others, even when the note has
     other failures. A note with any failure is not in `published`. `files` lists every
     regular file under the same rules as notes, whatever its suffix.
+
+    With `drafts`, `published` also holds each `publish: false` note as a DRAFT and each
+    published note with failures as INVALID, and `failures` are warnings. Their
+    properties follow `preview_properties`: a missing or invalid date becomes the file's
+    modification time, and slugs follow `assign_slugs`. A note that is unreadable,
+    has unusable front matter or is not UTF-8 is still absent with a failure.
     """
     published: list[PublishedNote] = []
     failures: list[NoteFailure] = []
     files: list[Path] = []
     slug_users: dict[str, list[Path]] = {}
+    marked: list[_MarkedNote] = []
 
     def record_walk_error(error: OSError) -> None:
         path = Path(error.filename).relative_to(vault)
@@ -189,7 +327,12 @@ def select_notes(vault: Path, now: datetime) -> Selection:
             if note.suffix != NOTE_SUFFIX:
                 continue
             try:
-                parts = published_parts(note.read_bytes())
+                data = note.read_bytes()
+                if drafts:
+                    if (found := _marked_note(note, relative, data)) is not None:
+                        marked.append(found)
+                    continue
+                parts = published_parts(data)
             except OSError as exc:
                 failures.append(NoteFailure(relative, f"cannot read: {exc.strerror}"))
                 continue
@@ -207,6 +350,16 @@ def select_notes(vault: Path, now: datetime) -> Selection:
                 published.append(PublishedNote(relative, page, body))
             else:
                 failures.extend(NoteFailure(relative, reason) for reason in page)
+    if drafts:
+        entries, warnings = _preview_entries(marked, now)
+        return Selection(
+            published=tuple(entries),
+            # A stable sort keeps each note's warnings in the order they were found.
+            failures=tuple(
+                sorted((*failures, *warnings), key=lambda failure: failure.path)
+            ),
+            files=tuple(sorted(files)),
+        )
     failures.extend(_slug_collisions(slug_users))
     failed = {failure.path for failure in failures}
     return Selection(

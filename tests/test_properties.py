@@ -4,7 +4,15 @@ from collections.abc import Callable
 
 import pytest
 
-from mdblog.properties import PageProperties, front_matter, validate_properties
+from mdblog.properties import (
+    EntryStatus,
+    PageProperties,
+    PreviewProperties,
+    file_slug,
+    front_matter,
+    preview_properties,
+    validate_properties,
+)
 
 # POSIX counts offsets west of UTC as positive, so this is UTC-5.
 LOCAL_ZONE = "XXX5"
@@ -343,3 +351,112 @@ def test_front_matter_writes_a_naive_datetime_with_the_offset_for_its_date(
 @pytest.mark.parametrize("title", ['yes: "quoted" } { \\ é 🙂', "yes", "123"])
 def test_front_matter_keeps_a_title_exactly(title: str) -> None:
     assert _front_matter(title=title)["title"] == title
+
+
+@pytest.mark.parametrize(
+    ("status", "added"),
+    [
+        (EntryStatus.PUBLISHED, {}),
+        (EntryStatus.DRAFT, {"draft": True}),
+        (EntryStatus.INVALID, {"params": {"mdblog_invalid": True}}),
+    ],
+)
+def test_front_matter_marks_drafts_and_invalid_entries(
+    status: EntryStatus, added: dict[str, object]
+) -> None:
+    loaded: object = json.loads(front_matter(_page(), status))
+
+    assert loaded == {"title": "File Name", "date": "2026-01-01", **added}
+
+
+def _preview(
+    draft: bool, **properties: object
+) -> tuple[PreviewProperties, tuple[str, ...]]:
+    given: dict[object, object] = {**properties}
+    return preview_properties(given, "File Name", NOW, draft)
+
+
+def test_a_draft_needs_no_date_or_slug() -> None:
+    assert _preview(True) == (PreviewProperties("File Name", None, None, ()), ())
+
+
+def test_a_draft_keeps_a_future_date_without_a_reason() -> None:
+    value = dt.datetime(2027, 1, 1, 9, 0)
+
+    page, reasons = _preview(True, date=value, slug="later")
+
+    assert page.date == value.replace(tzinfo=ZONE)
+    assert page.slug == "later"
+    assert reasons == ()
+
+
+@pytest.mark.parametrize(
+    ("properties", "reason"),
+    [
+        pytest.param({"title": 3}, "title must be a string, not 3", id="title"),
+        pytest.param(
+            {"date": "soon"},
+            "date must be a YAML date or datetime, not 'soon'",
+            id="date",
+        ),
+        pytest.param(
+            {"slug": "Bad Slug"},
+            "slug must be lowercase letters and digits joined by single hyphens, "
+            "not 'Bad Slug'",
+            id="slug",
+        ),
+        pytest.param(
+            {"tags": 3}, "tags must be a string or a list of strings, not 3", id="tags"
+        ),
+    ],
+)
+def test_an_invalid_draft_property_gives_a_reason_and_falls_back(
+    properties: dict[str, object], reason: str
+) -> None:
+    assert _preview(True, **properties) == (
+        PreviewProperties("File Name", None, None, ()),
+        (reason,),
+    )
+
+
+def test_a_published_preview_gives_the_reasons_validation_does() -> None:
+    properties: dict[object, object] = {"title": 3, "slug": "Bad", "tags": ["!"]}
+
+    page, reasons = preview_properties(properties, "File Name", NOW, False)
+
+    assert page == PreviewProperties("File Name", None, None, ())
+    assert reasons == validate_properties(properties, "File Name", NOW)
+    assert reasons[1] == "date is required"
+
+
+def test_a_published_preview_keeps_a_future_date_with_its_reason() -> None:
+    page, reasons = _preview(False, date=dt.date(2027, 1, 1), slug="later")
+
+    assert page == PreviewProperties("File Name", dt.date(2027, 1, 1), "later", ())
+    assert reasons == ("date 2027-01-01 is in the future",)
+
+
+def test_a_valid_published_preview_has_every_property() -> None:
+    assert _preview(
+        False, date=dt.date(2026, 1, 1), slug="a-note", title="T", tags=["a", "b"]
+    ) == (
+        PreviewProperties("T", dt.date(2026, 1, 1), "a-note", ("a", "b")),
+        (),
+    )
+
+
+@pytest.mark.parametrize(
+    ("stem", "slug"),
+    [
+        ("plain", "plain"),
+        ("My Draft Note", "my-draft-note"),
+        ("2026-11-07 Journal", "2026-11-07-journal"),
+        ("  --Tips & Tricks!--  ", "tips-tricks"),
+        ("a_b.c", "a-b-c"),
+        ("Café Über", "caf-ber"),
+        ("日本語", "note"),
+        ("---", "note"),
+    ],
+)
+def test_file_slug_keeps_only_ascii_letters_and_digits(stem: str, slug: str) -> None:
+    assert file_slug(stem) == slug

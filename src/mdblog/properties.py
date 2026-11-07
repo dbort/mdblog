@@ -6,9 +6,25 @@ import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
+from enum import StrEnum
 
 SLUG_PATTERN = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 TAG_PUNCTUATION = "-_+."
+# The slug a file name yields when it holds no ASCII letter or digit.
+EMPTY_NAME_SLUG = "note"
+# The Hugo page param that marks a published note rendering despite failures. Vault
+# properties never reach Hugo, so only mdblog can set it.
+INVALID_PARAM = "mdblog_invalid"
+
+
+class EntryStatus(StrEnum):
+    """What an entry is under draft mode, which decides its label."""
+
+    PUBLISHED = "published"
+    # Marked `publish: false`.
+    DRAFT = "draft"
+    # Marked `publish: true` but failing validation or a link.
+    INVALID = "invalid"
 
 
 @dataclass(frozen=True)
@@ -153,15 +169,82 @@ def validate_properties(
     return PageProperties(title=title, date=page_date, slug=slug, tags=tags)
 
 
-def front_matter(page: PageProperties) -> bytes:
+@dataclass(frozen=True)
+class PreviewProperties:
+    """A note's usable properties under draft mode, with unusable ones left to the caller."""
+
+    # The file name's stem when `title` is missing or invalid.
+    title: str
+    # None when `date` is missing or invalid.
+    date: date | None
+    # The note's own slug, or None when `slug` is missing or invalid.
+    slug: str | None
+    # Empty when `tags` is missing or invalid.
+    tags: tuple[str, ...]
+
+
+def preview_properties(
+    properties: Mapping[object, object], stem: str, now: datetime, draft: bool
+) -> tuple[PreviewProperties, tuple[str, ...]]:
+    """The usable properties of a note under draft mode, and the reason for each failure.
+
+    For a published note (`draft` false) the reasons are exactly those of
+    `validate_properties`, but a future date is still returned. A draft has no reason
+    for a missing `date` or `slug` or a future date, so only a present but invalid
+    property gives one.
+    """
+    failures: list[str] = []
+    title = _title(properties.get("title"), stem, failures)
+    date_value = properties.get("date")
+    date_failures: list[str] = []
+    _date(date_value, now, date_failures)
+    if draft and (date_value is None or isinstance(date_value, date)):
+        date_failures = []
+    failures.extend(date_failures)
+    slug_value = properties.get("slug")
+    slug_failures: list[str] = []
+    slug = _slug(slug_value, slug_failures)
+    if not draft or slug_value is not None:
+        failures.extend(slug_failures)
+    tags = _tags(properties.get("tags"), failures)
+    page = PreviewProperties(
+        title=stem if title is None else title,
+        date=_with_local_offset(date_value) if isinstance(date_value, date) else None,
+        slug=slug,
+        tags=() if tags is None else tags,
+    )
+    return page, tuple(failures)
+
+
+def file_slug(stem: str) -> str:
+    """A slug made from the file name `stem`, always matching `SLUG_PATTERN`.
+
+    Each run of characters other than ASCII letters and digits becomes one hyphen in the
+    lowercased stem, without leading or trailing hyphens. A stem with no ASCII letter or
+    digit gives `EMPTY_NAME_SLUG`.
+    """
+    slug = re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-")
+    return slug or EMPTY_NAME_SLUG
+
+
+def front_matter(
+    page: PageProperties, status: EntryStatus = EntryStatus.PUBLISHED
+) -> bytes:
     """The Hugo front matter for `page`, ending in a newline.
 
     The result is one JSON object holding `title`, `date` and, when there are any,
-    `tags`.
+    `tags`. A draft adds `draft: true`, and an invalid entry adds `INVALID_PARAM`
+    under `params`. A published entry adds neither.
     """
     data: dict[str, object] = {"title": page.title, "date": page.date.isoformat()}
     if page.tags:
         data["tags"] = list(page.tags)
+    # Hugo's own draft flag, so Hugo leaves a draft out of any build without
+    # --buildDrafts.
+    if status is EntryStatus.DRAFT:
+        data["draft"] = True
+    elif status is EntryStatus.INVALID:
+        data["params"] = {INVALID_PARAM: True}
     # Hugo reads a leading JSON object as front matter, and JSON has one reading of each
     # string, where a YAML reader could take a title of `yes` for a boolean.
     return json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8") + b"\n"
