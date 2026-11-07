@@ -100,6 +100,11 @@ def hugo_config(config: SiteConfig) -> str:
         "[markup.goldmark.extensions.extras.mark]\n"
         "enable = true\n"
         "\n"
+        # Classes let the stylesheet color code for the reader's light or dark mode,
+        # where Hugo's default inline styles fix one palette.
+        "[markup.highlight]\n"
+        "noClasses = false\n"
+        "\n"
         # Naming only `tag` drops Hugo's default `categories` taxonomy.
         "[taxonomies]\n"
         'tag = "tags"\n'

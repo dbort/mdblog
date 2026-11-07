@@ -82,6 +82,23 @@ CHECKS = (
             "Pass if each loads on that device and stays under {lan_site}.",
         ),
     ),
+    Check(
+        name="design: phone and desktop, light and dark",
+        command=("mdblog", "serve", "{vault}", "--port", "{port}"),
+        url="{site}",
+        steps=(
+            "With the system in light mode, open {site} in a desktop-width window.",
+            "Visit the home page, Archive, Tags, {site}tags/node.js/, "
+            "{site}posts/syntax/ and {site}404.html.",
+            "Repeat at phone width: the browser's device toolbar set to 375px wide, "
+            "or a phone on the same network.",
+            "Switch the system to dark mode and repeat both widths.",
+            "On posts/syntax/, open and close each callout and scroll the code block "
+            "and the table sideways.",
+            "Pass if every page reads well and looks right in both modes at both "
+            "widths, and no page scrolls sideways as a whole. Note anything to change.",
+        ),
+    ),
 )
 
 

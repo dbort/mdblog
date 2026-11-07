@@ -454,6 +454,70 @@ def _advertised(head: Element) -> list[str]:
     ]
 
 
+def _stylesheets(head: Element) -> list[str]:
+    return [
+        link.attrs["href"]
+        for link in head.all("link")
+        if link.attrs["rel"] == "stylesheet"
+    ]
+
+
+def test_every_page_links_the_packaged_stylesheet_by_its_fingerprint(
+    site: Site,
+) -> None:
+    linked: set[str] = set()
+    for name in site.html_pages():
+        hrefs = _stylesheets(site.page(name).one("head"))
+        assert len(hrefs) == 1, name
+        assert re.fullmatch(r"/css/main\.[0-9a-f]{64}\.css", hrefs[0]), name
+        linked.add(hrefs[0])
+    (href,) = linked
+    css = site.raw(href.removeprefix("/"))
+    packaged = PACKAGED_THEME / "assets" / "css" / "main.css"
+    assert css == packaged.read_text(encoding="utf-8")
+    assert "@font-face" not in css
+    assert "@import" not in css
+
+
+def test_a_vault_stylesheet_replaces_the_packaged_one(tmp_path: Path) -> None:
+    vault = _copy_fixture(tmp_path)
+    stylesheet = vault / "_site" / "assets" / "css" / "main.css"
+    stylesheet.parent.mkdir(parents=True)
+    stylesheet.write_text(".site-stylesheet { color: red; }\n", encoding="utf-8")
+
+    built = _build(vault, tmp_path / "output")
+
+    (href,) = _stylesheets(built.page("index.html").one("head"))
+    assert built.raw(href.removeprefix("/")) == ".site-stylesheet { color: red; }\n"
+
+
+def test_every_page_fits_a_phone_and_runs_no_script(site: Site) -> None:
+    for name in site.html_pages():
+        viewport = _meta(site.page(name).one("head"), "name", "viewport")
+        assert len(viewport) == 1, name
+        assert "width=device-width" in viewport[0], name
+        assert "<script" not in site.raw(name), name
+
+
+def test_fenced_code_with_a_language_is_highlighted_by_class(site: Site) -> None:
+    page = site.page("posts/syntax/index.html")
+    block = page.one("pre", "chroma")
+    assert block.one("code").attrs["data-lang"] == "python"
+    assert "k" in {cls for element in block.iter() for cls in element.classes}
+    assert [element.tag for element in page.iter() if "style" in element.attrs] == []
+
+
+def test_the_404_page_has_the_site_chrome_a_message_and_a_link_home(
+    site: Site,
+) -> None:
+    page = site.page("404.html")
+    page.one("header", "site-header")
+    page.one("footer", "site-footer")
+    main = page.one("main")
+    assert main.one("h1").text == "Page not found"
+    assert main.hrefs() == ["/"]
+
+
 def test_every_page_advertises_the_site_feed(site: Site) -> None:
     for name in site.html_pages():
         advertised = _advertised(site.page(name).one("head"))
@@ -602,6 +666,9 @@ def test_a_site_under_a_sub_path_links_only_within_it(tmp_path: Path) -> None:
         path = built.root / unquote(parts.path).removeprefix("/blog/")
         file = path / "index.html" if path.is_dir() else path
         assert file.is_file(), url
+    not_found = built.page("404.html")
+    assert _stylesheets(not_found.one("head"))[0].startswith("/blog/css/")
+    assert not_found.one("main").hrefs() == ["/blog/"]
     assert {name: built.path(name).read_bytes() for name in built.files()} == {
         name: unslashed.path(name).read_bytes() for name in unslashed.files()
     }
