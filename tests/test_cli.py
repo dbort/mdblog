@@ -88,12 +88,3 @@ def test_serve_on_a_busy_port_exits_nonzero_naming_it(
 
     assert status == 1
     assert f"mdblog: cannot listen on 127.0.0.1 port {port}:" in capsys.readouterr().err
-
-
-def test_serve_on_a_wildcard_address_exits_nonzero(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    status = main(["serve", str(FIXTURE_VAULT), "--bind", "0.0.0.0"])
-
-    assert status == 1
-    assert "mdblog: refusing --bind 0.0.0.0" in capsys.readouterr().err

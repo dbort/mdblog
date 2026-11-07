@@ -35,17 +35,13 @@ class Places:
     # The scratch copy of the fixture vault.
     vault: Path
     port: int
-    # This machine's address on the local network.
-    lan: str
 
     def fill(self, text: str) -> str:
-        """`text` with every `{name}` replaced; the sites end in a slash."""
+        """`text` with every `{name}` replaced; the site ends in a slash."""
         return text.format(
             vault=self.vault,
             port=self.port,
-            lan=self.lan,
             site=f"http://localhost:{self.port}/",
-            lan_site=f"http://{self.lan}:{self.port}/",
         )
 
 
@@ -73,16 +69,6 @@ CHECKS = (
         ),
     ),
     Check(
-        name="serve: LAN access",
-        command=("mdblog", "serve", "{vault}", "--port", "{port}", "--bind", "{lan}"),
-        url="{lan_site}",
-        steps=(
-            "On a second device on the same network, open {lan_site}.",
-            "Follow a post link, a tag link and the RSS feed link.",
-            "Pass if each loads on that device and stays under {lan_site}.",
-        ),
-    ),
-    Check(
         name="design: phone and desktop, light and dark",
         command=("mdblog", "serve", "{vault}", "--port", "{port}"),
         url="{site}",
@@ -90,8 +76,7 @@ CHECKS = (
             "With the system in light mode, open {site} in a desktop-width window.",
             "Visit the home page, Archive, Tags, {site}tags/node.js/, "
             "{site}posts/syntax/ and {site}404.html.",
-            "Repeat at phone width: the browser's device toolbar set to 375px wide, "
-            "or a phone on the same network.",
+            "Repeat at phone width: the browser's device toolbar set to 375px wide.",
             "Switch the system to dark mode and repeat both widths.",
             "On posts/syntax/, open and close each callout and scroll the code block "
             "and the table sideways.",
@@ -164,18 +149,6 @@ def render_log(results: Sequence[Result], started: datetime, commit: str) -> str
                 "",
             ]
     return "\n".join(lines)
-
-
-def lan_address() -> str:
-    """This machine's address on the network that holds its default route."""
-    # Connecting a UDP socket sends nothing; it only picks the outgoing interface.
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
-        try:
-            probe.connect(("192.0.2.1", 9))
-        except OSError:
-            return "127.0.0.1"
-        address: str = probe.getsockname()[0]
-        return address
 
 
 def _free_port() -> int:
@@ -274,11 +247,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="run only checks whose name contains TEXT (default: every check)",
     )
     parser.add_argument(
-        "--lan",
-        metavar="ADDRESS",
-        help="this machine's LAN address (default: detected)",
-    )
-    parser.add_argument(
         "--log", type=Path, metavar="PATH", help="where to write the log"
     )
     parser.add_argument("--list", action="store_true", help="list the checks and exit")
@@ -298,10 +266,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         work = Path(work_name)
         vault = work / "vault"
         shutil.copytree(FIXTURE_VAULT, vault)
-        places = Places(vault=vault, port=_free_port(), lan=args.lan or lan_address())
-        print(
-            f"Scratch vault: {vault}\nLAN address: {places.lan} (override with --lan)"
-        )
+        places = Places(vault=vault, port=_free_port())
+        print(f"Scratch vault: {vault}")
         try:
             for check in checks:
                 results.append(run_check(check, places, work, input))

@@ -57,17 +57,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="N",
         help="the port to serve on (default: 1313, or a free port if it is busy)",
     )
-    serve.add_argument(
-        "--bind",
-        metavar="ADDRESS",
-        help="the address to serve on and to use in links (default: 127.0.0.1)",
-    )
     args = parser.parse_args(argv)
     try:
         if args.command == "build":
             build_site(args.vault, args.output)
         else:
-            serve_site(args.vault, args.output, args.port, args.bind)
+            serve_site(args.vault, args.output, args.port)
     except (BuildError, ConfigError, ServeError) as exc:
         print(f"mdblog: {exc}", file=sys.stderr)
         return 1
