@@ -1,6 +1,5 @@
 """mdblog.serve: previews one vault's site with Hugo's server, rebuilding as it changes."""
 
-import ipaddress
 import shutil
 import signal
 import socket
@@ -26,10 +25,10 @@ from mdblog.build import (
     hugo_env,
 )
 from mdblog.config import ConfigError
-from mdblog.links import base_path
 
 DEFAULT_PORT = 1313
-DEFAULT_BIND = "127.0.0.1"
+# The only address serve listens on; Hugo's links then use `localhost`.
+HOST = "127.0.0.1"
 # Hugo writes these into its source while it runs, and the assembled source never has them.
 HUGO_OWNED = frozenset((".cache", ".hugo_build.lock", "resources"))
 # How often, in milliseconds, the watch loop wakes with no change to check on Hugo.
@@ -42,62 +41,36 @@ class ServeError(Exception):
     """Serve was refused or cannot continue; the message says why."""
 
 
-def check_bind(bind: str) -> None:
-    """Raises `ServeError` when `bind` is a wildcard address such as 0.0.0.0 or ::."""
-    try:
-        address = ipaddress.ip_address(bind)
-    except ValueError:
-        return
-    if address.is_unspecified:
-        raise ServeError(
-            f"refusing --bind {bind}: links need one host, so give a specific address"
-        )
-
-
-def server_base_url(base_url: str, bind: str, port: int) -> str:
-    """The base URL whose links point at `bind`:`port`, keeping `base_url`'s path.
-
-    An IPv6 address is bracketed. The result always ends in a slash.
-    """
-    try:
-        is_ipv6 = ipaddress.ip_address(bind).version == 6
-    except ValueError:
-        is_ipv6 = False
-    host = f"[{bind}]" if is_ipv6 else bind
-    return f"http://{host}:{port}{base_path(base_url)}/"
-
-
-def _bound_port(bind: str, port: int) -> int:
-    family = socket.AF_INET6 if ":" in bind else socket.AF_INET
-    with socket.socket(family, socket.SOCK_STREAM) as probe:
+def _bound_port(port: int) -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         # Hugo, like every Go server, binds with SO_REUSEADDR, so a port held only by
         # TIME_WAIT connections from a server just stopped is free to it.
         probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        probe.bind((bind, port))
-        # typeshed types getsockname as Any. Item 1 is the port for IPv4 and IPv6.
+        probe.bind((HOST, port))
+        # typeshed types getsockname as Any; item 1 is the port.
         bound: int = probe.getsockname()[1]
         return bound
 
 
-def choose_port(bind: str, requested: int | None) -> int:
-    """A port that is free on `bind`: `requested`, else 1313, else any free port.
+def choose_port(requested: int | None) -> int:
+    """A port that is free on `HOST`: `requested`, else 1313, else any free port.
 
     Raises `ServeError` naming the port when `requested` cannot be bound, or when no
-    port can be bound on `bind`. The port is free when probed; another process can
+    port can be bound on `HOST`. The port is free when probed; another process can
     still take it before Hugo binds it.
     """
     port = DEFAULT_PORT if requested is None else requested
     try:
-        return _bound_port(bind, port)
+        return _bound_port(port)
     except OSError as exc:
         if requested is not None:
             raise ServeError(
-                f"cannot listen on {bind} port {port}: {exc.strerror}"
+                f"cannot listen on {HOST} port {port}: {exc.strerror}"
             ) from exc
     try:
-        return _bound_port(bind, 0)
+        return _bound_port(0)
     except OSError as exc:
-        raise ServeError(f"cannot listen on {bind}: {exc.strerror}") from exc
+        raise ServeError(f"cannot listen on {HOST}: {exc.strerror}") from exc
 
 
 def default_output(port: int) -> Path:
@@ -184,17 +157,8 @@ def needs_restart(result: SyncResult) -> bool:
     return bool(result.removed) or any(len(p.parts) == 1 for p in result.written)
 
 
-@dataclass(frozen=True)
-class Rebuilt:
-    """One good rebuild."""
-
-    sync: SyncResult
-    # The `base_url` in the vault's settings when it was rebuilt.
-    base_url: str
-
-
-def rebuild(vault: Path, source: Path, now: datetime) -> Rebuilt | None:
-    """Syncs the Hugo source for `vault` into `source`, or reports why it cannot.
+def rebuild(vault: Path, source: Path, now: datetime) -> SyncResult | None:
+    """Syncs the Hugo source for `vault` into `source`, returning what changed.
 
     On a validation or file error, prints the failure to stderr as `mdblog build` does,
     leaves `source` untouched and returns None.
@@ -204,7 +168,7 @@ def rebuild(vault: Path, source: Path, now: datetime) -> Rebuilt | None:
         with tempfile.TemporaryDirectory(prefix="mdblog-stage-") as staging_name:
             staging = Path(staging_name)
             assemble_source(staging, vault, site)
-            return Rebuilt(sync_tree(staging, source), site.config.base_url)
+            return sync_tree(staging, source)
     except (BuildError, ConfigError) as exc:
         print(f"mdblog: {exc}", file=sys.stderr)
     except OSError as exc:
@@ -228,33 +192,33 @@ def watch_loop(
     vault: Path,
     source: Path,
     batches: Iterable[Collection[object]],
-    start: Callable[[str], Server],
+    start: Callable[[], Server],
     clock: Callable[[], datetime],
 ) -> None:
     """Rebuilds `source` from `vault` once, then again after each non-empty batch.
 
-    Calls `start` with the configured base URL to start the server after the first good
-    rebuild, and to restart it, after stopping it, whenever `needs_restart` says so. An
-    empty batch only checks the server. Returns when `batches` is exhausted, having
-    stopped the server. Raises `ServeError` if the server exits on its own. `clock`
-    gives the time each rebuild compares dates to.
+    Calls `start` to start the server after the first good rebuild, and to restart it,
+    after stopping it, whenever `needs_restart` says so. An empty batch only checks the
+    server. Returns when `batches` is exhausted, having stopped the server. Raises
+    `ServeError` if the server exits on its own. `clock` gives the time each rebuild
+    compares dates to.
     """
     server: Server | None = None
     try:
-        if rebuilt := rebuild(vault, source, clock()):
-            server = start(rebuilt.base_url)
+        if rebuild(vault, source, clock()) is not None:
+            server = start()
         else:
             print("mdblog: waiting for a change that fixes the vault", file=sys.stderr)
         for batch in batches:
             if server is not None and (status := server.poll()) is not None:
                 raise ServeError(f"hugo exited with status {status}")
-            if not batch or not (rebuilt := rebuild(vault, source, clock())):
+            if not batch or (synced := rebuild(vault, source, clock())) is None:
                 continue
             if server is None:
-                server = start(rebuilt.base_url)
-            elif needs_restart(rebuilt.sync):
+                server = start()
+            elif needs_restart(synced):
                 server.stop()
-                server = start(rebuilt.base_url)
+                server = start()
     finally:
         if server is not None:
             server.stop()
@@ -265,13 +229,11 @@ def hugo_server_argv(
     source: Path,
     destination: Path,
     port: int,
-    bind: str,
-    base_url: str | None,
 ) -> list[str]:
-    """The command that serves `source` on `bind`:`port`, rendering into `destination`.
+    """The command that serves `source` on `HOST`:`port`, rendering into `destination`.
 
-    With a `base_url`, links on served pages use it in place of Hugo's default
-    `http://localhost:<port>`.
+    Links on served pages point at `http://localhost:<port>` with the configured base
+    path kept.
     """
     argv = [
         *hugo,
@@ -287,15 +249,13 @@ def hugo_server_argv(
         "--buildFuture",
         "--port",
         str(port),
+        # Hugo's default too, but stated so Hugo listens where choose_port probed.
         "--bind",
-        bind,
+        HOST,
         # Re-rendering every page on each change keeps the destination complete. Fast
         # render re-renders only the pages a browser has visited.
         "--disableFastRender",
     ]
-    if base_url is not None:
-        # Hugo cannot append a port to a bracketed IPv6 host, so the URL carries it.
-        argv += ["--baseURL", base_url, "--appendPort=false"]
     return argv
 
 
@@ -356,25 +316,21 @@ def serve_site(
     vault: Path,
     output: Path | None = None,
     port: int | None = None,
-    bind: str | None = None,
     hugo: Sequence[str] = ("hugo",),
 ) -> None:
     """Serves `vault`'s site with Hugo until SIGINT or SIGTERM, rebuilding on changes.
 
     Renders into `output`, which is kept, or else into `default_output(port)`, which is
     removed on return. `port` defaults to 1313, or any free port when 1313 is busy.
-    `bind` defaults to 127.0.0.1 with links to `localhost`; a given `bind` is also the
-    links' host. Raises `ServeError` or `BuildError` for a refusal before serving
-    starts, and `ServeError` if Hugo exits on its own. A vault that fails validation
-    never raises: its failures go to stderr and serve waits for a fix.
+    Hugo listens on 127.0.0.1 only, and links point at `localhost`. Raises `ServeError`
+    or `BuildError` for a refusal before serving starts, and `ServeError` if Hugo exits
+    on its own. A vault that fails validation never raises: its failures go to stderr
+    and serve waits for a fix.
     """
     vault = vault.resolve()
     if not vault.is_dir():
         raise BuildError(f"vault {vault} is not a directory")
-    if bind is not None:
-        check_bind(bind)
-    listen = bind or DEFAULT_BIND
-    chosen = choose_port(listen, port)
+    chosen = choose_port(port)
     destination = (output or default_output(chosen)).resolve()
     check_output(vault, destination)
 
@@ -390,14 +346,10 @@ def serve_site(
     source = Path(tempfile.mkdtemp(prefix="mdblog-serve-source-"))
     try:
 
-        def start(configured: str) -> Server:
-            base_url = (
-                None if bind is None else server_base_url(configured, bind, chosen)
-            )
+        def start() -> Server:
             reset_output(destination)
             return start_hugo(
-                hugo_server_argv(hugo, source, destination, chosen, listen, base_url),
-                source,
+                hugo_server_argv(hugo, source, destination, chosen), source
             )
 
         batches = watchfiles.watch(

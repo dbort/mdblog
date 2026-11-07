@@ -15,7 +15,6 @@ from mdblog.build import MARKER, BuildError
 from mdblog.serve import (
     ServeError,
     SyncResult,
-    check_bind,
     choose_port,
     default_output,
     hugo_server_argv,
@@ -23,7 +22,6 @@ from mdblog.serve import (
     needs_restart,
     reset_output,
     serve_site,
-    server_base_url,
     start_hugo,
     sync_tree,
     watch_loop,
@@ -73,55 +71,15 @@ def busy_port() -> Iterator[int]:
         yield port
 
 
-@pytest.mark.parametrize("bind", ["0.0.0.0", "::", "0:0::0"])
-def test_wildcard_bind_is_refused_asking_for_an_address(bind: str) -> None:
-    with pytest.raises(ServeError, match="give a specific address"):
-        check_bind(bind)
-
-
-@pytest.mark.parametrize("bind", ["192.168.1.5", "::1", "fe80::1", "laptop.local"])
-def test_specific_bind_is_accepted(bind: str) -> None:
-    check_bind(bind)
-
-
-@pytest.mark.parametrize(
-    ("base_url", "bind", "expected"),
-    [
-        pytest.param(
-            "https://example.test/blog/",
-            "192.168.1.5",
-            "http://192.168.1.5:1400/blog/",
-            id="ipv4-path",
-        ),
-        pytest.param(
-            "https://example.test/blog",
-            "fe80::1",
-            "http://[fe80::1]:1400/blog/",
-            id="ipv6-bracketed",
-        ),
-        pytest.param(
-            "https://example.test/",
-            "laptop.local",
-            "http://laptop.local:1400/",
-            id="hostname-root",
-        ),
-    ],
-)
-def test_server_base_url_uses_the_bind_host_and_keeps_the_path(
-    base_url: str, bind: str, expected: str
-) -> None:
-    assert server_base_url(base_url, bind, 1400) == expected
-
-
 def test_requested_free_port_is_used() -> None:
     port = _free_port()
 
-    assert choose_port("127.0.0.1", port) == port
+    assert choose_port(port) == port
 
 
 def test_requested_busy_port_is_refused_naming_it(busy_port: int) -> None:
     with pytest.raises(ServeError, match=f"port {busy_port}:"):
-        choose_port("127.0.0.1", busy_port)
+        choose_port(busy_port)
 
 
 def test_requested_port_held_only_in_time_wait_is_used() -> None:
@@ -139,14 +97,14 @@ def test_requested_port_held_only_in_time_wait_is_used() -> None:
             accepted.close()
             assert client.recv(1) == b""
 
-    assert choose_port("127.0.0.1", port) == port
+    assert choose_port(port) == port
 
 
 def test_default_port_is_used_when_free(monkeypatch: pytest.MonkeyPatch) -> None:
     port = _free_port()
     monkeypatch.setattr(serve, "DEFAULT_PORT", port)
 
-    assert choose_port("127.0.0.1", None) == port
+    assert choose_port(None) == port
 
 
 def test_busy_default_port_falls_back_to_a_free_one(
@@ -154,7 +112,7 @@ def test_busy_default_port_falls_back_to_a_free_one(
 ) -> None:
     monkeypatch.setattr(serve, "DEFAULT_PORT", busy_port)
 
-    port = choose_port("127.0.0.1", None)
+    port = choose_port(None)
 
     assert port != busy_port
     with socket.socket() as probe:
@@ -283,13 +241,12 @@ def test_restart_follows_removals_and_top_level_changes(
     assert needs_restart(result) is restart
 
 
-def test_hugo_argv_keeps_the_configured_base_url_by_default() -> None:
-    argv = hugo_server_argv(
-        ("hugo",), Path("/src"), Path("/out"), 1400, "127.0.0.1", None
-    )
+def test_hugo_argv_listens_on_localhost_with_the_configured_base_url() -> None:
+    argv = hugo_server_argv(("hugo",), Path("/src"), Path("/out"), 1400)
 
     assert argv[:2] == ["hugo", "server"]
     assert "--baseURL" not in argv
+    assert "--appendPort=false" not in argv
     for flag, value in (
         ("--source", "/src"),
         ("--destination", "/out"),
@@ -300,15 +257,6 @@ def test_hugo_argv_keeps_the_configured_base_url_by_default() -> None:
         assert argv[argv.index(flag) + 1] == value
     assert "--buildFuture" in argv
     assert "--disableFastRender" in argv
-
-
-def test_hugo_argv_sets_a_base_url_with_its_port() -> None:
-    argv = hugo_server_argv(
-        ("hugo",), Path("/src"), Path("/out"), 1400, "::1", "http://[::1]:1400/b/"
-    )
-
-    assert argv[argv.index("--baseURL") + 1] == "http://[::1]:1400/b/"
-    assert "--appendPort=false" in argv
 
 
 def test_reset_output_empties_the_directory_and_writes_the_marker(
@@ -354,7 +302,6 @@ def test_hugo_that_cannot_start_is_reported(tmp_path: Path) -> None:
 class FakeServer:
     """A server whose exit status a test sets."""
 
-    base_url: str
     source: dict[str, bytes | None]
     status: int | None = None
     stopped: bool = False
@@ -373,8 +320,8 @@ class Starts:
     source: Path
     servers: list[FakeServer] = field(default_factory=list[FakeServer])
 
-    def __call__(self, base_url: str) -> FakeServer:
-        server = FakeServer(base_url, _snapshot(self.source))
+    def __call__(self) -> FakeServer:
+        server = FakeServer(_snapshot(self.source))
         self.servers.append(server)
         return server
 
@@ -404,6 +351,10 @@ def _page(source: Path) -> str:
     return (source / "content/posts/note/index.md").read_text(encoding="utf-8")
 
 
+def _hugo_toml(server: FakeServer) -> bytes:
+    return server.source.get("hugo.toml") or b""
+
+
 def test_loop_starts_once_and_syncs_an_edit_without_restarting(
     tmp_path: Path,
 ) -> None:
@@ -421,7 +372,7 @@ def test_loop_starts_once_and_syncs_an_edit_without_restarting(
 
     assert len(starts.servers) == 1
     server = starts.servers[0]
-    assert server.base_url == "https://example.test/blog/"
+    assert b"https://example.test/blog/" in _hugo_toml(server)
     assert "content/posts/note/index.md" in server.source
     assert "SECOND" in pages[0]
     assert server.stopped
@@ -494,7 +445,7 @@ def test_loop_prints_config_failures_as_build_does(
     assert f"mdblog: {config}: unknown key 'extra'\n" in capsys.readouterr().err
 
 
-def test_loop_restarts_with_the_new_base_url_on_a_config_change(
+def test_loop_restarts_on_a_base_url_change_with_the_new_config(
     tmp_path: Path,
 ) -> None:
     vault = _make_vault(tmp_path)
@@ -510,12 +461,9 @@ def test_loop_restarts_with_the_new_base_url_on_a_config_change(
         ),
     )
 
-    assert [s.base_url for s in starts.servers] == [
-        "https://example.test/blog/",
-        "https://example.test/journal/",
-    ]
+    assert [b"/blog/" in _hugo_toml(s) for s in starts.servers] == [True, False]
+    assert [b"/journal/" in _hugo_toml(s) for s in starts.servers] == [False, True]
     assert all(s.stopped for s in starts.servers)
-    assert b"/journal/" in (starts.servers[1].source["hugo.toml"] or b"")
 
 
 def test_loop_restarts_after_a_page_is_removed(tmp_path: Path) -> None:
