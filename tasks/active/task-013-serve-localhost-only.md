@@ -41,3 +41,6 @@ title: "Serve only on localhost"
 ### Round 1: APPROVED
 - **N1: Unwrapped docstring lines** (`src/mdblog/serve.py:200`, `src/mdblog/serve.py:324`): the edited `watch_loop` and `serve_site` docstrings each left one long line (142 and 132 characters) while the rest of the paragraph keeps the old wrap width. The gate passes because ruff ignores E501 and does not reflow docstrings.
 - **N2: Dropped assertion where the Plan asked for a replacement** (`tests/test_serve.py:368`): `test_loop_starts_once_and_syncs_an_edit_without_restarting` deleted its `base_url` assertion without a `hugo.toml` check in its place. Coverage is still adequate, because the renamed restart test checks `/blog/` and `/journal/` in each server's synced `hugo.toml`.
+
+### Round 2: APPROVED
+- Round 1's N1 and N2 are resolved: the `watch_loop` and `serve_site` docstrings are rewrapped, and the loop tests check the synced `hugo.toml` through `_hugo_toml` with no test reading a server's base URL. Every Must Have still holds and `tools/check` passes.
