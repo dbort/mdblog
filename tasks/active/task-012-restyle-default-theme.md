@@ -1,7 +1,7 @@
 ---
 id: task-012
 title: "Restyle the default theme with serif text, ivory and dark palettes, and a sidebar"
-blocked_by: [task-009, task-011]
+blocked_by: [task-009]
 ---
 
 # task-012: Restyle the default theme with serif text, ivory and dark palettes, and a sidebar
@@ -32,6 +32,7 @@ The default theme gets a new look modeled on two sites the author likes: serif b
   - Footer: the existing `© author` line, muted, with a thin top rule.
   - Palettes follow `prefers-color-scheme` with no toggle or JavaScript, as task-007 decided.
 - Keep every text pair at WCAG AA (4.5:1), including links on the tinted surface, muted text, code tokens on the new code backgrounds, and callout titles on their tints. The GitHub light Chroma colors pass on `#f7f2ea` but not on `#e7dbcb`, which is why the code background differs from the surface. Re-derive any callout color that falls below AA on ivory, and update `main.css`'s header comment if the generated-palette edits change.
+- Not blocked by task-011, which is deferred past v1 (user decision, 2026-11-07). The theme stays at `src/mdblog/theme/`; task-011 moves it later along with this task's layouts and CSS.
 - Restyle task-009's Draft and Invalid labels and its banner in both palettes.
 - The sidebar reads the bio from the home page's `.Content` (`content/_index.md`). Bio image URLs are root-relative with the base path (`tests/test_site.py` near line 238 asserts `/headshot.svg`), so they resolve from any page.
 - Affected tests: `tests/test_site.py` home-page bio assertions near lines 230-240 and the description check near line 444, header assertions near lines 392 and 514; `tests/test_build.py` near line 652 (`class="bio"`). Keep every other class and element the site tests read.
@@ -41,8 +42,8 @@ The default theme gets a new look modeled on two sites the author likes: serif b
 - Standing obligation, test where the risk is: test the sidebar contents, ordering, omissions, home-page exclusion, header brand text and bio placement with real Hugo, because each can silently show the wrong list. Do not test CSS values; the look is manual QA.
 
 ## Plan
-- [ ] **Step 1** (`src/mdblog/themes/mdblog/layouts/`): the grid in `baseof.html`, a sidebar partial with its four sections, the header's brand link and phone nav, and the home page without the bio. Update the affected tests named in `## Advice` and add tests for the new markup Must Haves.
-- [ ] **Step 2** (`src/mdblog/themes/mdblog/assets/css/main.css`): the palettes, type, link and title rules, sidebar boxes, header, footer, and task-009's labels, then the WCAG AA recheck including Chroma and callouts.
+- [ ] **Step 1** (`src/mdblog/theme/layouts/`): the grid in `baseof.html`, a sidebar partial with its four sections, the header's brand link and phone nav, and the home page without the bio. Update the affected tests named in `## Advice` and add tests for the new markup Must Haves.
+- [ ] **Step 2** (`src/mdblog/theme/assets/css/main.css`): the palettes, type, link and title rules, sidebar boxes, header, footer, and task-009's labels, then the WCAG AA recheck including Chroma and callouts.
 - [ ] **Step 3** (`tools/manual_qa.py`): the replacement manual-QA check, then the author's run and the recorded approval.
 
 ## Review log
