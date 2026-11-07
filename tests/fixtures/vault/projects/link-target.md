@@ -1,9 +1,9 @@
 ---
 publish: true
-slug: a-link
+slug: link-target
 date: 2026-01-02
 ---
-The fixture link note.
+The fixture link target.
 
 ## Details
 

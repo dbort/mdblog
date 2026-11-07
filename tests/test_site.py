@@ -179,8 +179,15 @@ def _entry(page: Element, slug: str) -> Element:
     return found[0]
 
 
-# Newest first. til-one's 23:30 at -07:00 is after syntax's UTC midnight.
-NEWEST_FIRST = ("long-post", "til-one", "syntax", "a-link", "first-note", "old-til")
+# Newest first. offset-time's 23:30 at -07:00 is after syntax's UTC midnight.
+NEWEST_FIRST = (
+    "long-post",
+    "offset-time",
+    "syntax",
+    "link-target",
+    "first-note",
+    "last-year",
+)
 
 
 def test_fixture_vault_builds_end_to_end(site: Site) -> None:
@@ -189,13 +196,13 @@ def test_fixture_vault_builds_end_to_end(site: Site) -> None:
         b"The fixture note reached the generated page."
         in files["posts/first-note/index.html"]
     )
-    assert b"The fixture link note." in files["posts/a-link/index.html"]
+    assert b"The fixture link target." in files["posts/link-target/index.html"]
     assert "tags/project/alpha/index.html" in files
     syntax = files["posts/syntax/index.html"].decode("utf-8")
     for fragment in (
         '<a href="/posts/first-note/">the first note</a>',
-        '<a href="/posts/a-link/#details">a-link#Details</a>',
-        '<a href="/posts/a-link/">projects/a-link#^detail-block</a>',
+        '<a href="/posts/link-target/#details">link-target#Details</a>',
+        '<a href="/posts/link-target/">projects/link-target#^detail-block</a>',
         '<a href="/posts/syntax/#linking-out">#Linking Out</a>',
         '<img src="/posts/syntax/diagram.svg" alt="diagram.svg" width="120" height="80">',
         '<details class="callout callout-tip">',
@@ -205,7 +212,7 @@ def test_fixture_vault_builds_end_to_end(site: Site) -> None:
         assert fragment in syntax, fragment
     assert "^syntax-block" not in syntax
     assert b"FIXTURE-DIAGRAM" in files["posts/syntax/diagram.svg"]
-    assert "^detail-block" not in files["posts/a-link/index.html"].decode("utf-8")
+    assert "^detail-block" not in files["posts/link-target/index.html"].decode("utf-8")
     for needle in (
         b"UNPUBLISHED-COMMENT",
         b"UNPUBLISHED-UNUSED-IMAGE",
@@ -253,11 +260,11 @@ def test_lists_show_each_entry_with_its_summary_and_metadata(site: Site) -> None
         assert summary.text == "FIXTURE-BEFORE-MORE & more."
         assert post.one("time").text == "January 4, 2026"
         assert [tag.text for tag in post.all(cls="p-category")] == ["node.js"]
-        til = _entry(site.page(name), "til-one")
-        assert til.one(cls="p-summary").text == "FIXTURE-TIL-BODY."
-    unlabeled = _entry(site.page("index.html"), "a-link")
-    assert unlabeled.one(cls="p-name").hrefs() == ["/posts/a-link/"]
-    assert unlabeled.one(cls="p-summary").text.startswith("The fixture link note.")
+        offset = _entry(site.page(name), "offset-time")
+        assert offset.one(cls="p-summary").text == "FIXTURE-OFFSET-BODY."
+    target = _entry(site.page("index.html"), "link-target")
+    assert target.one(cls="p-name").hrefs() == ["/posts/link-target/"]
+    assert target.one(cls="p-summary").text.startswith("The fixture link target.")
 
 
 def test_no_page_labels_an_entry_or_marks_up_another_url(site: Site) -> None:
@@ -278,12 +285,12 @@ def test_archive_lists_every_entry_under_year_headings(site: Site) -> None:
     assert lines == [
         [
             "Tips & Tricks January 4, 2026",
-            "Fixture TIL January 2, 2026",
+            "Offset time January 2, 2026",
             "syntax January 3, 2026",
-            "a-link January 2, 2026",
+            "link-target January 2, 2026",
             "first-note January 1, 2026",
         ],
-        ["An older TIL June 1, 2025"],
+        ["A note from last year June 1, 2025"],
     ]
     assert main.all(cls="p-summary") == []
     assert main.all(cls="p-category") == []
@@ -295,7 +302,7 @@ def test_tag_pages_list_their_entries_and_the_index_lists_every_tag(
     tag = site.page("tags/node.js/index.html").one(cls="h-feed")
     assert tag.one("h1").text == "node.js"
     urls = [entry.one(cls="u-url").attrs["href"] for entry in tag.all(cls="h-entry")]
-    assert urls == _posts("long-post", "til-one")
+    assert urls == _posts("long-post", "offset-time")
     index = site.page("tags/index.html").one("main")
     assert [(item.hrefs(), item.text) for item in index.all("li")] == [
         (["/tags/node.js/"], "node.js (2)"),
@@ -320,12 +327,12 @@ def test_entry_page_shows_the_entry_and_no_other_entry_links(site: Site) -> None
         "https://example.org/posts/long-post/",
         "/tags/node.js/",
     ]
-    unlabeled = site.page("posts/a-link/index.html").one(cls="h-entry")
-    assert unlabeled.one("h1").hrefs() == ["/posts/a-link/"]
+    target = site.page("posts/link-target/index.html").one(cls="h-entry")
+    assert target.one("h1").hrefs() == ["/posts/link-target/"]
 
 
 def test_dates_show_the_day_in_their_own_offset(site: Site) -> None:
-    time = site.page("posts/til-one/index.html").one("time")
+    time = site.page("posts/offset-time/index.html").one("time")
     assert time.attrs["datetime"] == "2026-01-02T23:30:00-07:00"
     assert time.text == "January 2, 2026"
 
@@ -360,7 +367,7 @@ def _check_h_entry(entry: Element, slug: str, tags: list[str]) -> None:
 
 TAGS = {
     "long-post": ["node.js"],
-    "til-one": ["node.js"],
+    "offset-time": ["node.js"],
     "first-note": ["project/alpha"],
 }
 
@@ -486,7 +493,7 @@ def test_feed_channels_name_their_scope(site: Site) -> None:
 def test_feeds_list_their_entries_newest_first(site: Site) -> None:
     assert _item_links(site.feed("index.xml")) == _posts(*NEWEST_FIRST)
     assert _item_links(site.feed("tags/node.js/index.xml")) == _posts(
-        "long-post", "til-one"
+        "long-post", "offset-time"
     )
 
 
@@ -530,8 +537,6 @@ def test_feed_items_start_with_the_entrys_own_content(site: Site) -> None:
             assert _first_block(parse_html(html)) == _first_block(
                 page.one(cls="e-content")
             ), slug
-    item = _item(site.feed("index.xml"), "a-link")
-    assert _text(item, "description").startswith("<p>The fixture link note.</p>")
 
 
 def test_static_files_reach_the_output(site: Site) -> None:

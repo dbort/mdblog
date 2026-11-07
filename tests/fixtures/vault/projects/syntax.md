@@ -5,7 +5,7 @@ date: 2026-01-03
 ---
 ## Linking Out
 
-See [[first-note|the first note]], [[a-link#Details]], [[projects/a-link#^detail-block]] and [[#Linking Out]].
+See [[first-note|the first note]], [[link-target#Details]], [[projects/link-target#^detail-block]] and [[#Linking Out]].
 
 ![[diagram.svg|120x80]]
 
