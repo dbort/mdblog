@@ -427,6 +427,11 @@ a.tag:hover {
   margin: 0 0 2rem;
 }
 
+/* The indent sets a summary's text apart from the titles between entries. */
+.entry-summary {
+  padding-left: 1.25rem;
+}
+
 .entry-summary > :last-child {
   margin-bottom: 0;
 }
