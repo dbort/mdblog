@@ -31,7 +31,7 @@ Build the reader-facing site from the default Hugo layouts in the `mdblog` packa
 
 **Status:** Tasks task-008, task-009
 
-- [ ] task-008: Preview the site locally with mdblog serve
+- [x] task-008: Preview the site locally with mdblog serve
 - [ ] task-009: Preview drafts with mdblog serve --drafts (blocked on task-007, task-008)
 
 Let the author watch the real vault's site change while writing, with nothing deployed.

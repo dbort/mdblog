@@ -1,4 +1,5 @@
 import shutil
+import socket
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,9 @@ FIXTURE_VAULT = REPO_ROOT / "tests" / "fixtures" / "vault"
         pytest.param(["build"], "usage:", id="nothing"),
         pytest.param(["build", "--output", "out"], "VAULT", id="no-vault"),
         pytest.param(["build", "vault"], "--output", id="no-output"),
+        pytest.param(["serve"], "VAULT", id="serve-no-vault"),
+        pytest.param(["serve", "v", "--port", "0"], "from 1 to 65535", id="port-0"),
+        pytest.param(["serve", "v", "--port", "x"], "from 1 to 65535", id="port-text"),
     ],
 )
 def test_missing_arguments_exit_nonzero_with_usage(
@@ -70,3 +74,26 @@ def test_bad_notes_exit_nonzero_naming_each_on_stderr(
     assert "typo.md: publish must be" in err
     assert "dup.md: front matter is invalid YAML" in err
     assert "duplicate key" in err
+
+
+def test_serve_on_a_busy_port_exits_nonzero_naming_it(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        port: int = listener.getsockname()[1]
+
+        status = main(["serve", str(FIXTURE_VAULT), "--port", str(port)])
+
+    assert status == 1
+    assert f"mdblog: cannot listen on 127.0.0.1 port {port}:" in capsys.readouterr().err
+
+
+def test_serve_on_a_wildcard_address_exits_nonzero(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    status = main(["serve", str(FIXTURE_VAULT), "--bind", "0.0.0.0"])
+
+    assert status == 1
+    assert "mdblog: refusing --bind 0.0.0.0" in capsys.readouterr().err

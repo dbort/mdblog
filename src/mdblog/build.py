@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -25,6 +26,15 @@ SITE_DIRECTORIES = ("layouts", "assets", "static")
 
 class BuildError(Exception):
     """A build was refused or failed; the output directory is unchanged."""
+
+
+@dataclass(frozen=True)
+class Site:
+    """Everything a vault contributes to its Hugo source, already validated."""
+
+    config: SiteConfig
+    pages: tuple[Page, ...]
+    bio: Bio | None
 
 
 def path_contains(outer: Path, inner: Path) -> bool:
@@ -129,17 +139,43 @@ def _symlinks_in(directory: str | os.PathLike[str], names: list[str]) -> list[st
     return [name for name in names if (Path(directory) / name).is_symlink()]
 
 
-def _assemble_source(
-    source: Path,
-    vault: Path,
-    config: SiteConfig,
-    pages: Sequence[Page],
-    bio: Bio | None,
-) -> None:
-    (source / "hugo.toml").write_text(hugo_config(config), encoding="utf-8")
+def convert_vault(vault: Path, now: datetime) -> Site:
+    """The validated pages, bio and settings of `vault`, with dates compared to `now`.
+
+    Raises `ConfigError` for unusable settings, and otherwise a `BuildError` listing
+    every bad note with each of its reasons, including every failed link, and the bio's
+    failures in the same message. Writes nothing.
+    """
+    config = load_config(vault)
+    selection = select_notes(vault, now)
+    bio = read_bio(vault)
+    bio_failures = [bio] if isinstance(bio, NoteFailure) else []
+    conversion = convert_notes(
+        selection, config.base_url, bio if isinstance(bio, str) else None
+    )
+    # A stable sort keeps each note's reasons in the order they were found.
+    failures = sorted(
+        (*selection.failures, *bio_failures, *conversion.failures),
+        key=lambda failure: failure.path,
+    )
+    if failures:
+        details = "".join(
+            f"\n  {failure.path}: {failure.reason}" for failure in failures
+        )
+        raise BuildError(f"cannot build from these notes:{details}")
+    return Site(config=config, pages=conversion.pages, bio=conversion.bio)
+
+
+def assemble_source(source: Path, vault: Path, site: Site) -> None:
+    """Writes the Hugo source for `site` into the existing, empty directory `source`.
+
+    Copies images and the vault's `_site/` directories from `vault`, skipping symbolic
+    links in those directories. Raises `OSError` when a file cannot be read or written.
+    """
+    (source / "hugo.toml").write_text(hugo_config(site.config), encoding="utf-8")
     content = source / "content"
     content.mkdir()
-    for page in pages:
+    for page in site.pages:
         # The folder sets the URL. Writing Hugo's `url` or `slug` would add a second source.
         bundle = content / "posts" / page.note.page.slug
         bundle.mkdir(parents=True)
@@ -148,12 +184,12 @@ def _assemble_source(
         # get their own URLs and two notes never compete for one name.
         for image in page.images:
             shutil.copyfile(vault / image, bundle / image.name)
-    if bio is not None:
+    if site.bio is not None:
         # Hugo renders this file as the home page's `.Content`. The empty front matter
         # keeps a bio that starts with `---` or `{` from being read as front matter.
-        (content / "_index.md").write_bytes(b"{}\n" + bio.body)
+        (content / "_index.md").write_bytes(b"{}\n" + site.bio.body)
         # The home page's own files, served at its URL, where the converter points them.
-        for image in bio.images:
+        for image in site.bio.images:
             shutil.copyfile(vault / image, content / image.name)
     shutil.copytree(PACKAGED_THEME, source / "themes" / THEME)
     # Hugo prefers a project file to the theme's with the same name, and the theme
@@ -164,9 +200,13 @@ def _assemble_source(
             shutil.copytree(directory, source / name, ignore=_symlinks_in)
 
 
-def _run_hugo(hugo: Sequence[str], source: Path, destination: Path) -> None:
+def hugo_env() -> dict[str, str]:
+    """The process environment without any variable whose name starts with `HUGO`."""
     # A HUGO* variable overrides site configuration: HUGO_BASEURL replaces the configured URL.
-    env = {k: v for k, v in os.environ.items() if not k.startswith("HUGO")}
+    return {k: v for k, v in os.environ.items() if not k.startswith("HUGO")}
+
+
+def _run_hugo(hugo: Sequence[str], source: Path, destination: Path) -> None:
     argv = [
         *hugo,
         "--source",
@@ -181,7 +221,9 @@ def _run_hugo(hugo: Sequence[str], source: Path, destination: Path) -> None:
         "--buildFuture",
     ]
     try:
-        status = subprocess.run(argv, cwd=source, env=env, check=False).returncode
+        status = subprocess.run(
+            argv, cwd=source, env=hugo_env(), check=False
+        ).returncode
     except OSError as exc:
         raise BuildError(f"cannot run {hugo[0]}: {exc.strerror}") from exc
     if status != 0:
@@ -228,28 +270,12 @@ def build_site(
         raise BuildError(f"vault {vault} is not a directory")
     try:
         check_output(vault, output)
-        config = load_config(vault)
-        selection = select_notes(vault, now or datetime.now().astimezone())
-        bio = read_bio(vault)
-        bio_failures = [bio] if isinstance(bio, NoteFailure) else []
-        conversion = convert_notes(
-            selection, config.base_url, bio if isinstance(bio, str) else None
-        )
-        # A stable sort keeps each note's reasons in the order they were found.
-        failures = sorted(
-            (*selection.failures, *bio_failures, *conversion.failures),
-            key=lambda failure: failure.path,
-        )
-        if failures:
-            details = "".join(
-                f"\n  {failure.path}: {failure.reason}" for failure in failures
-            )
-            raise BuildError(f"cannot build from these notes:{details}")
+        site = convert_vault(vault, now or datetime.now().astimezone())
         # Hugo writes .hugo_build.lock and resources/ into its source, so the source is
         # a temporary directory that keeps them out of the vault and the repo.
         with tempfile.TemporaryDirectory(prefix="mdblog-") as source_name:
             source = Path(source_name)
-            _assemble_source(source, vault, config, conversion.pages, conversion.bio)
+            assemble_source(source, vault, site)
             output.parent.mkdir(parents=True, exist_ok=True)
             # A sibling shares the output's filesystem, which the renames require.
             with tempfile.TemporaryDirectory(
