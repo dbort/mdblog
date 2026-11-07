@@ -10,22 +10,22 @@ blocked_by: [task-007, task-008]
 Adds `mdblog serve --drafts`, which also shows entries still being written: notes with `publish: false`. Missing dates and slugs are filled in from the file. Problems that would stop a production build are printed as warnings, and the note still renders. The page shows a "Draft" or "Invalid" label so the author can tell drafts and broken notes from finished entries, and a banner on every page says the site is a draft preview.
 
 ## Must Have
-- [ ] `mdblog serve --drafts` renders each note with `publish: false` as an entry with a "Draft" label, on its entry page and in every list that shows it.
-- [ ] A note with no `publish` property is absent from the preview, whatever its other properties.
-- [ ] A draft with no `date` gets the file's modification time, in the local zone with its offset. A draft with no `slug` gets one generated from its file name, valid under the slug rule. Neither prints a warning.
-- [ ] A draft property that is present but invalid prints one warning naming the note and property. The note still renders: an invalid date falls back to the modification time, an invalid slug to the file-name slug, and invalid tags to no tags.
-- [ ] A draft dated in the future renders with that date and no warning.
-- [ ] A generated or fallback slug that collides with another note's slug gets the first free numeric suffix (`-2`, `-3`, ...). A note's own valid slug always wins over a generated one, and each suffixed slug prints a warning.
-- [ ] A note with `publish: true` that fails validation in any way, link failures included, renders with the same fallbacks, an "Invalid" label in place of "Draft", and one warning per failure. A future date on such a note is kept.
-- [ ] A failed wikilink, embed or internal Markdown link in any note or the bio stays on the page exactly as written and prints a warning. A wikilink to a draft converts into a link to the draft's page.
-- [ ] A note whose front matter does not parse, has a non-boolean `publish`, or is not UTF-8 is absent and prints a warning.
-- [ ] Every page carries a banner saying it is a draft preview and not the live site. The banner appears only under `--drafts`.
-- [ ] Note failures never stop or delay `serve --drafts`: it starts on a vault with failing notes, and each rebuild prints the current warnings to stderr. A `ConfigError` still waits for a fix, as plain `serve` does.
-- [ ] Without `--drafts`, `mdblog serve` output is identical to before this task. `mdblog build` accepts no `--drafts` option, never passes `--buildDrafts` to Hugo, and no build output contains a draft, the Draft or Invalid label, or the banner.
-- [ ] The Draft label, Invalid label and banner are styled in light and dark palettes, with WCAG AA contrast, in the stylesheet task-007 adds.
-- [ ] `docs/vault-format.md` documents draft mode's selection, fallbacks, labels and warnings, and `README.md` lists `--drafts`.
-- [ ] Manual QA by the author: under `serve --drafts` on a vault holding a draft, an invalid published note and a valid published note, the labels and banner read clearly at phone and desktop widths in both palettes.
-- [ ] `tools/check` exits 0 on the finished branch.
+- [x] `mdblog serve --drafts` renders each note with `publish: false` as an entry with a "Draft" label, on its entry page and in every list that shows it.
+- [x] A note with no `publish` property is absent from the preview, whatever its other properties.
+- [x] A draft with no `date` gets the file's modification time, in the local zone with its offset. A draft with no `slug` gets one generated from its file name, valid under the slug rule. Neither prints a warning.
+- [x] A draft property that is present but invalid prints one warning naming the note and property. The note still renders: an invalid date falls back to the modification time, an invalid slug to the file-name slug, and invalid tags to no tags.
+- [x] A draft dated in the future renders with that date and no warning.
+- [x] A generated or fallback slug that collides with another note's slug gets the first free numeric suffix (`-2`, `-3`, ...). A note's own valid slug always wins over a generated one, and each suffixed slug prints a warning.
+- [x] A note with `publish: true` that fails validation in any way, link failures included, renders with the same fallbacks, an "Invalid" label in place of "Draft", and one warning per failure. A future date on such a note is kept.
+- [x] A failed wikilink, embed or internal Markdown link in any note or the bio stays on the page exactly as written and prints a warning. A wikilink to a draft converts into a link to the draft's page.
+- [x] A note whose front matter does not parse, has a non-boolean `publish`, or is not UTF-8 is absent and prints a warning.
+- [x] Every page carries a banner saying it is a draft preview and not the live site. The banner appears only under `--drafts`.
+- [x] Note failures never stop or delay `serve --drafts`: it starts on a vault with failing notes, and each rebuild prints the current warnings to stderr. A `ConfigError` still waits for a fix, as plain `serve` does.
+- [x] Without `--drafts`, `mdblog serve` output is identical to before this task. `mdblog build` accepts no `--drafts` option, never passes `--buildDrafts` to Hugo, and no build output contains a draft, the Draft or Invalid label, or the banner.
+- [x] The Draft label, Invalid label and banner are styled in light and dark palettes, with WCAG AA contrast, in the stylesheet task-007 adds.
+- [x] `docs/vault-format.md` documents draft mode's selection, fallbacks, labels and warnings, and `README.md` lists `--drafts`.
+- [x] Manual QA by the author: under `serve --drafts` on a vault holding a draft, an invalid published note and a valid published note, the labels and banner read clearly at phone and desktop widths in both palettes.
+- [x] `tools/check` exits 0 on the finished branch.
 
 ## Advice
 - User decisions (2026-11-05): draft mode is a `--drafts` flag on `mdblog serve` only, so `mdblog build`, which feeds deploys, can never produce draft output. Drafts are notes with `publish: false` (decided 2026-11-06), because M5's note template sets `publish: false` and leaves out `date`, and the rest of the vault (journals, reference notes), which has no `publish` property, stays off the preview. A missing date falls back to the file's modification time and a missing slug to the file name. A missing date or slug on a draft is expected, so only present-but-invalid values warn. An invalid published note renders labeled "Invalid". A failed link stays as written, which shows the author where it is. Every page carries a draft-preview banner. This task follows task-007 so its labels and banner fit the finished design.

@@ -10,20 +10,6 @@ M1 to M5 make up v1. M6 and M7 follow it. Each milestone's decisions are settled
 
 Search, comments, series, scheduled publishing, and packaging mdblog for other people's sites are outside v1. Each site's settings live in its own vault, so in the long run this repo can host multiple independent sites.
 
-## M3.1: Local preview
-
-**Status:** Tasks task-008, task-009
-
-- [x] task-008: Preview the site locally with mdblog serve
-- [ ] task-009: Preview drafts with mdblog serve --drafts (blocked on task-007, task-008)
-
-Let the author watch the real vault's site change while writing, with nothing deployed.
-
-- `mdblog serve VAULT` runs Hugo's server on the vault's site and rebuilds whenever the vault changes, so open pages reload by themselves. Links point at the local server and keep any base path. A vault that fails validation keeps the last good site on screen until a later edit fixes it.
-- A draft mode, `mdblog serve --drafts`, that also shows notes with `publish: false` and marks them as such. The converter passes them to Hugo with a generated `draft: true`, runs Hugo with `--buildDrafts`, and renders links and embeds of unpublished notes normally. Validation failures that stop a production build only warn in this mode. Authors only write `publish`.
-
-**Done when:** saving an edit to a note changes its page in an open browser with no command run, and draft mode shows an unpublished note marked as a draft while a production build of the same vault leaves it out.
-
 ## M4: Deploy to Cloudflare
 
 **Status:** Planned
