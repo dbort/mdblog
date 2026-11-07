@@ -43,7 +43,7 @@ The default theme gets a new look modeled on two sites the author likes: serif b
 
 ## Plan
 - [x] **Step 1** (`src/mdblog/theme/layouts/`): the grid in `baseof.html`, a sidebar partial with its four sections, the header's brand link and phone nav, and the home page without the bio. Update the affected tests named in `## Advice` and add tests for the new markup Must Haves.
-- [ ] **Step 2** (`src/mdblog/theme/assets/css/main.css`): the palettes, type, link and title rules, sidebar boxes, header, footer, and task-009's labels, then the WCAG AA recheck including Chroma and callouts.
+- [x] **Step 2** (`src/mdblog/theme/assets/css/main.css`): the palettes, type, link and title rules, sidebar boxes, header, footer, and task-009's labels, then the WCAG AA recheck including Chroma and callouts.
 - [ ] **Step 3** (`tools/manual_qa.py`): the replacement manual-QA check, then the author's run and the recorded approval.
 
 ## Review log
