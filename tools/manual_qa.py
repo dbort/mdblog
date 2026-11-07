@@ -60,6 +60,15 @@ class Check:
     files: tuple[tuple[str, str], ...] = ()
 
 
+# A plain build would fail on this note, so only the vaults of checks that serve
+# drafts hold it.
+INVALID_NOTE = (
+    "projects/invalid-note.md",
+    "---\npublish: true\ntitle: An invalid note\ndate: next week\n"
+    "tags: [project/alpha]\n---\n"
+    "A published note with an invalid date and no slug, linking to [[nowhere]].\n",
+)
+
 CHECKS = (
     Check(
         name="serve: live reload",
@@ -72,35 +81,38 @@ CHECKS = (
         ),
     ),
     Check(
-        name="design: phone and desktop, light and dark",
-        command=("mdblog", "serve", "{vault}", "--port", "{port}"),
+        name="design: restyle with sidebar, phone and desktop, light and dark",
+        command=("mdblog", "serve", "{vault}", "--drafts", "--port", "{port}"),
         url="{site}",
+        files=(INVALID_NOTE,),
         steps=(
-            "With the system in light mode, open {site} in a desktop-width window.",
-            "Visit the home page, Archive, Tags, {site}tags/node.js/, "
+            "With the system in light mode, open {site} in a desktop-width window. "
+            "The Draft preview banner is expected: this check serves drafts.",
+            "Visit the home page, Archive, Tags, {site}tags/project/alpha/, "
             "{site}posts/syntax/ and {site}404.html.",
-            "Repeat at phone width: the browser's device toolbar set to 375px wide.",
-            "Switch the system to dark mode and repeat both widths.",
+            "Compare each with the decisions in "
+            "tasks/active/task-012-restyle-default-theme.md, section Advice: serif "
+            "text on ivory with red links, a right-hand sidebar of dashed boxes with "
+            "red ring markers, no bio above the home page's entries, and a muted "
+            "« before the site title on every page but home.",
+            "Repeat at phone width: the browser's device toolbar set to 375px wide. "
+            "The sidebar sits after the content and before the footer, and the "
+            "header shows the Archive, Tags and RSS links.",
+            "Switch the system to dark mode and repeat both widths: blue links and "
+            "markers, solid sidebar borders.",
             "On posts/syntax/, open and close each callout and scroll the code block "
-            "and the table sideways.",
-            "Pass if every page reads well and looks right in both modes at both "
-            "widths, and no page scrolls sideways as a whole. Note anything to change.",
+            "and the table sideways. On the home page and Archive, find the Draft "
+            "label on marked-false and the Invalid label on An invalid note.",
+            "Pass if every page matches those decisions and reads well in both modes "
+            "at both widths, and no page scrolls sideways as a whole. Note anything "
+            "to change.",
         ),
     ),
     Check(
         name="drafts: labels and banner",
         command=("mdblog", "serve", "{vault}", "--drafts", "--port", "{port}"),
         url="{site}",
-        # A plain build would fail on this note, so only this check's vault holds it.
-        files=(
-            (
-                "projects/invalid-note.md",
-                "---\npublish: true\ntitle: An invalid note\ndate: next week\n"
-                "tags: [project/alpha]\n---\n"
-                "A published note with an invalid date and no slug, linking to "
-                "[[nowhere]].\n",
-            ),
-        ),
+        files=(INVALID_NOTE,),
         steps=(
             "With the system in light mode, open {site} in a desktop-width window.",
             "On the home page, find marked-false labeled Draft and An invalid note "
