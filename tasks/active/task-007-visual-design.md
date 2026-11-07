@@ -35,10 +35,10 @@ Gives the site a look of its own with one plain CSS file: a single readable colu
 - Standing obligation, test where the risk is: test the stylesheet link, site override, 404 and highlight classes with real Hugo, because each can break silently. Do not test CSS values or restate the stylesheet in tests, which leaves the design itself to manual QA.
 
 ## Plan
-- [ ] **Step 1** (`src/mdblog/build.py`, `src/mdblog/theme/assets/css/main.css`, `src/mdblog/theme/layouts/`, tests): add the highlight setting, the stylesheet with both palettes, the head link and viewport tag.
-- [ ] **Step 2** (`src/mdblog/theme/layouts/404.html`, tests): the 404 page. `test_build_supplies_the_packaged_theme_and_vault_layouts` pins the theme's file list, so update it.
-- [ ] **Step 3** (`tests/fixtures/vault/`): add any fixture content the review needs, such as a wide table, a long URL and a fenced code block, adding no text that matches the `UNPUBLISHED-*` needles.
-- [ ] **Step 4** (`docs/vault-format.md`): state that `_site/assets/css/main.css` replaces the packaged stylesheet.
+- [x] **Step 1** (`src/mdblog/build.py`, `src/mdblog/theme/assets/css/main.css`, `src/mdblog/theme/layouts/`, tests): add the highlight setting, the stylesheet with both palettes, the head link and viewport tag.
+- [x] **Step 2** (`src/mdblog/theme/layouts/404.html`, tests): the 404 page. `test_build_supplies_the_packaged_theme_and_vault_layouts` pins the theme's file list, so update it.
+- [x] **Step 3** (`tests/fixtures/vault/`): add any fixture content the review needs, such as a wide table, a long URL and a fenced code block, adding no text that matches the `UNPUBLISHED-*` needles.
+- [x] **Step 4** (`docs/vault-format.md`): state that `_site/assets/css/main.css` replaces the packaged stylesheet.
 - [ ] **Step 5**: the author's browser review and any changes it asks for.
 
 ## Review log

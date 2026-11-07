@@ -179,6 +179,7 @@ def test_build_supplies_the_packaged_theme(tmp_path: Path) -> None:
     build_site(_make_vault(tmp_path), output, FAKE_HUGO)
 
     assert _seen(output)["theme"] == [
+        "404.html",
         "_markup",
         "_partials",
         "baseof.html",

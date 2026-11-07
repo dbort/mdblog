@@ -107,7 +107,7 @@ The `_site/` folder at the vault's root holds the site's own files. Its notes ar
 | `_site/mdblog.toml` | yes | The site's `base_url`, `title` and `author`. `base_url` may hold a path, such as `https://example.test/blog/`, and every page, link and feed then lives under `/blog/`. A trailing slash makes no difference. |
 | `_site/bio.md` | no | The author's bio, rendered on the home page above the latest entries. Without it the home page has no bio. Its front matter has no effect, including `publish: false`. Its wikilinks and embeds convert as a note's do and fail the build the same way, with failures naming `_site/bio.md`. An image it embeds is served at the home page's URL. Because no link may target `_site/`, keep the bio's images elsewhere in the vault. A symbolic link at this path fails the build. |
 | `_site/layouts/` | no | Hugo layouts that replace the packaged ones with the same name, such as `page.html`, `_partials/footer.html` or `_markup/render-image.html`. |
-| `_site/assets/` | no | Files for Hugo's asset pipeline, replacing packaged assets with the same path. |
+| `_site/assets/` | no | Files for Hugo's asset pipeline, replacing packaged assets with the same path. `_site/assets/css/main.css` replaces the packaged stylesheet, which every page links. |
 | `_site/static/` | no | Files copied to the site's root as they are, so `_site/static/favicon.ico` is served at `/favicon.ico`. |
 
 ## Pages and feeds
