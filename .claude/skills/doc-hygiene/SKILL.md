@@ -28,10 +28,11 @@ License, Copyright (c) 2025 Hardik Pandya); see
 1. **List files:** tracked text files in scope (`git grep -Il '' --
    <scope>` finds them, whatever the project's languages), excluding
    `tasks/`, `.claude/`, and `CLAUDE.md` (agent contracts whose absolutes
-   are deliberate); license and notice files; lockfiles; and generated or
-   vendored files, whether marked `linguist-generated` or
-   `linguist-vendored` in `.gitattributes` or recognizable as such. Drop
-   deleted paths. Stop if the list is empty.
+   are deliberate); license and notice files; lockfiles; test fixtures
+   such as `tests/fixtures/`, whose text is test data that tests read and
+   assert on; and generated or vendored files, whether marked
+   `linguist-generated` or `linguist-vendored` in `.gitattributes` or
+   recognizable as such. Drop deleted paths. Stop if the list is empty.
 2. **Edit:** run one `hygiene` subagent (no shell, so no git) with the
    file list, each file's `git diff <ref>...HEAD` hunks in diff mode, and
    this brief: apply `CLAUDE.md` § Writing style by destination to
