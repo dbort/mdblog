@@ -197,10 +197,11 @@ def watch_loop(
 ) -> None:
     """Rebuilds `source` from `vault` once, then again after each non-empty batch.
 
-    Calls `start` to start the server after the first good rebuild, and to restart it, after stopping it, whenever `needs_restart` says so. An
-    empty batch only checks the server. Returns when `batches` is exhausted, having
-    stopped the server. Raises `ServeError` if the server exits on its own. `clock`
-    gives the time each rebuild compares dates to.
+    Calls `start` to start the server after the first good rebuild, and to restart it,
+    after stopping it, whenever `needs_restart` says so. An empty batch only checks the
+    server. Returns when `batches` is exhausted, having stopped the server. Raises
+    `ServeError` if the server exits on its own. `clock` gives the time each rebuild
+    compares dates to.
     """
     server: Server | None = None
     try:
@@ -321,9 +322,10 @@ def serve_site(
 
     Renders into `output`, which is kept, or else into `default_output(port)`, which is
     removed on return. `port` defaults to 1313, or any free port when 1313 is busy.
-    Hugo listens on 127.0.0.1 only, and links point at `localhost`. Raises `ServeError` or `BuildError` for a refusal before serving
-    starts, and `ServeError` if Hugo exits on its own. A vault that fails validation
-    never raises: its failures go to stderr and serve waits for a fix.
+    Hugo listens on 127.0.0.1 only, and links point at `localhost`. Raises `ServeError`
+    or `BuildError` for a refusal before serving starts, and `ServeError` if Hugo exits
+    on its own. A vault that fails validation never raises: its failures go to stderr
+    and serve waits for a fix.
     """
     vault = vault.resolve()
     if not vault.is_dir():

@@ -351,6 +351,10 @@ def _page(source: Path) -> str:
     return (source / "content/posts/note/index.md").read_text(encoding="utf-8")
 
 
+def _hugo_toml(server: FakeServer) -> bytes:
+    return server.source.get("hugo.toml") or b""
+
+
 def test_loop_starts_once_and_syncs_an_edit_without_restarting(
     tmp_path: Path,
 ) -> None:
@@ -368,6 +372,7 @@ def test_loop_starts_once_and_syncs_an_edit_without_restarting(
 
     assert len(starts.servers) == 1
     server = starts.servers[0]
+    assert b"https://example.test/blog/" in _hugo_toml(server)
     assert "content/posts/note/index.md" in server.source
     assert "SECOND" in pages[0]
     assert server.stopped
@@ -456,10 +461,9 @@ def test_loop_restarts_on_a_base_url_change_with_the_new_config(
         ),
     )
 
-    assert len(starts.servers) == 2
-    assert b"/blog/" in (starts.servers[0].source["hugo.toml"] or b"")
+    assert [b"/blog/" in _hugo_toml(s) for s in starts.servers] == [True, False]
+    assert [b"/journal/" in _hugo_toml(s) for s in starts.servers] == [False, True]
     assert all(s.stopped for s in starts.servers)
-    assert b"/journal/" in (starts.servers[1].source["hugo.toml"] or b"")
 
 
 def test_loop_restarts_after_a_page_is_removed(tmp_path: Path) -> None:
