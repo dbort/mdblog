@@ -1,5 +1,7 @@
 <header class="site-header">
-<a class="site-title" href="{{ site.Home.RelPermalink }}">{{ site.Title }}</a>
+<a class="site-title" href="{{ site.Home.RelPermalink }}">{{ if not .IsHome }}<span class="site-title-back">«</span> {{ end }}{{ site.Title }}</a>
+{{- /* The stylesheet hides this nav on wide screens, where the sidebar's site links
+       cover it. */}}
 <nav class="site-nav">
 {{- with site.GetPage "/posts" }}
 <a href="{{ .RelPermalink }}">Archive</a>

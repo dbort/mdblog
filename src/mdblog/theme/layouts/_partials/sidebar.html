@@ -1,0 +1,57 @@
+<aside class="sidebar">
+{{- /* The bio is the home page's content, so every page renders the same converted
+       copy. Its image URLs are root-relative and resolve from any page. */}}
+{{- with site.Home.Content }}
+<section class="sidebar-section sidebar-about">
+<h2 class="sidebar-label">About</h2>
+<div class="bio">
+{{ . }}
+</div>
+</section>
+{{- end }}
+{{- /* The home page already lists the newest entries. */}}
+{{- if not .IsHome }}
+{{- with first 5 (where site.RegularPages "RelPermalink" "ne" .RelPermalink) }}
+<section class="sidebar-section sidebar-recent">
+<h2 class="sidebar-label">Recent posts</h2>
+<ul class="sidebar-recent-list">
+{{- range . }}
+{{- /* No dt-published class: these dates belong to no h-entry on this page. */}}
+<li><a href="{{ .RelPermalink }}"><span class="sidebar-recent-title">{{ .Title }}</span> <time datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Date.Format "January 2, 2006" }}</time></a></li>
+{{- end }}
+</ul>
+{{- with site.GetPage "/posts" }}
+<p class="sidebar-more"><a href="{{ .RelPermalink }}">All entries</a></p>
+{{- end }}
+</section>
+{{- end }}
+{{- end }}
+{{- /* ByCount breaks ties by name. */}}
+{{- with site.Taxonomies.tags.ByCount }}
+<section class="sidebar-section sidebar-tags">
+<h2 class="sidebar-label">Tags</h2>
+<ul class="sidebar-tag-list">
+{{- range first 10 . }}
+<li><a href="{{ .Page.RelPermalink }}">{{ lower .Page.Data.Term }}</a> <span class="tag-count">{{ .Count }}</span></li>
+{{- end }}
+</ul>
+{{- with site.GetPage "/tags" }}
+<p class="sidebar-more"><a href="{{ .RelPermalink }}">All tags</a></p>
+{{- end }}
+</section>
+{{- end }}
+<section class="sidebar-section sidebar-links">
+<h2 class="sidebar-label">Site</h2>
+<ul class="sidebar-link-list">
+{{- with site.GetPage "/posts" }}
+<li><a href="{{ .RelPermalink }}">Archive</a></li>
+{{- end }}
+{{- with site.GetPage "/tags" }}
+<li><a href="{{ .RelPermalink }}">Tags</a></li>
+{{- end }}
+{{- with site.Home.OutputFormats.Get "rss" }}
+<li><a href="{{ .RelPermalink }}">RSS feed</a></li>
+{{- end }}
+</ul>
+</section>
+</aside>

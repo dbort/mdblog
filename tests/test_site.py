@@ -238,18 +238,146 @@ def test_a_built_site_has_no_draft_labels_or_preview_banner(site: Site) -> None:
             assert "Draft preview" not in text, name
 
 
-def test_home_shows_the_converted_bio_above_the_entries(site: Site) -> None:
+def test_every_sidebar_shows_the_converted_bio_and_home_main_holds_none(
+    site: Site,
+) -> None:
     main = site.page("index.html").one("main")
     sections = [child for child in main.children if isinstance(child, Element)]
-    assert "bio" in sections[0].classes
-    assert "h-feed" in sections[1].classes
-    bio = sections[0]
-    assert bio.text.startswith("FIXTURE-BIO about the author")
-    assert bio.hrefs() == ["/posts/first-note/"]
-    assert bio.one("img").attrs["src"] == "/headshot.svg"
+    assert "h-feed" in sections[0].classes
+    assert main.all(cls="bio") == []
+    for name in site.html_pages():
+        bio = site.page(name).one("aside", "sidebar").one(cls="bio")
+        assert bio.text.startswith("FIXTURE-BIO about the author"), name
+        assert bio.hrefs() == ["/posts/first-note/"], name
+        assert bio.one("img").attrs["src"] == "/headshot.svg", name
     assert b"FIXTURE-HEADSHOT" in site.path("headshot.svg").read_bytes()
     # The bio's front matter has a title and `publish: false`, and neither applies.
     assert "Ignored bio title" not in site.raw("index.html")
+
+
+def _sidebar_sections(page: Element) -> list[tuple[str, list[str]]]:
+    """Each sidebar section's label and the hrefs in it, in order."""
+    sidebar = page.one("aside", "sidebar")
+    return [
+        (section.one(cls="sidebar-label").text, section.hrefs())
+        for section in sidebar.all("section")
+    ]
+
+
+SITE_LINKS = ("Site", ["/posts/", "/tags/", "/index.xml"])
+TAG_LINKS = ("Tags", ["/tags/node.js/", "/tags/project/alpha/", "/tags/"])
+
+
+def test_every_page_ends_main_with_the_sidebar_in_section_order(site: Site) -> None:
+    for name in site.html_pages():
+        page = site.page(name)
+        layout = [child for child in page.one(cls="layout").children]
+        tags = [child.tag for child in layout if isinstance(child, Element)]
+        assert tags == ["main", "aside"], name
+        labels = [label for label, _ in _sidebar_sections(page)]
+        expected = ["About", "Tags", "Site"]
+        if name != "index.html":
+            expected.insert(1, "Recent posts")
+        assert labels == expected, name
+        assert _sidebar_sections(page)[-2:] == [TAG_LINKS, SITE_LINKS], name
+    assert "404.html" in site.html_pages()
+
+
+def _recent(page: Element) -> list[tuple[str, str, str]]:
+    section = page.one("aside", "sidebar").one(cls="sidebar-recent")
+    return [
+        (
+            item.one("a").attrs["href"],
+            item.one(cls="sidebar-recent-title").text,
+            item.one("time").text,
+        )
+        for item in section.all("li")
+    ]
+
+
+def test_recent_posts_lists_the_five_newest_other_entries_then_the_archive(
+    site: Site,
+) -> None:
+    titles = {
+        "long-post": ("Tips & Tricks", "January 4, 2026"),
+        "offset-time": ("Offset time", "January 2, 2026"),
+        "syntax": ("syntax", "January 3, 2026"),
+        "link-target": ("link-target", "January 2, 2026"),
+        "first-note": ("first-note", "January 1, 2026"),
+        "last-year": ("A note from last year", "June 1, 2025"),
+    }
+
+    def expected(*slugs: str) -> list[tuple[str, str, str]]:
+        return [(f"/posts/{slug}/", *titles[slug]) for slug in slugs]
+
+    assert _recent(site.page("posts/index.html")) == expected(*NEWEST_FIRST[:5])
+    assert _recent(site.page("404.html")) == expected(*NEWEST_FIRST[:5])
+    assert _recent(site.page("posts/long-post/index.html")) == expected(
+        *NEWEST_FIRST[1:]
+    )
+    without_syntax = [slug for slug in NEWEST_FIRST if slug != "syntax"]
+    assert _recent(site.page("posts/syntax/index.html")) == expected(*without_syntax)
+    recent = site.page("posts/index.html").one(cls="sidebar-recent")
+    assert recent.hrefs()[-1] == "/posts/"
+    assert recent.all(cls="dt-published") == []
+
+
+def test_a_lone_untagged_entry_without_a_bio_gets_only_site_links(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / "_site").mkdir(parents=True)
+    shutil.copy(FIXTURE_VAULT / "_site" / "mdblog.toml", vault / "_site")
+    (vault / "lone.md").write_text(published_text("lone"), encoding="utf-8")
+
+    built = _build(vault, tmp_path / "output")
+
+    assert _sidebar_sections(built.page("posts/lone/index.html")) == [SITE_LINKS]
+    assert [
+        label for label, _ in _sidebar_sections(built.page("posts/index.html"))
+    ] == [
+        "Recent posts",
+        "Site",
+    ]
+
+
+def test_sidebar_tags_are_the_ten_most_used_then_by_name(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    (vault / "_site").mkdir(parents=True)
+    shutil.copy(FIXTURE_VAULT / "_site" / "mdblog.toml", vault / "_site")
+    # Tag t<n> is on the first n notes, so counts fall from 12 to 1; ties come from
+    # the extra tags that share a count with one of those.
+    counts = {f"t{n:02}": n for n in range(1, 13)} | {"a-tie": 9, "z-tie": 9}
+    for number in range(1, 13):
+        tags = sorted(tag for tag, count in counts.items() if count >= number)
+        (vault / f"n{number:02}.md").write_text(
+            published_text(f"n{number:02}", extra=f"tags: [{', '.join(tags)}]\n"),
+            encoding="utf-8",
+        )
+
+    built = _build(vault, tmp_path / "output")
+
+    section = (
+        built.page("posts/index.html").one("aside", "sidebar").one(cls="sidebar-tags")
+    )
+    shown = [
+        (item.one("a").text, item.one(cls="tag-count").text)
+        for item in section.all("li")
+    ]
+    assert shown == [
+        ("t12", "12"),
+        ("t11", "11"),
+        ("t10", "10"),
+        ("a-tie", "9"),
+        ("t09", "9"),
+        ("z-tie", "9"),
+        ("t08", "8"),
+        ("t07", "7"),
+        ("t06", "6"),
+        ("t05", "5"),
+    ]
+    assert section.all("li")[0].hrefs() == ["/tags/t12/"]
+    assert section.hrefs()[-1] == "/tags/"
 
 
 def test_home_lists_entries_newest_first_then_links_the_archive(site: Site) -> None:
@@ -343,7 +471,7 @@ def test_entry_page_shows_the_entry_and_no_other_entry_links(site: Site) -> None
 
 
 def test_dates_show_the_day_in_their_own_offset(site: Site) -> None:
-    time = site.page("posts/offset-time/index.html").one("time")
+    time = site.page("posts/offset-time/index.html").one("main").one("time")
     assert time.attrs["datetime"] == "2026-01-02T23:30:00-07:00"
     assert time.text == "January 2, 2026"
 
@@ -361,7 +489,7 @@ def test_a_date_only_value_shows_its_own_day_in_any_zone(
 
     built = _build(vault, tmp_path / "output")
 
-    time = built.page("posts/dated/index.html").one("time")
+    time = built.page("posts/dated/index.html").one("main").one("time")
     assert time.text == "January 2, 2026"
     assert time.attrs["datetime"].startswith("2026-01-02T")
 
@@ -402,8 +530,9 @@ def test_every_page_has_the_header_and_footer(site: Site) -> None:
         page = site.page(name)
         header = page.one("header", "site-header")
         links = [(a.text, a.attrs["href"]) for a in header.all("a")]
+        brand = "mdblog fixture" if name == "index.html" else "« mdblog fixture"
         assert links == [
-            ("mdblog fixture", "/"),
+            (brand, "/"),
             ("Archive", "/posts/"),
             ("Tags", "/tags/"),
             ("RSS", "/index.xml"),
@@ -677,6 +806,8 @@ def test_a_site_under_a_sub_path_links_only_within_it(tmp_path: Path) -> None:
         path = built.root / unquote(parts.path).removeprefix("/blog/")
         file = path / "index.html" if path.is_dir() else path
         assert file.is_file(), url
+    bio_image = built.page("posts/syntax/index.html").one(cls="bio").one("img")
+    assert bio_image.attrs["src"] == "/blog/headshot.svg"
     not_found = built.page("404.html")
     assert _stylesheets(not_found.one("head"))[0].startswith("/blog/css/")
     assert not_found.one("main").hrefs() == ["/blog/"]

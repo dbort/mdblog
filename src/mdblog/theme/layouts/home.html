@@ -1,10 +1,5 @@
 {{ define "main" }}
 {{- $latest := 15 }}
-{{- with .Content }}
-<section class="bio">
-{{ . }}
-</section>
-{{- end }}
 <section class="h-feed entry-list">
 {{- range first $latest site.RegularPages }}
 {{ partial "entry-item.html" . }}
