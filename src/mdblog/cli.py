@@ -57,12 +57,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="N",
         help="the port to serve on (default: 1313, or a free port if it is busy)",
     )
+    serve.add_argument(
+        "--drafts",
+        action="store_true",
+        help="also show notes with publish: false, and show notes that fail "
+        "validation with warnings instead of waiting for a fix",
+    )
     args = parser.parse_args(argv)
     try:
         if args.command == "build":
             build_site(args.vault, args.output)
         else:
-            serve_site(args.vault, args.output, args.port)
+            serve_site(args.vault, args.output, args.port, drafts=args.drafts)
     except (BuildError, ConfigError, ServeError) as exc:
         print(f"mdblog: {exc}", file=sys.stderr)
         return 1

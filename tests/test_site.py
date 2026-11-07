@@ -227,6 +227,17 @@ def test_fixture_vault_builds_end_to_end(site: Site) -> None:
         assert not [name for name, data in files.items() if needle in data], needle
 
 
+def test_a_built_site_has_no_draft_labels_or_preview_banner(site: Site) -> None:
+    # The fixture holds drafts, and the stylesheet names these classes, so only pages
+    # and feeds are searched.
+    for name in site.files():
+        if name.endswith((".html", ".xml")):
+            text = site.raw(name)
+            assert "entry-status" not in text, name
+            assert "preview-banner" not in text, name
+            assert "Draft preview" not in text, name
+
+
 def test_home_shows_the_converted_bio_above_the_entries(site: Site) -> None:
     main = site.page("index.html").one("main")
     sections = [child for child in main.children if isinstance(child, Element)]

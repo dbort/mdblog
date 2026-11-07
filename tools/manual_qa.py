@@ -1,8 +1,8 @@
 """manual_qa: walks the author through the checks no automated test can make.
 
-Each check runs its command on a scratch copy of the fixture vault, prints the steps,
-and records the author's verdict and notes. The log written at the end is what the
-author hands back to the agent running `/work`.
+Each check runs its command on its own scratch copy of the fixture vault, prints the
+steps, and records the author's verdict and notes. The log written at the end is what
+the author hands back to the agent running `/work`.
 """
 
 import argparse
@@ -55,6 +55,9 @@ class Check:
     # Polled until it answers, so the steps appear once the server is up.
     url: str
     steps: tuple[str, ...]
+    # Vault-relative paths and texts written into the scratch vault before the command
+    # runs, for notes the shared fixture vault must not hold.
+    files: tuple[tuple[str, str], ...] = ()
 
 
 CHECKS = (
@@ -82,6 +85,33 @@ CHECKS = (
             "and the table sideways.",
             "Pass if every page reads well and looks right in both modes at both "
             "widths, and no page scrolls sideways as a whole. Note anything to change.",
+        ),
+    ),
+    Check(
+        name="drafts: labels and banner",
+        command=("mdblog", "serve", "{vault}", "--drafts", "--port", "{port}"),
+        url="{site}",
+        # A plain build would fail on this note, so only this check's vault holds it.
+        files=(
+            (
+                "projects/invalid-note.md",
+                "---\npublish: true\ntitle: An invalid note\ndate: next week\n"
+                "tags: [project/alpha]\n---\n"
+                "A published note with an invalid date and no slug, linking to "
+                "[[nowhere]].\n",
+            ),
+        ),
+        steps=(
+            "With the system in light mode, open {site} in a desktop-width window.",
+            "On the home page, find marked-false labeled Draft and An invalid note "
+            "labeled Invalid, beside entries with no label, and the banner at the top.",
+            "Visit Archive, {site}tags/project/alpha/, {site}posts/marked-false/, "
+            "{site}posts/invalid-note/ and {site}posts/first-note/.",
+            "Repeat at phone width: the browser's device toolbar set to 375px wide.",
+            "Switch the system to dark mode and repeat both widths.",
+            "Pass if the labels and the banner read clearly and fit the design on every "
+            "page in both modes at both widths, and first-note shows no label. Note "
+            "anything to change.",
         ),
     ),
 )
@@ -204,6 +234,7 @@ def run_check(
     command = tuple(places.fill(part) for part in check.command)
     output = work / f"{check.name.replace(':', '').replace(' ', '-')}.log"
     print(f"\n== {check.name}\n$ {' '.join(command)}\n  (output: {output})")
+    print(f"  (scratch vault: {places.vault})")
     with output.open("wb") as sink:
         process = subprocess.Popen(command, stdout=sink, stderr=subprocess.STDOUT)
     try:
@@ -225,6 +256,16 @@ def run_check(
         early_exit=early_exit,
         output_tail=_tail(output) if verdict is Verdict.FAIL else "",
     )
+
+
+def scratch_vault(path: Path, check: Check) -> Path:
+    """`path`, made a copy of the fixture vault holding `check`'s extra files."""
+    shutil.copytree(FIXTURE_VAULT, path)
+    for relative, text in check.files:
+        note = path / relative
+        note.parent.mkdir(parents=True, exist_ok=True)
+        note.write_text(text, encoding="utf-8")
+    return path
 
 
 def _commit() -> str:
@@ -264,12 +305,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     results: list[Result] = []
     with tempfile.TemporaryDirectory(prefix="mdblog-qa-") as work_name:
         work = Path(work_name)
-        vault = work / "vault"
-        shutil.copytree(FIXTURE_VAULT, vault)
-        places = Places(vault=vault, port=_free_port())
-        print(f"Scratch vault: {vault}")
+        port = _free_port()
         try:
-            for check in checks:
+            for number, check in enumerate(checks, start=1):
+                vault = scratch_vault(work / f"vault-{number}", check)
+                places = Places(vault=vault, port=port)
                 results.append(run_check(check, places, work, input))
         except KeyboardInterrupt, EOFError:
             print("\nStopped; the log holds the checks finished so far.")

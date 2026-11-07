@@ -2,7 +2,7 @@
 
 import re
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote, urlsplit
 
@@ -21,6 +21,7 @@ from mdblog.markdown import (
     split_wikilink,
     wikilink_text,
 )
+from mdblog.properties import EntryStatus
 from mdblog.publish import (
     BIO_PATH,
     NOTE_SUFFIX,
@@ -271,9 +272,9 @@ class Bio:
 class Conversion:
     """The pages converted from a selection, the bio, and every link failure."""
 
-    # In the selection's order. A page whose note failed is absent.
+    # In the selection's order. A page whose note failed is absent outside draft mode.
     pages: tuple[Page, ...]
-    # None when there is no bio or it has failures.
+    # None when there is no bio, or outside draft mode, when it has failures.
     bio: Bio | None
     # Grouped by note in the selection's order, then the bio's. Within a file, internal
     # Markdown links come before wikilinks, each in document order.
@@ -298,16 +299,24 @@ def _convert_body(
 
 
 def convert_notes(
-    selection: Selection, base_url: str, bio: str | None = None
+    selection: Selection,
+    base_url: str,
+    bio: str | None = None,
+    drafts: bool = False,
 ) -> Conversion:
     """Every published note in `selection`, and `bio`, with Obsidian syntax converted for Hugo.
 
     Comments are removed first, so a heading or block ID inside one is no link target,
     and block IDs next, so none stays in a heading's text. Then a standard Markdown
     link or image to an internal destination fails, and wikilinks convert against
-    every file in the selection. Unpublished notes are never read. `bio` is the text of
-    `BIO_PATH`, which renders on the home page and is no link target itself; its
-    failures name `BIO_PATH`.
+    every file in the selection. Notes outside `selection.published`, which holds the
+    drafts too when the selection was made with `drafts`, are never read. `bio` is the
+    text of `BIO_PATH`, which renders on the home page and is no link target itself;
+    its failures name `BIO_PATH`.
+
+    With `drafts`, a page or bio with failures is kept with each failed link as
+    written, its failures are still returned, and a PUBLISHED note among them becomes
+    INVALID.
     """
     prefix = base_path(base_url)
     texts: dict[Path, str] = {}
@@ -332,16 +341,17 @@ def convert_notes(
             index,
             prefix,
         )
-        if reasons:
-            failures.extend(NoteFailure(note.path, reason) for reason in reasons)
-        else:
-            pages.append(Page(note, converted.text.encode("utf-8"), converted.images))
+        failures.extend(NoteFailure(note.path, reason) for reason in reasons)
+        if reasons and not drafts:
+            continue
+        if reasons and note.status is EntryStatus.PUBLISHED:
+            note = replace(note, status=EntryStatus.INVALID)
+        pages.append(Page(note, converted.text.encode("utf-8"), converted.images))
     converted_bio = None
     if bio is not None:
         text, _ = remove_block_ids(remove_comments(bio))
         converted, reasons = _convert_body(text, BIO_PATH, f"{prefix}/", index, prefix)
-        if reasons:
-            failures.extend(NoteFailure(BIO_PATH, reason) for reason in reasons)
-        else:
+        failures.extend(NoteFailure(BIO_PATH, reason) for reason in reasons)
+        if drafts or not reasons:
             converted_bio = Bio(converted.text.encode("utf-8"), converted.images)
     return Conversion(tuple(pages), converted_bio, tuple(failures))

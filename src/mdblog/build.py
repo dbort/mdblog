@@ -5,7 +5,7 @@ import os
 import shutil
 import subprocess
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -22,6 +22,8 @@ PACKAGED_THEME = Path(__file__).resolve().parent / "theme"
 FEED_LIMIT = 50
 # A vault's `_site/` directories that Hugo reads beside the packaged theme's.
 SITE_DIRECTORIES = ("layouts", "assets", "static")
+# The site param that turns on the draft preview banner. Only draft mode writes it.
+PREVIEW_PARAM = "mdblog_preview"
 
 
 class BuildError(Exception):
@@ -35,6 +37,10 @@ class Site:
     config: SiteConfig
     pages: tuple[Page, ...]
     bio: Bio | None
+    # A draft preview, whose notes may have warnings.
+    drafts: bool = False
+    # Under draft mode, what would have failed the build, sorted by path.
+    warnings: tuple[NoteFailure, ...] = ()
 
 
 def path_contains(outer: Path, inner: Path) -> bool:
@@ -82,11 +88,13 @@ def _toml_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=False).replace("\x7f", "\\u007f")
 
 
-def hugo_config(config: SiteConfig) -> str:
+def hugo_config(config: SiteConfig, drafts: bool = False) -> str:
     """The text of a `hugo.toml` that applies `config` and the packaged theme.
 
-    The site renders a feed at `/index.xml` and one per tag, and no other feed.
+    The site renders a feed at `/index.xml` and one per tag, and no other feed. With
+    `drafts`, the site param `PREVIEW_PARAM` is true, and otherwise it is absent.
     """
+    preview = f"{PREVIEW_PARAM} = true\n" if drafts else ""
     return (
         f"baseURL = {_toml_string(config.base_url)}\n"
         f"title = {_toml_string(config.title)}\n"
@@ -94,6 +102,7 @@ def hugo_config(config: SiteConfig) -> str:
         "\n"
         "[params]\n"
         f"author = {_toml_string(config.author)}\n"
+        f"{preview}"
         "\n"
         # Renders `==text==` as <mark>. Raw HTML stays off, so a note cannot bypass the
         # link rules with an <img> or <a> of its own.
@@ -126,31 +135,42 @@ def _symlinks_in(directory: str | os.PathLike[str], names: list[str]) -> list[st
     return [name for name in names if (Path(directory) / name).is_symlink()]
 
 
-def convert_vault(vault: Path, now: datetime) -> Site:
+def format_failures(heading: str, failures: Iterable[NoteFailure]) -> str:
+    """`heading` and a colon, then one indented `path: reason` line per failure."""
+    details = "".join(f"\n  {failure.path}: {failure.reason}" for failure in failures)
+    return f"{heading}:{details}"
+
+
+def convert_vault(vault: Path, now: datetime, drafts: bool = False) -> Site:
     """The validated pages, bio and settings of `vault`, with dates compared to `now`.
 
     Raises `ConfigError` for unusable settings, and otherwise a `BuildError` listing
     every bad note with each of its reasons, including every failed link, and the bio's
-    failures in the same message. Writes nothing.
+    failures in the same message. With `drafts`, the site is a draft preview whose
+    note and bio failures are its `warnings` instead, and only `ConfigError` is raised.
+    Writes nothing.
     """
     config = load_config(vault)
-    selection = select_notes(vault, now)
+    selection = select_notes(vault, now, drafts)
     bio = read_bio(vault)
     bio_failures = [bio] if isinstance(bio, NoteFailure) else []
     conversion = convert_notes(
-        selection, config.base_url, bio if isinstance(bio, str) else None
+        selection, config.base_url, bio if isinstance(bio, str) else None, drafts
     )
     # A stable sort keeps each note's reasons in the order they were found.
     failures = sorted(
         (*selection.failures, *bio_failures, *conversion.failures),
         key=lambda failure: failure.path,
     )
-    if failures:
-        details = "".join(
-            f"\n  {failure.path}: {failure.reason}" for failure in failures
-        )
-        raise BuildError(f"cannot build from these notes:{details}")
-    return Site(config=config, pages=conversion.pages, bio=conversion.bio)
+    if failures and not drafts:
+        raise BuildError(format_failures("cannot build from these notes", failures))
+    return Site(
+        config=config,
+        pages=conversion.pages,
+        bio=conversion.bio,
+        drafts=drafts,
+        warnings=tuple(failures),
+    )
 
 
 def assemble_source(source: Path, vault: Path, site: Site) -> None:
@@ -159,14 +179,18 @@ def assemble_source(source: Path, vault: Path, site: Site) -> None:
     Copies images and the vault's `_site/` directories from `vault`, skipping symbolic
     links in those directories. Raises `OSError` when a file cannot be read or written.
     """
-    (source / "hugo.toml").write_text(hugo_config(site.config), encoding="utf-8")
+    (source / "hugo.toml").write_text(
+        hugo_config(site.config, site.drafts), encoding="utf-8"
+    )
     content = source / "content"
     content.mkdir()
     for page in site.pages:
         # The folder sets the URL. Writing Hugo's `url` or `slug` would add a second source.
         bundle = content / "posts" / page.note.page.slug
         bundle.mkdir(parents=True)
-        (bundle / "index.md").write_bytes(front_matter(page.note.page) + page.body)
+        (bundle / "index.md").write_bytes(
+            front_matter(page.note.page, page.note.status) + page.body
+        )
         # Hugo publishes a leaf bundle's files next to its page, so each note's images
         # get their own URLs and two notes never compete for one name.
         for image in page.images:

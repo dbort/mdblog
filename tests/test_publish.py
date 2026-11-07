@@ -1,13 +1,18 @@
 import datetime as dt
+import os
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from mdblog.properties import EntryStatus, PageProperties
 from mdblog.publish import (
     BIO_PATH,
     FrontMatterError,
     NoteFailure,
+    PublishedNote,
+    SlugClaim,
+    assign_slugs,
     published_parts,
     read_bio,
     select_notes,
@@ -422,3 +427,241 @@ def test_read_bio_reports_an_unreadable_bio(tmp_path: Path) -> None:
     assert isinstance(failure, NoteFailure)
     assert failure.path == BIO_PATH
     assert failure.reason.startswith("cannot read")
+
+
+def _claim(path: str, own: str | None = None, published: bool = False) -> SlugClaim:
+    return SlugClaim(Path(path), own, published)
+
+
+def _assigned(*claims: SlugClaim) -> dict[str, tuple[str, str | None]]:
+    return {path.as_posix(): result for path, result in assign_slugs(claims).items()}
+
+
+def test_assign_slugs_keeps_own_slugs_and_generates_the_rest() -> None:
+    assert _assigned(
+        _claim("a/My Draft.md"), _claim("b.md", "own"), _claim("日本語.md")
+    ) == {
+        "a/My Draft.md": ("my-draft", None),
+        "b.md": ("own", None),
+        "日本語.md": ("note", None),
+    }
+
+
+def test_an_own_slug_wins_over_an_earlier_generated_one() -> None:
+    assert _assigned(_claim("a/same.md"), _claim("b.md", "same")) == {
+        "a/same.md": ("same-2", "slug 'same' is already used by b.md; using 'same-2'"),
+        "b.md": ("same", None),
+    }
+
+
+def test_generated_slugs_take_suffixes_in_path_order() -> None:
+    assert _assigned(_claim("b/Same.md"), _claim("a/same.md"), _claim("c/SAME.md")) == {
+        "a/same.md": ("same", None),
+        "b/Same.md": (
+            "same-2",
+            "slug 'same' is already used by a/same.md; using 'same-2'",
+        ),
+        "c/SAME.md": (
+            "same-3",
+            "slug 'same' is already used by a/same.md; using 'same-3'",
+        ),
+    }
+
+
+def test_a_suffix_skips_slugs_that_notes_own() -> None:
+    assert _assigned(_claim("a/x.md"), _claim("b.md", "x"), _claim("c.md", "x-2")) == {
+        "a/x.md": ("x-3", "slug 'x' is already used by b.md; using 'x-3'"),
+        "b.md": ("x", None),
+        "c.md": ("x-2", None),
+    }
+
+
+def test_the_first_published_note_by_path_keeps_a_shared_own_slug() -> None:
+    assert _assigned(
+        _claim("b.md", "same", published=True),
+        _claim("a.md", "same", published=True),
+    ) == {
+        "a.md": ("same", None),
+        "b.md": ("same-2", "slug 'same' is already used by a.md; using 'same-2'"),
+    }
+
+
+def test_a_published_note_keeps_its_own_slug_over_an_earlier_draft() -> None:
+    assert _assigned(
+        _claim("a.md", "same"), _claim("b.md", "same", published=True)
+    ) == {
+        "a.md": ("same-2", "slug 'same' is already used by b.md; using 'same-2'"),
+        "b.md": ("same", None),
+    }
+
+
+# Five hours west of UTC, matching the TZ string the draft tests set.
+LOCAL = dt.timezone(dt.timedelta(hours=-5))
+MODIFIED = dt.datetime(2026, 3, 4, 5, 6, 7, tzinfo=LOCAL)
+
+
+@pytest.fixture
+def _local(local_zone: Callable[[str], None]) -> None:
+    local_zone("XXX5")
+
+
+def _draft_note(vault: Path, relative: str, text: str) -> Path:
+    path = _write(vault, relative, text)
+    os.utime(path, (MODIFIED.timestamp(), MODIFIED.timestamp()))
+    return path
+
+
+def _preview(vault: Path) -> tuple[dict[str, PublishedNote], list[tuple[str, str]]]:
+    selection = select_notes(vault, NOW, drafts=True)
+    entries = {note.path.as_posix(): note for note in selection.published}
+    assert list(entries) == sorted(entries)
+    warnings = [
+        (failure.path.as_posix(), failure.reason) for failure in selection.failures
+    ]
+    return entries, warnings
+
+
+@pytest.mark.usefixtures("_local")
+def test_drafts_are_publish_false_notes_with_file_fallbacks(tmp_path: Path) -> None:
+    _draft_note(tmp_path, "notes/My Draft.md", "---\npublish: false\n---\nBODY\n")
+    _write(tmp_path, "no-property.md", "---\ntitle: x\nslug: x\n---\n")
+    _write(tmp_path, "no-front-matter.md", "text\n")
+
+    entries, warnings = _preview(tmp_path)
+
+    assert entries == {
+        "notes/My Draft.md": PublishedNote(
+            Path("notes/My Draft.md"),
+            PageProperties("My Draft", MODIFIED, "my-draft", ()),
+            b"BODY\n",
+            EntryStatus.DRAFT,
+        )
+    }
+    date = entries["notes/My Draft.md"].page.date
+    assert isinstance(date, dt.datetime)
+    assert date.utcoffset() == dt.timedelta(hours=-5)
+    assert warnings == []
+    assert select_notes(tmp_path, NOW).published == ()
+
+
+@pytest.mark.usefixtures("_local")
+def test_a_draft_keeps_its_own_properties_and_a_future_date(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        "draft.md",
+        "---\npublish: false\ntitle: Later\ndate: 2027-01-01\nslug: later\n"
+        "tags: [a]\n---\n",
+    )
+
+    entries, warnings = _preview(tmp_path)
+
+    assert entries["draft.md"].page == PageProperties(
+        "Later", dt.date(2027, 1, 1), "later", ("a",)
+    )
+    assert warnings == []
+
+
+@pytest.mark.usefixtures("_local")
+def test_invalid_draft_properties_warn_and_fall_back(tmp_path: Path) -> None:
+    _draft_note(
+        tmp_path,
+        "Bad Draft.md",
+        "---\npublish: false\ndate: soon\nslug: Bad Slug\ntags: 3\n---\n",
+    )
+
+    entries, warnings = _preview(tmp_path)
+
+    assert entries["Bad Draft.md"].page == PageProperties(
+        "Bad Draft", MODIFIED, "bad-draft", ()
+    )
+    assert entries["Bad Draft.md"].status is EntryStatus.DRAFT
+    assert warnings == [
+        ("Bad Draft.md", "date must be a YAML date or datetime, not 'soon'"),
+        (
+            "Bad Draft.md",
+            "slug must be lowercase letters and digits joined by single hyphens, "
+            "not 'Bad Slug'",
+        ),
+        ("Bad Draft.md", "tags must be a string or a list of strings, not 3"),
+    ]
+
+
+@pytest.mark.usefixtures("_local")
+def test_a_failing_published_note_renders_as_invalid_with_each_reason(
+    tmp_path: Path,
+) -> None:
+    _draft_note(tmp_path, "Broken.md", "---\npublish: true\ntags: 3\n---\n")
+    _write(tmp_path, "future.md", published_text("future", date="2027-01-01"))
+    _write(tmp_path, "good.md", published_text("good"))
+
+    entries, warnings = _preview(tmp_path)
+
+    assert entries["Broken.md"].page == PageProperties("Broken", MODIFIED, "broken", ())
+    assert entries["future.md"].page.date == dt.date(2027, 1, 1)
+    assert {path: note.status for path, note in entries.items()} == {
+        "Broken.md": EntryStatus.INVALID,
+        "future.md": EntryStatus.INVALID,
+        "good.md": EntryStatus.PUBLISHED,
+    }
+    assert warnings == [
+        ("Broken.md", "date is required"),
+        ("Broken.md", "slug is required"),
+        ("Broken.md", "tags must be a string or a list of strings, not 3"),
+        ("future.md", "date 2027-01-01 is in the future"),
+    ]
+
+
+def test_slug_collisions_suffix_and_warn_under_draft_mode(tmp_path: Path) -> None:
+    _write(tmp_path, "a.md", "---\npublish: false\nslug: same\n---\n")
+    _write(tmp_path, "b.md", published_text("same"))
+    _write(tmp_path, "c.md", published_text("same"))
+    _write(tmp_path, "same.md", "---\npublish: false\n---\n")
+
+    entries, warnings = _preview(tmp_path)
+
+    assert {path: (n.page.slug, n.status) for path, n in entries.items()} == {
+        "a.md": ("same-2", EntryStatus.DRAFT),
+        "b.md": ("same", EntryStatus.PUBLISHED),
+        "c.md": ("same-3", EntryStatus.INVALID),
+        "same.md": ("same-4", EntryStatus.DRAFT),
+    }
+    assert warnings == [
+        ("a.md", "slug 'same' is already used by b.md; using 'same-2'"),
+        ("c.md", "slug 'same' is already used by b.md; using 'same-3'"),
+        ("same.md", "slug 'same' is already used by b.md; using 'same-4'"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("data", "reason"),
+    [
+        pytest.param(b"---\na: [\n---\n", "front matter is invalid YAML", id="yaml"),
+        pytest.param(
+            b"---\npublish: yes\n---\n",
+            "publish must be true or false, not 'yes'",
+            id="non-boolean",
+        ),
+        pytest.param(
+            b"---\npublish: false\n---\n\xe9\n", "note is not UTF-8", id="draft-body"
+        ),
+        pytest.param(
+            b"---\npublish: true\n---\n\xe9\n", "note is not UTF-8", id="published-body"
+        ),
+        pytest.param(
+            b"---\npublish: false\ntitle: \xe9\n---\n",
+            "front matter is not UTF-8",
+            id="front-matter",
+        ),
+    ],
+)
+def test_an_unusable_note_is_absent_with_a_warning_under_draft_mode(
+    tmp_path: Path, data: bytes, reason: str
+) -> None:
+    _write(tmp_path, "bad.md", data)
+
+    entries, warnings = _preview(tmp_path)
+
+    assert entries == {}
+    assert len(warnings) == 1
+    assert warnings[0][0] == "bad.md"
+    assert reason in warnings[0][1]

@@ -23,7 +23,7 @@ mdblog build VAULT --output DIR
 ## Preview while writing
 
 ```sh
-mdblog serve VAULT [--output DIR] [--port N]
+mdblog serve VAULT [--output DIR] [--port N] [--drafts]
 ```
 
 `serve` runs Hugo's development server on the vault's site and rebuilds it whenever the vault changes, so a page open in the browser reloads by itself after each save. It listens on 127.0.0.1 only, so only this computer can load the site, and links point at `http://localhost:<port>` with the path from the site's `base_url` kept. Changes inside hidden folders such as `.obsidian/` are ignored.
@@ -32,6 +32,7 @@ If a change makes the vault fail validation, `serve` prints the failures and kee
 
 - `--output DIR` renders into `DIR` and keeps it afterward. `DIR` is checked as `build` checks it. By default `serve` renders into `mdblog-serve-<port>` in the system temporary directory and deletes it on exit.
 - `--port N` serves on port `N` and fails if it is busy. By default `serve` uses port 1313, or a free port when 1313 is busy.
+- `--drafts` also shows notes marked `publish: false`, labeled "Draft", and shows published notes that fail validation, labeled "Invalid", with a banner on every page saying it is a draft preview. Problems print as warnings after each rebuild instead of stopping the preview. See [Draft preview](docs/vault-format.md#draft-preview) for the rules.
 
 ## Development
 

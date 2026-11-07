@@ -22,7 +22,7 @@ A future date fails the build because nothing rebuilds the site when that date a
 
 ## Generated front matter
 
-Each page's Hugo front matter is written from scratch, holding only `title`, `date` and, when there are any, `tags`. The note's body after its front matter reaches Hugo byte for byte, apart from the conversions under [Obsidian syntax](#obsidian-syntax).
+Each page's Hugo front matter is written from scratch, holding only `title`, `date` and, when there are any, `tags`. Under [draft preview](#draft-preview) only, a draft also gets Hugo's `draft: true` and an invalid published note gets the page param `mdblog_invalid`. The note's body after its front matter reaches Hugo byte for byte, apart from the conversions under [Obsidian syntax](#obsidian-syntax).
 
 ## Hugo collisions
 
@@ -115,3 +115,33 @@ The `_site/` folder at the vault's root holds the site's own files. Its notes ar
 The packaged layouts build the home page with the latest 15 entries, an archive of every entry by year at `/posts/`, a page per tag listing its entries, an index of tags at `/tags/`, and a page per entry. No list is paginated.
 
 Each feed is RSS holding the full text of its latest 50 entries: `/index.xml` for the whole site and `/tags/<tag>/index.xml` for each tag.
+
+## Draft preview
+
+`mdblog serve --drafts` previews the site with the notes still being written. `mdblog build` has no such option, so a built site never holds a draft, a label or the banner.
+
+The preview holds every note `mdblog build` would publish, and every draft: a note whose front matter holds the boolean `publish: false`. A note with no `publish` property stays off the preview, whatever its other properties, so journals and reference notes never appear. A note whose front matter does not parse, whose `publish` is not a boolean, or whose text is not UTF-8 is left out with a warning.
+
+A draft needs no properties beyond `publish: false`:
+
+- With no `date`, it takes the file's modification time in the local zone, with its offset. A future date stays as written.
+- With no `slug`, it takes one made from its file name: lowercased, each run of characters other than ASCII letters and digits turned into one hyphen, and hyphens trimmed from the ends, so `My Draft Note.md` gets `my-draft-note`. A name with no ASCII letter or digit, such as one in a non-Latin script, gets `note`.
+- A property that is present but invalid prints a warning naming the note and the property, and the note still renders: an invalid `title` falls back to the file name, an invalid `date` to the modification time, an invalid `slug` to the file-name slug and invalid `tags` to no tags.
+
+A published note that would fail the build renders anyway with the same fallbacks, and prints one warning per failure, link failures included. A future date on it is kept.
+
+Every slug stays unique. A note's own valid slug wins over a generated one, a published note's own slug wins over a draft's, and between two drafts or two published notes, the first by vault path keeps it. Every other note, in path order, adds the first free numeric suffix, such as `my-draft-2`, and prints a warning naming the note holding the slug. A published note whose own slug was taken counts as failing.
+
+A link or embed that would fail the build stays on the page exactly as written, which shows where it is, and prints a warning. This applies to the bio too. A link to a draft goes to the draft's page.
+
+Pages show what each entry is:
+
+- A draft carries a "Draft" label on its page and in every list that shows it: the home page, the archive and the tag pages.
+- A published note that fails in any way carries an "Invalid" label in the same places.
+- Every page carries a banner at the top saying it is a draft preview and not the live site.
+
+The feeds include drafts, but the preview's feeds are never published.
+
+After each rebuild, `serve --drafts` prints the current warnings to stderr as `path: reason` lines, in the format of `mdblog build`'s failures, under a heading that says they are warnings. A failing note never stops or delays the preview. An unusable `_site/mdblog.toml` still stops it until a change fixes the file, as with plain `serve`.
+
+The packaged partials `entry-status.html` and `preview-banner.html` draw the labels and the banner, and a site's `_site/layouts/` can replace them. They read Hugo's `.Draft` for the Draft label, the page param `mdblog_invalid` for the Invalid label, and the site param `mdblog_preview` for the banner.
