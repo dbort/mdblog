@@ -18,6 +18,11 @@ FIXTURE_VAULT = REPO_ROOT / "tests" / "fixtures" / "vault"
         pytest.param(["build", "--output", "out"], "VAULT", id="no-vault"),
         pytest.param(["build", "vault"], "--output", id="no-output"),
         pytest.param(["serve"], "VAULT", id="serve-no-vault"),
+        pytest.param(
+            ["build", "v", "--output", "o", "--drafts"],
+            "unrecognized arguments: --drafts",
+            id="build-drafts",
+        ),
         pytest.param(["serve", "v", "--port", "0"], "from 1 to 65535", id="port-0"),
         pytest.param(["serve", "v", "--port", "x"], "from 1 to 65535", id="port-text"),
     ],

@@ -257,6 +257,16 @@ def test_hugo_argv_listens_on_localhost_with_the_configured_base_url() -> None:
         assert argv[argv.index(flag) + 1] == value
     assert "--buildFuture" in argv
     assert "--disableFastRender" in argv
+    assert "--buildDrafts" not in argv
+
+
+def test_hugo_argv_renders_drafts_only_in_draft_mode() -> None:
+    argv = hugo_server_argv(("hugo",), Path("/src"), Path("/out"), 1400, drafts=True)
+
+    assert argv == [
+        *hugo_server_argv(("hugo",), Path("/src"), Path("/out"), 1400),
+        "--buildDrafts",
+    ]
 
 
 def test_reset_output_empties_the_directory_and_writes_the_marker(
@@ -556,3 +566,56 @@ def test_serve_keeps_a_given_output_directory(tmp_path: Path) -> None:
 
     assert (output / MARKER).is_file()
     assert list(temp.iterdir()) == []
+
+
+def test_draft_loop_starts_on_failing_notes_and_warns_after_each_rebuild(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    vault = _make_vault(tmp_path)
+    (vault / "bad.md").write_text("---\npublish: true\n---\n", encoding="utf-8")
+    (vault / "draft.md").write_text("---\npublish: false\n---\n", encoding="utf-8")
+    source = tmp_path / "source"
+    source.mkdir()
+    starts = Starts(source)
+
+    def batches() -> Iterator[set[str]]:
+        (vault / "bad.md").write_text(published_text("bad"), encoding="utf-8")
+        yield {"changed"}
+
+    watch_loop(vault, source, batches(), starts, lambda: NOW, drafts=True)
+
+    assert len(starts.servers) == 1
+    first = starts.servers[0].source
+    assert "content/posts/bad/index.md" in first
+    assert "content/posts/draft/index.md" in first
+    assert b"mdblog_preview = true" in _hugo_toml(starts.servers[0])
+    assert capsys.readouterr().err == (
+        "mdblog: warnings from these notes, shown in the draft preview anyway:\n"
+        "  bad.md: date is required\n"
+        "  bad.md: slug is required\n"
+    )
+
+
+def test_draft_loop_still_waits_for_a_config_fix(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    vault = _make_vault(tmp_path)
+    config = vault / "_site" / "mdblog.toml"
+    config.write_text("title = 3\n", encoding="utf-8")
+    source = tmp_path / "source"
+    source.mkdir()
+    started: list[int] = []
+    starts = Starts(source)
+
+    def batches() -> Iterator[set[str]]:
+        started.append(len(starts.servers))
+        config.write_text(CONFIG, encoding="utf-8")
+        yield {"changed"}
+
+    watch_loop(vault, source, batches(), starts, lambda: NOW, drafts=True)
+
+    assert started == [0]
+    assert len(starts.servers) == 1
+    err = capsys.readouterr().err
+    assert "mdblog.toml: missing key 'base_url'" in err
+    assert "mdblog: waiting for a change that fixes the vault\n" in err

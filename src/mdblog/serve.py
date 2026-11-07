@@ -22,6 +22,7 @@ from mdblog.build import (
     assemble_source,
     check_output,
     convert_vault,
+    format_failures,
     hugo_env,
 )
 from mdblog.config import ConfigError
@@ -157,18 +158,26 @@ def needs_restart(result: SyncResult) -> bool:
     return bool(result.removed) or any(len(p.parts) == 1 for p in result.written)
 
 
-def rebuild(vault: Path, source: Path, now: datetime) -> SyncResult | None:
+def rebuild(
+    vault: Path, source: Path, now: datetime, drafts: bool = False
+) -> SyncResult | None:
     """Syncs the Hugo source for `vault` into `source`, returning what changed.
 
     On a validation or file error, prints the failure to stderr as `mdblog build` does,
-    leaves `source` untouched and returns None.
+    leaves `source` untouched and returns None. With `drafts`, the source is a draft
+    preview, and any note warnings are printed to stderr in the same format after a
+    sync.
     """
     try:
-        site = convert_vault(vault, now)
+        site = convert_vault(vault, now, drafts)
         with tempfile.TemporaryDirectory(prefix="mdblog-stage-") as staging_name:
             staging = Path(staging_name)
             assemble_source(staging, vault, site)
-            return sync_tree(staging, source)
+            synced = sync_tree(staging, source)
+        if site.warnings:
+            heading = "warnings from these notes, shown in the draft preview anyway"
+            print(f"mdblog: {format_failures(heading, site.warnings)}", file=sys.stderr)
+        return synced
     except (BuildError, ConfigError) as exc:
         print(f"mdblog: {exc}", file=sys.stderr)
     except OSError as exc:
@@ -194,6 +203,7 @@ def watch_loop(
     batches: Iterable[Collection[object]],
     start: Callable[[], Server],
     clock: Callable[[], datetime],
+    drafts: bool = False,
 ) -> None:
     """Rebuilds `source` from `vault` once, then again after each non-empty batch.
 
@@ -201,18 +211,18 @@ def watch_loop(
     after stopping it, whenever `needs_restart` says so. An empty batch only checks the
     server. Returns when `batches` is exhausted, having stopped the server. Raises
     `ServeError` if the server exits on its own. `clock` gives the time each rebuild
-    compares dates to.
+    compares dates to. `drafts` makes every rebuild a draft preview.
     """
     server: Server | None = None
     try:
-        if rebuild(vault, source, clock()) is not None:
+        if rebuild(vault, source, clock(), drafts) is not None:
             server = start()
         else:
             print("mdblog: waiting for a change that fixes the vault", file=sys.stderr)
         for batch in batches:
             if server is not None and (status := server.poll()) is not None:
                 raise ServeError(f"hugo exited with status {status}")
-            if not batch or (synced := rebuild(vault, source, clock())) is None:
+            if not batch or (synced := rebuild(vault, source, clock(), drafts)) is None:
                 continue
             if server is None:
                 server = start()
@@ -229,11 +239,12 @@ def hugo_server_argv(
     source: Path,
     destination: Path,
     port: int,
+    drafts: bool = False,
 ) -> list[str]:
     """The command that serves `source` on `HOST`:`port`, rendering into `destination`.
 
     Links on served pages point at `http://localhost:<port>` with the configured base
-    path kept.
+    path kept. Only with `drafts` does Hugo render pages marked as drafts.
     """
     argv = [
         *hugo,
@@ -256,6 +267,8 @@ def hugo_server_argv(
         # render re-renders only the pages a browser has visited.
         "--disableFastRender",
     ]
+    if drafts:
+        argv.append("--buildDrafts")
     return argv
 
 
@@ -317,6 +330,7 @@ def serve_site(
     output: Path | None = None,
     port: int | None = None,
     hugo: Sequence[str] = ("hugo",),
+    drafts: bool = False,
 ) -> None:
     """Serves `vault`'s site with Hugo until SIGINT or SIGTERM, rebuilding on changes.
 
@@ -325,7 +339,8 @@ def serve_site(
     Hugo listens on 127.0.0.1 only, and links point at `localhost`. Raises `ServeError`
     or `BuildError` for a refusal before serving starts, and `ServeError` if Hugo exits
     on its own. A vault that fails validation never raises: its failures go to stderr
-    and serve waits for a fix.
+    and serve waits for a fix. With `drafts`, the site is a draft preview, and only a
+    `ConfigError` makes serve wait, since note failures are warnings.
     """
     vault = vault.resolve()
     if not vault.is_dir():
@@ -349,7 +364,7 @@ def serve_site(
         def start() -> Server:
             reset_output(destination)
             return start_hugo(
-                hugo_server_argv(hugo, source, destination, chosen), source
+                hugo_server_argv(hugo, source, destination, chosen, drafts), source
             )
 
         batches = watchfiles.watch(
@@ -361,7 +376,14 @@ def serve_site(
             # Signals only set `stopping`; nothing raises KeyboardInterrupt.
             raise_interrupt=False,
         )
-        watch_loop(vault, source, batches, start, lambda: datetime.now().astimezone())
+        watch_loop(
+            vault,
+            source,
+            batches,
+            start,
+            lambda: datetime.now().astimezone(),
+            drafts,
+        )
     finally:
         shutil.rmtree(source, ignore_errors=True)
         if output is None:

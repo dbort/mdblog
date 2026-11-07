@@ -1,0 +1,5 @@
+{{- /* Only draft mode marks a page either way, because vault properties never reach
+       Hugo. A published page renders nothing here, so its markup is unchanged. */ -}}
+{{- if .Draft }}<span class="entry-status entry-status-draft">Draft</span>
+{{- else if .Params.mdblog_invalid }}<span class="entry-status entry-status-invalid">Invalid</span>
+{{- end -}}

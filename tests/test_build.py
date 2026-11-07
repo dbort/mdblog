@@ -16,6 +16,7 @@ from mdblog.build import (
     BuildError,
     build_site,
     check_output,
+    convert_vault,
     hugo_config,
     path_contains,
     swap_in,
@@ -161,6 +162,8 @@ def test_build_passes_a_temporary_source_and_a_filtered_environment(
     destination = Path(str(argv[argv.index("--destination") + 1]))
     assert destination.parent.parent == output.parent.resolve()
     assert Path(str(seen["cwd"])).resolve().is_relative_to(scratch.resolve())
+    # A built site feeds deploys, so Hugo never renders drafts into it.
+    assert "--buildDrafts" not in argv
     env = seen["env"]
     assert isinstance(env, list)
     assert "MDBLOG_KEPT" in env
@@ -605,6 +608,15 @@ def test_hugo_config_round_trips_any_string(value: str) -> None:
     assert table["params"] == {"author": value}
 
 
+def test_hugo_config_turns_on_the_preview_banner_only_for_drafts() -> None:
+    config = SiteConfig(base_url="https://a.test/", title="T", author="A")
+
+    table = tomllib.loads(hugo_config(config, drafts=True))
+
+    assert table["params"] == {"author": "A", "mdblog_preview": True}
+    assert hugo_config(config, drafts=False) == hugo_config(config)
+
+
 @pytest.mark.parametrize("change", ["unpublish", "delete"])
 def test_a_note_that_stops_publishing_leaves_no_file(
     tmp_path: Path, change: str
@@ -958,3 +970,25 @@ def test_heading_ids_match_hugos(tmp_path: Path) -> None:
     page = _page_html(output, "target")
     hugo_ids = re.findall(r'<h[1-6][^>]*\bid="([^"]*)"', page)
     assert hugo_ids == [heading.anchor for heading in headings(HEADINGS)]
+
+
+def test_draft_mode_turns_note_and_bio_failures_into_warnings(tmp_path: Path) -> None:
+    vault = _make_vault(tmp_path)
+    (vault / "typo.md").write_text("---\npublish: yes\n---\n", encoding="utf-8")
+    (vault / "_site" / "bio.md").write_text("[[missing]]\n", encoding="utf-8")
+    now = dt.datetime(2026, 6, 1, tzinfo=dt.UTC)
+
+    site = convert_vault(vault, now, drafts=True)
+
+    assert site.drafts
+    assert sorted(page.note.page.slug for page in site.pages) == [
+        "published",
+        "unpublished",
+    ]
+    assert site.bio is not None
+    assert [(str(w.path), w.reason) for w in site.warnings] == [
+        ("_site/bio.md", "[[missing]]: matches no note or file"),
+        ("typo.md", "publish must be true or false, not 'yes'"),
+    ]
+    with pytest.raises(BuildError, match=r"typo\.md: publish must be true or false"):
+        convert_vault(vault, now)

@@ -283,6 +283,46 @@ main {
   padding: 2rem 0;
 }
 
+/* Draft preview. Only `mdblog serve --drafts` renders these, so the live site never
+   shows them. The tints are 10% and 14% because their contrast drops below AA past
+   about 20%. */
+
+.preview-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  /* Spans the body's side padding, so it reads as page chrome. */
+  margin: 0 -1rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 2px solid var(--callout-question);
+  background: color-mix(in srgb, var(--callout-question) 14%, var(--bg));
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.entry-status {
+  --status: var(--callout-question);
+  padding: 0 0.4em;
+  border: 1px solid var(--status);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--status) 10%, var(--bg));
+  color: var(--status);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.entry-status-invalid {
+  --status: var(--callout-danger);
+}
+
+/* Keeps the label beside the title, with the date still at the far end. */
+.archive-list .entry-status {
+  margin-right: auto;
+}
+
 /* Entry content */
 
 .entry-content {
