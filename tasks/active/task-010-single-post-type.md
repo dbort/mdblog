@@ -40,3 +40,7 @@ Removes the TIL and link entry types, so every published note is the same kind o
 - [x] **Step 4** (`docs/vault-format.md`): remove the `type` and `url` rows, link-entry and per-type feed text, the `params` description under § Generated front matter, and the retyping sentence; add `type` to § Hugo collisions.
 
 ## Review log
+
+### Round 1: APPROVED
+- **N1: Test variable named after removed concept** (`tests/test_site.py:258`, `tests/test_site.py:323`): the `a-link` entry is bound to `unlabeled`, a name that only means something to a reader who remembers labels; `entry` or `a_link` describes it as the code stands. Cosmetic.
+- **N2: Redundant trailing assertion** (`tests/test_site.py:533-534`): the loop already checks every site-feed item's first block against its page's `e-content`, so the extra `a-link` `startswith` check adds little. Harmless.
