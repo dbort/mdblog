@@ -1,7 +1,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-{{- /* A vault's assets/css/main.css replaces this one. The fingerprint in the file name
-       lets a browser cache it until its content changes. */}}
+{{- /* A vault's _site/assets/css/main.css replaces the packaged one. The fingerprint in
+       the file name lets a browser cache it until its content changes. */}}
 {{- with resources.Get "css/main.css" | fingerprint }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">
 {{- end }}
