@@ -46,7 +46,7 @@ Adds `mdblog serve --drafts`, which also shows entries still being written: note
 - [x] **Step 2** (`src/mdblog/links.py`, `src/mdblog/properties.py`, tests): draft-mode conversion that keeps pages whose links failed and reports warnings, and front matter carrying `draft: true` or the invalid param.
 - [x] **Step 3** (`src/mdblog/build.py`, `src/mdblog/serve.py`, `src/mdblog/cli.py`, tests): the `--drafts` flag on `serve`, `--buildDrafts` and the banner param in draft mode only, and warnings printed after each rebuild.
 - [x] **Step 4** (`src/mdblog/theme/layouts/`, `src/mdblog/theme/assets/css/main.css`, tests): the Draft and Invalid labels in entry pages and lists, the banner in the base layout, and their styles in both palettes. Keep every class and element the existing site tests read.
-- [ ] **Step 5** (`docs/vault-format.md`, `README.md`): document draft mode.
+- [x] **Step 5** (`docs/vault-format.md`, `README.md`): document draft mode.
 - [ ] **Step 6**: run the manual QA with the author and record their approval, dated, in `## Advice`.
 
 ## Review log
