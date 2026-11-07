@@ -9,13 +9,13 @@ title: "Serve only on localhost"
 `mdblog serve` drops its `--bind` option and always listens on 127.0.0.1 with Hugo's own `http://localhost:<port>` links. That removes the wildcard refusal, IPv6 bracketing and base-URL rewriting that existed only so a second device on the LAN could load the preview, along with the manual-QA LAN check and its `--lan` plumbing.
 
 ## Must Have
-- [ ] `mdblog serve --help` does not mention `--bind`, and `mdblog serve VAULT --bind 127.0.0.1` exits 2 with argparse's unrecognized-arguments error.
-- [ ] `src/mdblog/serve.py` defines no `check_bind` or `server_base_url`, and `serve_site` takes no `bind` parameter.
-- [ ] The argv from `hugo_server_argv` holds `--bind 127.0.0.1` and never `--baseURL` or `--appendPort=false`; a unit test asserts both.
-- [ ] `choose_port` probes 127.0.0.1 only and takes no address argument; its existing unit tests (requested, busy, default, fallback, TIME_WAIT) pass against the new signature.
-- [ ] `tools/manual_qa.py` has no `serve: LAN access` check, no `--lan` option, no `lan_address`, and `Places` has no LAN field; no check's steps mention a second device or a phone on the network.
-- [ ] `README.md` does not mention `--bind` or loading the site from another device.
-- [ ] `tools/check` passes.
+- [x] `mdblog serve --help` does not mention `--bind`, and `mdblog serve VAULT --bind 127.0.0.1` exits 2 with argparse's unrecognized-arguments error.
+- [x] `src/mdblog/serve.py` defines no `check_bind` or `server_base_url`, and `serve_site` takes no `bind` parameter.
+- [x] The argv from `hugo_server_argv` holds `--bind 127.0.0.1` and never `--baseURL` or `--appendPort=false`; a unit test asserts both.
+- [x] `choose_port` probes 127.0.0.1 only and takes no address argument; its existing unit tests (requested, busy, default, fallback, TIME_WAIT) pass against the new signature.
+- [x] `tools/manual_qa.py` has no `serve: LAN access` check, no `--lan` option, no `lan_address`, and `Places` has no LAN field; no check's steps mention a second device or a phone on the network.
+- [x] `README.md` does not mention `--bind` or loading the site from another device.
+- [x] `tools/check` passes.
 
 ## Advice
 - User decisions (2026-11-07): serve is localhost-only. Previewing on a real phone before deployment is given up: phone-width manual QA uses the browser's device toolbar at 375px, and checks on a real phone wait for the deployment milestone's preview URL. Do not add a replacement such as a documented SSH or Tailscale forward.
