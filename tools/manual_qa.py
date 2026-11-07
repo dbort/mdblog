@@ -1,8 +1,8 @@
 """manual_qa: walks the author through the checks no automated test can make.
 
 Each check runs its command on its own scratch copy of the fixture vault, prints the
-steps, and records the author's verdict and notes. The log written at the end is what the
-author hands back to the agent running `/work`.
+steps, and records the author's verdict and notes. The log written at the end is what
+the author hands back to the agent running `/work`.
 """
 
 import argparse

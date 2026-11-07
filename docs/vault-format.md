@@ -136,7 +136,7 @@ A link or embed that would fail the build stays on the page exactly as written, 
 
 Pages show what each entry is:
 
-- A draft carries a "Draft" label on its page and in every list that shows it: the home page, the archive and its tag pages.
+- A draft carries a "Draft" label on its page and in every list that shows it: the home page, the archive and the tag pages.
 - A published note that fails in any way carries an "Invalid" label in the same places.
 - Every page carries a banner at the top saying it is a draft preview and not the live site.
 

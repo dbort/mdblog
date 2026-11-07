@@ -309,9 +309,10 @@ def convert_notes(
     Comments are removed first, so a heading or block ID inside one is no link target,
     and block IDs next, so none stays in a heading's text. Then a standard Markdown
     link or image to an internal destination fails, and wikilinks convert against
-    every file in the selection. Unpublished notes are never read. `bio` is the text of
-    `BIO_PATH`, which renders on the home page and is no link target itself; its
-    failures name `BIO_PATH`.
+    every file in the selection. Notes outside `selection.published`, which holds the
+    drafts too when the selection was made with `drafts`, are never read. `bio` is the
+    text of `BIO_PATH`, which renders on the home page and is no link target itself;
+    its failures name `BIO_PATH`.
 
     With `drafts`, a page or bio with failures is kept with each failed link as
     written, its failures are still returned, and a PUBLISHED note among them becomes
