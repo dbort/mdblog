@@ -10,24 +10,6 @@ M1 to M5 make up v1. M6 and M7 follow it. Each milestone's decisions are settled
 
 Search, comments, series, scheduled publishing, and packaging mdblog for other people's sites are outside v1. Each site's settings live in its own vault, so in the long run this repo can host multiple independent sites.
 
-## M3: Site design
-
-**Status:** Tasks task-006, task-010, task-007
-
-- [x] task-006: Build the site's pages, feeds and entry markup (blocked on task-004)
-- [x] task-010: Make every entry a plain post
-- [ ] task-007: Give the site its visual design and 404 page (blocked on task-006, task-008, task-010)
-
-Build the reader-facing site from the default Hugo layouts in the `mdblog` package, using fixtures until real content arrives.
-
-- One entry type: every published note is a post at `/posts/<slug>/`.
-- A home page with the bio from the vault's `_site/bio.md`, when it has one, and the latest 15 entries, plus a full archive by year and tag pages.
-- Full-text RSS feeds of the latest 50 entries: one for the site and one per tag, with the site feed advertised from each page's `<head>`. Hugo generates these as `index.xml`, newest first, and M6 and M7 can read them too.
-- A visual design of its own in plain CSS, with no Node: system fonts, light and dark palettes that follow the reader's system, and syntax highlighting in both. It works at phone width, and there is a 404 page.
-- h-entry microformats in entry templates and lists, so M6 and M7 need no template retrofit.
-
-**Done when:** a fixture build generates every page type, the tests assert each entry's date, tags, permalink and h-entry markup, `index.xml` parses as RSS and lists the latest entries, and each tag feed lists only that tag's entries.
-
 ## M3.1: Local preview
 
 **Status:** Tasks task-008, task-009
