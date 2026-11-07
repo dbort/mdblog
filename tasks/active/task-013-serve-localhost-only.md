@@ -36,3 +36,7 @@ title: "Serve only on localhost"
 - [x] **Step 4** (`README.md`): drop `[--bind ADDRESS]` from the usage line and the `--bind` bullet; state that serve listens on 127.0.0.1 only.
 
 ## Review log
+
+### Round 1: APPROVED
+- **N1: Unwrapped docstring lines** (`src/mdblog/serve.py:200`, `src/mdblog/serve.py:324`): the edited `watch_loop` and `serve_site` docstrings each left one long line (142 and 132 characters) while the rest of the paragraph keeps the old wrap width. The gate passes because ruff ignores E501 and does not reflow docstrings.
+- **N2: Dropped assertion where the Plan asked for a replacement** (`tests/test_serve.py:368`): `test_loop_starts_once_and_syncs_an_edit_without_restarting` deleted its `base_url` assertion without a `hugo.toml` check in its place. Coverage is still adequate, because the renamed restart test checks `/blog/` and `/journal/` in each server's synced `hugo.toml`.
