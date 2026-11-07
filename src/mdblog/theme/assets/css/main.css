@@ -435,9 +435,11 @@ summary.callout-title {
 
 /*
  * Syntax highlighting. Each palette is the output of the command on its first line,
- * with the page-background `.bg` rule dropped and these colors raised to WCAG AA:
- * light line numbers #7f7f7f to #656d76, NameBuiltinPseudo #6a737d to #59636e and
- * TextWhitespace #fff to inherit; dark line numbers and TextWhitespace to #8b949e.
+ * with the page-background `.bg` rule dropped and these colors changed to reach WCAG
+ * AA: light line numbers #7f7f7f to #656d76, NameBuiltinPseudo #6a737d to #59636e,
+ * TextWhitespace #fff to inherit and the LineHighlight background #dedede to #eceff2;
+ * dark line numbers and TextWhitespace to #8b949e and the LineHighlight background
+ * #6e7681 to #21262d. Every token color meets AA on a highlighted line too.
  */
 
 /* Generated using: hugo gen chromastyles --style=github */
@@ -446,7 +448,7 @@ summary.callout-title {
 /* LineLink */ .chroma .lnlinks { outline:none;text-decoration:none;color:inherit }
 /* LineTableTD */ .chroma .lntd { vertical-align:top;padding:0;margin:0;border:0; }
 /* LineTable */ .chroma .lntable { border-spacing:0;padding:0;margin:0;border:0; }
-/* LineHighlight */ .chroma .hl { background-color:#dedede }
+/* LineHighlight */ .chroma .hl { background-color:#eceff2 }
 /* LineNumbersTable */ .chroma .lnt { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#656d76 }
 /* LineNumbers */ .chroma .ln { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#656d76 }
 /* Line */ .chroma .line { display:flex; }
@@ -521,7 +523,7 @@ summary.callout-title {
   /* LineLink */ .chroma .lnlinks { outline:none;text-decoration:none;color:inherit }
   /* LineTableTD */ .chroma .lntd { vertical-align:top;padding:0;margin:0;border:0; }
   /* LineTable */ .chroma .lntable { border-spacing:0;padding:0;margin:0;border:0; }
-  /* LineHighlight */ .chroma .hl { background-color:#6e7681 }
+  /* LineHighlight */ .chroma .hl { background-color:#21262d }
   /* LineNumbersTable */ .chroma .lnt { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#8b949e }
   /* LineNumbers */ .chroma .ln { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#8b949e }
   /* Line */ .chroma .line { display:flex; }

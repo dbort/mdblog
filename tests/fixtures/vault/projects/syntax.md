@@ -33,7 +33,7 @@ Some ==FIXTURE-HIGHLIGHT== text. ^syntax-block
 ```python
 def greet(name: str) -> str:
     # Builds a greeting long enough that this line has to scroll inside its own box at phone width.
-    return f"Hello, {name}!" if name else None
+    return f"Hello, {name}!"
 ```
 
 | Name | Kind | Default | Required | Description of what this setting does on the site |
