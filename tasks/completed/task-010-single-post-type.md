@@ -9,17 +9,17 @@ title: "Make every entry a plain post"
 Removes the TIL and link entry types, so every published note is the same kind of post. The `type` property is no longer required and has no effect, and neither does `url`. The site loses its per-type feeds, the TIL and Link labels and the link-entry markup, and the code and docs that supported them go too.
 
 ## Must Have
-- [ ] A published note with no `type` property builds. A note carrying `type: til`, `type: nonsense`, `url: not a url` or a null `type` builds output byte-identical to the same note without those lines.
-- [ ] `validate_properties` reads only `title`, `date`, `slug` and `tags`, and its failures never mention `type` or `url`.
-- [ ] Generated Hugo front matter holds only `title`, `date` and `tags` when there are any. It holds no `params` key.
-- [ ] `type` appears in the Hugo-collision test's colliding note and in the `docs/vault-format.md` § Hugo collisions table, with what Hugo would do with it (select a different layout type).
-- [ ] A fixture build contains exactly two kinds of feed: `/index.xml` and `/tags/<tag>/index.xml`. No path under `types/` exists in the output, and `hugo_config` lists only `html` and `rss` as home outputs and defines no custom output format.
-- [ ] No page in a fixture build contains `entry-label`, `u-bookmark-of` or `e-content entry-content` inside a list item. Every list item holds a `p-summary`, and every feed item's description starts with the entry's own content.
-- [ ] Each page's `<head>` advertises `/index.xml`, and a tag page also advertises its own tag feed. No other feed is advertised.
-- [ ] `src/mdblog/theme/layouts/home.postfeed.xml`, `home.tilfeed.xml`, `home.linkfeed.xml` and `_partials/entry-label.html` no longer exist.
-- [ ] `git grep -nE 'entry_type|link_url|ENTRY_TYPES|LINK_ENTRY|tilfeed|linkfeed|postfeed|u-bookmark-of' -- src tests docs README.md` prints nothing.
-- [ ] `docs/vault-format.md` lists no `type` or `url` property row, describes no per-type feed or link entry, and says only folder and file name have no effect on a page's URL.
-- [ ] `tools/check` exits 0 on the finished branch.
+- [x] A published note with no `type` property builds. A note carrying `type: til`, `type: nonsense`, `url: not a url` or a null `type` builds output byte-identical to the same note without those lines.
+- [x] `validate_properties` reads only `title`, `date`, `slug` and `tags`, and its failures never mention `type` or `url`.
+- [x] Generated Hugo front matter holds only `title`, `date` and `tags` when there are any. It holds no `params` key.
+- [x] `type` appears in the Hugo-collision test's colliding note and in the `docs/vault-format.md` § Hugo collisions table, with what Hugo would do with it (select a different layout type).
+- [x] A fixture build contains exactly two kinds of feed: `/index.xml` and `/tags/<tag>/index.xml`. No path under `types/` exists in the output, and `hugo_config` lists only `html` and `rss` as home outputs and defines no custom output format.
+- [x] No page in a fixture build contains `entry-label`, `u-bookmark-of` or `e-content entry-content` inside a list item. Every list item holds a `p-summary`, and every feed item's description starts with the entry's own content.
+- [x] Each page's `<head>` advertises `/index.xml`, and a tag page also advertises its own tag feed. No other feed is advertised.
+- [x] `src/mdblog/theme/layouts/home.postfeed.xml`, `home.tilfeed.xml`, `home.linkfeed.xml` and `_partials/entry-label.html` no longer exist.
+- [x] `git grep -nE 'entry_type|link_url|ENTRY_TYPES|LINK_ENTRY|tilfeed|linkfeed|postfeed|u-bookmark-of' -- src tests docs README.md` prints nothing.
+- [x] `docs/vault-format.md` lists no `type` or `url` property row, describes no per-type feed or link entry, and says only folder and file name have no effect on a page's URL.
+- [x] `tools/check` exits 0 on the finished branch.
 
 ## Advice
 - User decisions (2026-11-06): one entry type. `type` is ignored on every note like any other unread property, with no failure for old values, since there is no real content yet. The roadmap and task-007 and task-009 are already rewritten for this; leave them alone.
