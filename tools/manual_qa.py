@@ -326,7 +326,10 @@ def _commit() -> str:
         ).stdout.strip()
 
     dirty = " (uncommitted changes)" if git("status", "--porcelain") else ""
-    return f"{git('rev-parse', '--short', 'HEAD')} on {git('branch', '--show-current')}{dirty}"
+    # The author runs QA on a detached HEAD, where there is no branch to name.
+    branch = git("branch", "--show-current")
+    on_branch = f" on {branch}" if branch else ""
+    return f"{git('rev-parse', '--short', 'HEAD')}{on_branch}{dirty}"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
