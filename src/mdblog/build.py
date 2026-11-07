@@ -12,7 +12,7 @@ from pathlib import Path
 
 from mdblog.config import SITE_DIR, SiteConfig, load_config
 from mdblog.links import Bio, Page, convert_notes
-from mdblog.properties import ENTRY_TYPES, front_matter
+from mdblog.properties import front_matter
 from mdblog.publish import NoteFailure, read_bio, select_notes
 
 MARKER = ".mdblog-output"
@@ -82,28 +82,11 @@ def _toml_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=False).replace("\x7f", "\\u007f")
 
 
-def _type_feed_format(entry_type: str) -> str:
-    # The theme renders each of these formats from its `home.<format>.xml` layout.
-    return f"{entry_type}feed"
-
-
 def hugo_config(config: SiteConfig) -> str:
     """The text of a `hugo.toml` that applies `config` and the packaged theme.
 
-    The site renders a feed at `/index.xml`, one per entry type at
-    `/types/<type>/index.xml` and one per tag, and no other feed.
+    The site renders a feed at `/index.xml` and one per tag, and no other feed.
     """
-    type_formats = [_type_feed_format(entry_type) for entry_type in ENTRY_TYPES]
-    home_outputs = ", ".join(
-        _toml_string(name) for name in ("html", "rss", *type_formats)
-    )
-    format_tables = "".join(
-        f"\n[outputFormats.{_type_feed_format(entry_type)}]\n"
-        'mediaType = "application/rss+xml"\n'
-        'baseName = "index"\n'
-        f"path = {_toml_string(f'types/{entry_type}')}\n"
-        for entry_type in ENTRY_TYPES
-    )
     return (
         f"baseURL = {_toml_string(config.base_url)}\n"
         f"title = {_toml_string(config.title)}\n"
@@ -122,12 +105,11 @@ def hugo_config(config: SiteConfig) -> str:
         'tag = "tags"\n'
         "\n"
         "[outputs]\n"
-        f"home = [{home_outputs}]\n"
+        'home = ["html", "rss"]\n'
         'section = ["html"]\n'
         'taxonomy = ["html"]\n'
         'term = ["html", "rss"]\n'
         'page = ["html"]\n'
-        f"{format_tables}"
         "\n"
         # The feed layouts read the limit here, so a site's own feed layout can too.
         "[services.rss]\n"

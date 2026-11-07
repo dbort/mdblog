@@ -72,15 +72,7 @@ def test_serve_follows_vault_changes_and_cleans_up(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
-    # The fixture's link note points at example.test, which would hide a leaked base URL.
-    link_note = vault / "projects" / "a-link.md"
-    link_note.write_text(
-        link_note.read_text(encoding="utf-8").replace(
-            "example.test", "elsewhere.example"
-        ),
-        encoding="utf-8",
-    )
-    til = vault / "projects" / "til-one.md"
+    offset_note = vault / "projects" / "offset-time.md"
     temp = tmp_path / "temp"
     temp.mkdir()
     port = _free_port()
@@ -104,7 +96,7 @@ def test_serve_follows_vault_changes_and_cleans_up(tmp_path: Path) -> None:
     try:
         _wait(
             "the first page",
-            _serves(f"{site}posts/til-one/", "FIXTURE-TIL-BODY"),
+            _serves(f"{site}posts/offset-time/", "FIXTURE-OFFSET-BODY"),
             STARTUP_TIMEOUT,
         )
         assert (output / MARKER).is_file()
@@ -116,11 +108,13 @@ def test_serve_follows_vault_changes_and_cleans_up(tmp_path: Path) -> None:
         ]
         assert leaks == []
 
-        til.write_text(
-            til.read_text(encoding="utf-8").replace("FIXTURE-TIL-BODY", "EDITED-BODY"),
+        offset_note.write_text(
+            offset_note.read_text(encoding="utf-8").replace(
+                "FIXTURE-OFFSET-BODY", "EDITED-BODY"
+            ),
             encoding="utf-8",
         )
-        _wait("an edit", _serves(f"{site}posts/til-one/", "EDITED-BODY"))
+        _wait("an edit", _serves(f"{site}posts/offset-time/", "EDITED-BODY"))
 
         added = vault / "added.md"
         added.write_text(published_text("added", body="ADDED-BODY\n"), "utf-8")
@@ -132,13 +126,13 @@ def test_serve_follows_vault_changes_and_cleans_up(tmp_path: Path) -> None:
             "the failure",
             lambda: "bad.md: publish must be true or false" in stderr_path.read_text(),
         )
-        assert _serves(f"{site}posts/til-one/", "EDITED-BODY")()
+        assert _serves(f"{site}posts/offset-time/", "EDITED-BODY")()
 
         bad.unlink()
         added.unlink()
         _wait("a removed note", lambda: _get(f"{site}posts/added/")[0] == 404)
         assert not (output / "posts" / "added").exists()
-        assert _serves(f"{site}posts/til-one/", "EDITED-BODY")()
+        assert _serves(f"{site}posts/offset-time/", "EDITED-BODY")()
 
         config.write_text(
             config.read_text(encoding="utf-8").replace("mdblog fixture", "NEW-TITLE"),

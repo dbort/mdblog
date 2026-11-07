@@ -20,13 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_VAULT = REPO_ROOT / "tests" / "fixtures" / "vault"
 FIXTURE_URL = "https://example.org/"
 AUTHOR = "Fixture Author"
-LINK_URL = "https://example.test/elsewhere"
-FEEDS = (
-    "index.xml",
-    "types/post/index.xml",
-    "types/til/index.xml",
-    "types/link/index.xml",
-)
+SITE_FEED = FIXTURE_URL + "index.xml"
 VOID_ELEMENTS = frozenset(("meta", "link", "img", "br", "hr", "input", "source", "wbr"))
 
 
@@ -185,14 +179,15 @@ def _entry(page: Element, slug: str) -> Element:
     return found[0]
 
 
-def _labels(items: list[Element]) -> list[str]:
-    return [
-        " ".join(label.text for label in item.all(cls="entry-label")) for item in items
-    ]
-
-
-# Newest first. til-one's 23:30 at -07:00 is after syntax's UTC midnight.
-NEWEST_FIRST = ("long-post", "til-one", "syntax", "a-link", "first-note", "old-til")
+# Newest first. offset-time's 23:30 at -07:00 is after syntax's UTC midnight.
+NEWEST_FIRST = (
+    "long-post",
+    "offset-time",
+    "syntax",
+    "link-target",
+    "first-note",
+    "last-year",
+)
 
 
 def test_fixture_vault_builds_end_to_end(site: Site) -> None:
@@ -201,13 +196,13 @@ def test_fixture_vault_builds_end_to_end(site: Site) -> None:
         b"The fixture note reached the generated page."
         in files["posts/first-note/index.html"]
     )
-    assert b"The fixture link note." in files["posts/a-link/index.html"]
+    assert b"The fixture link target." in files["posts/link-target/index.html"]
     assert "tags/project/alpha/index.html" in files
     syntax = files["posts/syntax/index.html"].decode("utf-8")
     for fragment in (
         '<a href="/posts/first-note/">the first note</a>',
-        '<a href="/posts/a-link/#details">a-link#Details</a>',
-        '<a href="/posts/a-link/">projects/a-link#^detail-block</a>',
+        '<a href="/posts/link-target/#details">link-target#Details</a>',
+        '<a href="/posts/link-target/">projects/link-target#^detail-block</a>',
         '<a href="/posts/syntax/#linking-out">#Linking Out</a>',
         '<img src="/posts/syntax/diagram.svg" alt="diagram.svg" width="120" height="80">',
         '<details class="callout callout-tip">',
@@ -217,7 +212,7 @@ def test_fixture_vault_builds_end_to_end(site: Site) -> None:
         assert fragment in syntax, fragment
     assert "^syntax-block" not in syntax
     assert b"FIXTURE-DIAGRAM" in files["posts/syntax/diagram.svg"]
-    assert "^detail-block" not in files["posts/a-link/index.html"].decode("utf-8")
+    assert "^detail-block" not in files["posts/link-target/index.html"].decode("utf-8")
     for needle in (
         b"UNPUBLISHED-COMMENT",
         b"UNPUBLISHED-UNUSED-IMAGE",
@@ -255,7 +250,7 @@ def test_home_lists_entries_newest_first_then_links_the_archive(site: Site) -> N
     assert main.hrefs()[-1] == "/posts/"
 
 
-def test_lists_show_a_post_or_til_with_its_summary_and_metadata(site: Site) -> None:
+def test_lists_show_each_entry_with_its_summary_and_metadata(site: Site) -> None:
     for name in ("index.html", "tags/node.js/index.html"):
         post = _entry(site.page(name), "long-post")
         title = post.one(cls="p-name")
@@ -265,28 +260,21 @@ def test_lists_show_a_post_or_til_with_its_summary_and_metadata(site: Site) -> N
         assert summary.text == "FIXTURE-BEFORE-MORE & more."
         assert post.one("time").text == "January 4, 2026"
         assert [tag.text for tag in post.all(cls="p-category")] == ["node.js"]
-        til = _entry(site.page(name), "til-one")
-        assert til.one(cls="p-summary").text == "FIXTURE-TIL-BODY."
+        offset = _entry(site.page(name), "offset-time")
+        assert offset.one(cls="p-summary").text == "FIXTURE-OFFSET-BODY."
+    target = _entry(site.page("index.html"), "link-target")
+    assert target.one(cls="p-name").hrefs() == ["/posts/link-target/"]
+    assert target.one(cls="p-summary").text.startswith("The fixture link target.")
 
 
-def test_lists_show_a_link_entry_with_its_full_commentary(site: Site) -> None:
-    link = _entry(site.page("index.html"), "a-link")
-    assert link.one(cls="p-name").hrefs() == [LINK_URL]
-    assert link.one(cls="u-bookmark-of").attrs["href"] == LINK_URL
-    content = link.one(cls="e-content").text
-    assert "The fixture link note." in content
-    assert "A paragraph with a block ID." in content
-    assert link.one(cls="u-url").one("time").text == "January 2, 2026"
-    assert link.all(cls="p-summary") == []
-
-
-def test_every_list_labels_tils_and_links_and_not_posts(site: Site) -> None:
-    home = site.page("index.html").one(cls="h-feed").all(cls="h-entry")
-    assert _labels(home) == ["", "TIL", "", "Link", "", "TIL"]
-    tag = site.page("tags/node.js/index.html").one(cls="h-feed").all(cls="h-entry")
-    assert _labels(tag) == ["", "TIL"]
-    archive = site.page("posts/index.html").one("main").all("li")
-    assert _labels(archive) == ["", "TIL", "", "Link", "", "TIL"]
+def test_no_page_labels_an_entry_or_marks_up_another_url(site: Site) -> None:
+    for name in site.html_pages():
+        page = site.page(name)
+        assert page.all(cls="entry-label") == [], name
+        url_classes = {
+            cls for element in page.iter() for cls in element.classes if cls[:2] == "u-"
+        }
+        assert url_classes <= {"u-url"}, name
 
 
 def test_archive_lists_every_entry_under_year_headings(site: Site) -> None:
@@ -297,12 +285,12 @@ def test_archive_lists_every_entry_under_year_headings(site: Site) -> None:
     assert lines == [
         [
             "Tips & Tricks January 4, 2026",
-            "TIL Fixture TIL January 2, 2026",
+            "Offset time January 2, 2026",
             "syntax January 3, 2026",
-            "Link a-link January 2, 2026",
+            "link-target January 2, 2026",
             "first-note January 1, 2026",
         ],
-        ["TIL An older TIL June 1, 2025"],
+        ["A note from last year June 1, 2025"],
     ]
     assert main.all(cls="p-summary") == []
     assert main.all(cls="p-category") == []
@@ -314,7 +302,7 @@ def test_tag_pages_list_their_entries_and_the_index_lists_every_tag(
     tag = site.page("tags/node.js/index.html").one(cls="h-feed")
     assert tag.one("h1").text == "node.js"
     urls = [entry.one(cls="u-url").attrs["href"] for entry in tag.all(cls="h-entry")]
-    assert urls == _posts("long-post", "til-one")
+    assert urls == _posts("long-post", "offset-time")
     index = site.page("tags/index.html").one("main")
     assert [(item.hrefs(), item.text) for item in index.all("li")] == [
         (["/tags/node.js/"], "node.js (2)"),
@@ -329,7 +317,6 @@ def test_a_nested_tags_parent_gets_no_page(site: Site) -> None:
 
 def test_entry_page_shows_the_entry_and_no_other_entry_links(site: Site) -> None:
     entry = site.page("posts/long-post/index.html").one("main").one(cls="h-entry")
-    assert entry.all(cls="entry-label") == []
     assert entry.one("h1").text == "Tips & Tricks"
     assert entry.one("time").text == "January 4, 2026"
     content = entry.one(cls="e-content")
@@ -340,15 +327,12 @@ def test_entry_page_shows_the_entry_and_no_other_entry_links(site: Site) -> None
         "https://example.org/posts/long-post/",
         "/tags/node.js/",
     ]
-    til = site.page("posts/til-one/index.html").one(cls="h-entry")
-    assert til.one(cls="entry-label").text == "TIL"
-    link = site.page("posts/a-link/index.html").one(cls="h-entry")
-    assert link.one(cls="entry-label").text == "Link"
-    assert link.one("h1").hrefs() == [LINK_URL]
+    target = site.page("posts/link-target/index.html").one(cls="h-entry")
+    assert target.one("h1").hrefs() == ["/posts/link-target/"]
 
 
 def test_dates_show_the_day_in_their_own_offset(site: Site) -> None:
-    time = site.page("posts/til-one/index.html").one("time")
+    time = site.page("posts/offset-time/index.html").one("time")
     assert time.attrs["datetime"] == "2026-01-02T23:30:00-07:00"
     assert time.text == "January 2, 2026"
 
@@ -383,7 +367,7 @@ def _check_h_entry(entry: Element, slug: str, tags: list[str]) -> None:
 
 TAGS = {
     "long-post": ["node.js"],
-    "til-one": ["node.js"],
+    "offset-time": ["node.js"],
     "first-note": ["project/alpha"],
 }
 
@@ -394,14 +378,12 @@ def test_lists_and_entry_pages_carry_h_entry_markup(site: Site) -> None:
         for entry in feed.all(cls="h-entry"):
             slug = urlsplit(entry.one(cls="u-url").attrs["href"]).path.split("/")[2]
             _check_h_entry(entry, slug, TAGS.get(slug, []))
-            content = "e-content" if slug == "a-link" else "p-summary"
-            assert len(entry.all(cls=content)) == 1, (name, slug)
+            assert len(entry.all(cls="p-summary")) == 1, (name, slug)
+            assert entry.all(cls="e-content") == [], (name, slug)
     for slug in NEWEST_FIRST:
         entry = site.page(f"posts/{slug}/index.html").one(cls="h-entry")
         _check_h_entry(entry, slug, TAGS.get(slug, []))
         assert len(entry.all(cls="e-content")) == 1
-    link = site.page("posts/a-link/index.html").one(cls="h-entry")
-    assert link.one(cls="u-bookmark-of").attrs["href"] == LINK_URL
 
 
 def test_every_page_has_the_header_and_footer(site: Site) -> None:
@@ -472,41 +454,31 @@ def _advertised(head: Element) -> list[str]:
     ]
 
 
-def test_every_page_advertises_the_feeds(site: Site) -> None:
-    every = [FIXTURE_URL + feed for feed in FEEDS]
+def test_every_page_advertises_the_site_feed(site: Site) -> None:
     for name in site.html_pages():
         advertised = _advertised(site.page(name).one("head"))
         if name.startswith("tags/") and name != "tags/index.html":
             own = FIXTURE_URL + name.removesuffix("index.html") + "index.xml"
-            assert advertised == [own, *every], name
+            assert advertised == [own, SITE_FEED], name
         else:
-            assert advertised == every, name
+            assert advertised == [SITE_FEED], name
 
 
-def test_feeds_exist_for_the_site_each_type_and_each_tag_only(site: Site) -> None:
+def test_feeds_exist_for_the_site_and_each_tag_only(site: Site) -> None:
     feeds = sorted(name for name in site.files() if name.endswith(".xml"))
-    assert feeds == sorted(
-        [
-            *FEEDS,
-            "sitemap.xml",
-            "tags/node.js/index.xml",
-            "tags/project/alpha/index.xml",
-        ]
-    )
-    assert not [
-        name
-        for name in site.files()
-        if name.startswith(("types/", "categories/")) and name.endswith(".html")
+    assert feeds == [
+        "index.xml",
+        "sitemap.xml",
+        "tags/node.js/index.xml",
+        "tags/project/alpha/index.xml",
     ]
+    assert not (site.root / "types").exists()
     assert not (site.root / "categories").exists()
 
 
 def test_feed_channels_name_their_scope(site: Site) -> None:
     expected = {
         "index.xml": ("mdblog fixture", FIXTURE_URL),
-        "types/post/index.xml": ("mdblog fixture: Posts", FIXTURE_URL),
-        "types/til/index.xml": ("mdblog fixture: TILs", FIXTURE_URL),
-        "types/link/index.xml": ("mdblog fixture: Links", FIXTURE_URL),
         "tags/node.js/index.xml": (
             "mdblog fixture: node.js",
             FIXTURE_URL + "tags/node.js/",
@@ -520,13 +492,8 @@ def test_feed_channels_name_their_scope(site: Site) -> None:
 
 def test_feeds_list_their_entries_newest_first(site: Site) -> None:
     assert _item_links(site.feed("index.xml")) == _posts(*NEWEST_FIRST)
-    assert _item_links(site.feed("types/post/index.xml")) == _posts(
-        "long-post", "syntax", "first-note"
-    )
-    assert _item_links(site.feed("types/til/index.xml")) == _posts("til-one", "old-til")
-    assert _item_links(site.feed("types/link/index.xml")) == _posts("a-link")
     assert _item_links(site.feed("tags/node.js/index.xml")) == _posts(
-        "long-post", "til-one"
+        "long-post", "offset-time"
     )
 
 
@@ -555,13 +522,21 @@ def test_feed_items_hold_full_text_with_absolute_urls(site: Site) -> None:
     ]
 
 
-def test_feed_items_of_link_entries_start_with_the_link(site: Site) -> None:
-    for name in ("index.xml", "types/link/index.xml"):
-        item = _item(site.feed(name), "a-link")
-        assert _text(item, "guid") == _posts("a-link")[0]
-        html = _text(item, "description")
-        assert html.startswith(f'<p><a href="{LINK_URL}">a-link</a></p>')
-        assert "The fixture link note." in html
+def _first_block(element: Element) -> tuple[str, str]:
+    first = next(child for child in element.children if isinstance(child, Element))
+    return first.tag, first.text
+
+
+def test_feed_items_start_with_the_entrys_own_content(site: Site) -> None:
+    for name in ("index.xml", "tags/node.js/index.xml"):
+        for item in _items(site.feed(name)):
+            slug = urlsplit(_text(item, "link")).path.split("/")[2]
+            page = site.page(f"posts/{slug}/index.html")
+            html = _text(item, "description")
+            assert html.startswith("<"), slug
+            assert _first_block(parse_html(html)) == _first_block(
+                page.one(cls="e-content")
+            ), slug
 
 
 def test_static_files_reach_the_output(site: Site) -> None:
@@ -572,17 +547,6 @@ def test_home_and_feeds_hold_only_their_latest_entries(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     (vault / "_site").mkdir(parents=True)
     shutil.copy(FIXTURE_VAULT / "_site" / "mdblog.toml", vault / "_site")
-    # The newest 51 entries are posts, so the oldest TIL and link fall outside the
-    # site feed's limit.
-    (vault / "til.md").write_text(
-        published_text("til", entry_type="til", date="2025-01-01"), encoding="utf-8"
-    )
-    (vault / "link.md").write_text(
-        published_text(
-            "link", entry_type="link", date="2025-01-02", extra=f"url: {LINK_URL}\n"
-        ),
-        encoding="utf-8",
-    )
     first_day = dt.date(2026, 1, 1)
     posts = [f"post-{number:02}" for number in range(51, 0, -1)]
     for slug in posts:
@@ -597,9 +561,6 @@ def test_home_and_feeds_hold_only_their_latest_entries(tmp_path: Path) -> None:
     home_urls = [entry.one(cls="u-url").attrs["href"] for entry in home]
     assert home_urls == _posts(*posts[:15])
     assert _item_links(built.feed("index.xml")) == _posts(*posts[:50])
-    assert _item_links(built.feed("types/post/index.xml")) == _posts(*posts[:50])
-    assert _item_links(built.feed("types/til/index.xml")) == _posts("til")
-    assert _item_links(built.feed("types/link/index.xml")) == _posts("link")
 
 
 def _internal_urls(site: Site, origin: str) -> list[str]:
@@ -622,8 +583,7 @@ def _internal_urls(site: Site, origin: str) -> list[str]:
                 urls.append(element.text)
             elif "href" in element.attrib:
                 urls.append(element.attrib["href"])
-    # The fixture's link entry points outside the site on the same host.
-    return [url for url in urls if url.startswith(("/", origin)) and url != LINK_URL]
+    return [url for url in urls if url.startswith(("/", origin))]
 
 
 def test_a_site_under_a_sub_path_links_only_within_it(tmp_path: Path) -> None:

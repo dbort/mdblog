@@ -183,10 +183,7 @@ def test_build_supplies_the_packaged_theme(tmp_path: Path) -> None:
         "_partials",
         "baseof.html",
         "home.html",
-        "home.linkfeed.xml",
-        "home.postfeed.xml",
         "home.rss.xml",
-        "home.tilfeed.xml",
         "page.html",
         "section.html",
         "taxonomy.html",
@@ -264,7 +261,7 @@ def test_build_names_every_bad_note_and_leaves_the_output(tmp_path: Path) -> Non
 def test_build_reports_property_failures_and_leaves_the_output(tmp_path: Path) -> None:
     vault = _make_vault(tmp_path)
     (vault / "no-date.md").write_text(
-        "---\npublish: true\nslug: no-date\ntype: post\n---\n", encoding="utf-8"
+        "---\npublish: true\nslug: no-date\n---\n", encoding="utf-8"
     )
     (vault / "twin-one.md").write_text(published_text("twin"), encoding="utf-8")
     (vault / "twin-two.md").write_text(published_text("twin"), encoding="utf-8")
@@ -384,8 +381,9 @@ def test_properties_hugo_would_read_do_not_change_the_site(tmp_path: Path) -> No
                 "headless: true\n"
                 "build: {render: never, list: never}\n"
                 "layout: other\n"
+                "type: other\n"
                 "draft: true\n"
-                "cascade: {params: {entry_type: other}}\n"
+                "cascade: {params: {author: other}}\n"
                 "outputs: [json]\n"
             ),
             body="Body\n",
@@ -659,21 +657,18 @@ def test_vault_layout_replaces_only_the_page_default(tmp_path: Path) -> None:
     layouts = vault / "_site" / "layouts"
     layouts.mkdir()
     (layouts / "page.html").write_text(
-        "OVERRIDDEN PAGE {{ .Params.entry_type }} {{ .Params.link_url }}",
+        "OVERRIDDEN PAGE {{ .Title }}",
         encoding="utf-8",
     )
-    (vault / "link.md").write_text(
-        published_text(
-            "link", entry_type="link", extra="url: https://example.test/elsewhere\n"
-        ),
-        encoding="utf-8",
+    (vault / "other.md").write_text(
+        published_text("other", extra="title: Another title\n"), encoding="utf-8"
     )
     output = tmp_path / "output"
 
     build_site(vault, output, ("hugo",))
 
-    page = (output / "posts" / "link" / "index.html").read_text(encoding="utf-8")
-    assert page == "OVERRIDDEN PAGE link https://example.test/elsewhere"
+    page = (output / "posts" / "other" / "index.html").read_text(encoding="utf-8")
+    assert page == "OVERRIDDEN PAGE Another title"
     home = (output / "index.html").read_text(encoding="utf-8")
     assert "OVERRIDDEN PAGE" not in home
     assert "<title>The Site Title</title>" in home

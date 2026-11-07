@@ -15,7 +15,6 @@ NOW = dt.datetime(2026, 6, 15, 12, 0, tzinfo=ZONE)
 VALID: dict[object, object] = {
     "date": dt.date(2026, 1, 1),
     "slug": "a-note",
-    "type": "post",
 }
 
 
@@ -41,26 +40,21 @@ def _failures(**changes: object) -> tuple[str, ...]:
 
 
 def test_validate_returns_every_property() -> None:
-    page = _page(
-        title="A title",
-        type="link",
-        url="https://example.test/page",
-        tags=["one", "project/alpha"],
-    )
+    page = _page(title="A title", tags=["one", "project/alpha"])
 
     assert page == PageProperties(
         title="A title",
         date=dt.date(2026, 1, 1),
         slug="a-note",
-        entry_type="link",
         tags=("one", "project/alpha"),
-        link_url="https://example.test/page",
     )
 
 
 def test_validate_reports_every_failure_of_a_note() -> None:
     failures = validate_properties(
-        {"title": 1, "tags": 1, "date": "soon", "slug": "A", "type": "x"}, "n", NOW
+        {"title": 1, "tags": 1, "date": "soon", "slug": "A", "type": "x", "url": "x"},
+        "n",
+        NOW,
     )
 
     assert isinstance(failures, tuple)
@@ -68,19 +62,18 @@ def test_validate_reports_every_failure_of_a_note() -> None:
         "title",
         "date",
         "slug",
-        "type",
         "tags",
     ]
 
 
-@pytest.mark.parametrize("name", ["date", "slug", "type"])
+@pytest.mark.parametrize("name", ["date", "slug"])
 def test_a_missing_required_property_fails(name: str) -> None:
     given = {key: value for key, value in VALID.items() if key != name}
 
     assert validate_properties(given, "n", NOW) == (f"{name} is required",)
 
 
-@pytest.mark.parametrize("name", ["date", "slug", "type"])
+@pytest.mark.parametrize("name", ["date", "slug"])
 def test_a_null_required_property_fails(name: str) -> None:
     assert validate_properties({**VALID, name: None}, "n", NOW) == (
         f"{name} is required",
@@ -159,49 +152,22 @@ def test_a_bad_slug_fails(slug: object) -> None:
     )
 
 
-@pytest.mark.parametrize("entry_type", ["post", "til"])
-def test_url_has_no_effect_off_a_link_entry(entry_type: str) -> None:
-    for url in ("not a url", 1, None, "https://example.test/"):
-        page = _page(type=entry_type, url=url)
-        assert page.entry_type == entry_type
-        assert page.link_url is None
-
-
-@pytest.mark.parametrize("entry_type", ["Post", "page", "", 1, ["post"]])
-def test_another_type_fails(entry_type: object) -> None:
-    assert _failures(type=entry_type) == (
-        f"type must be one of post, til, link, not {entry_type!r}",
-    )
-
-
-@pytest.mark.parametrize("url", ["http://example.test", "HTTPS://example.test/a?b=c"])
-def test_a_link_entry_keeps_a_web_url(url: str) -> None:
-    assert _page(type="link", url=url).link_url == url
-
-
-@pytest.mark.parametrize("changes", [{}, {"url": None}])
-def test_a_link_entry_requires_url(changes: dict[str, None]) -> None:
-    assert _failures(type="link", **changes) == ("a link entry requires url",)
-
-
 @pytest.mark.parametrize(
-    "url",
+    "changes",
     [
-        "ftp://example.test/",
-        "javascript:alert(1)",
-        "example.test",
-        "/posts/a/",
-        "https://",
-        "https://exa mple.test/",
-        "http://[x",
-        "",
-        1,
+        {"type": "til"},
+        {"type": "link"},
+        {"type": "nonsense"},
+        {"type": None},
+        {"type": ["post"]},
+        {"url": "not a url"},
+        {"url": "https://example.test/"},
+        {"url": 1},
+        {"type": "link", "url": None},
     ],
 )
-def test_a_link_entry_with_a_bad_url_fails(url: object) -> None:
-    assert _failures(type="link", url=url) == (
-        f"url must be an http or https URL, not {url!r}",
-    )
+def test_type_and_url_have_no_effect(changes: dict[str, object]) -> None:
+    assert _validate(**changes) == _validate()
 
 
 @pytest.mark.parametrize(
@@ -330,23 +296,22 @@ def _front_matter(**changes: object) -> dict[str, object]:
 
 def test_front_matter_holds_only_the_listed_keys() -> None:
     loaded = _front_matter(
-        aliases=["/old/"], weight=1, draft=True, url="https://example.test/"
+        aliases=["/old/"],
+        weight=1,
+        draft=True,
+        type="link",
+        url="https://example.test/",
+        params={"a": 1},
     )
 
-    assert loaded == {
+    assert loaded == {"title": "File Name", "date": "2026-01-01"}
+
+
+def test_front_matter_with_tags() -> None:
+    assert _front_matter(tags="one") == {
         "title": "File Name",
         "date": "2026-01-01",
-        "params": {"entry_type": "post"},
-    }
-
-
-def test_front_matter_of_a_link_entry_with_tags() -> None:
-    loaded = _front_matter(type="link", url="https://example.test/", tags="one")
-
-    assert loaded["tags"] == ["one"]
-    assert loaded["params"] == {
-        "entry_type": "link",
-        "link_url": "https://example.test/",
+        "tags": ["one"],
     }
 
 

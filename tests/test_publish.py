@@ -157,7 +157,7 @@ def test_select_notes_takes_a_missing_title_from_the_file_name(tmp_path: Path) -
 def test_select_notes_applies_property_rules_only_to_published_notes(
     tmp_path: Path,
 ) -> None:
-    _write(tmp_path, "false.md", "---\npublish: false\nslug: BAD\ntype: x\n---\n")
+    _write(tmp_path, "false.md", "---\npublish: false\nslug: BAD\ntags: 1\n---\n")
     _write(tmp_path, "none.md", "---\ntitle: 1\ndate: soon\n---\n")
     _write(tmp_path, "plain.md", "No front matter.\n")
 
@@ -166,7 +166,7 @@ def test_select_notes_applies_property_rules_only_to_published_notes(
 
 def test_select_notes_lists_each_reason_for_a_published_note(tmp_path: Path) -> None:
     _write(tmp_path, "bad.md", "---\npublish: true\n---\n")
-    _write(tmp_path, "other.md", published_text("other", entry_type="nope"))
+    _write(tmp_path, "other.md", published_text("other", extra="tags: 1\n"))
     _write(tmp_path, "good.md")
 
     selection = select_notes(tmp_path, NOW)
@@ -176,8 +176,7 @@ def test_select_notes_lists_each_reason_for_a_published_note(tmp_path: Path) -> 
     ] == [
         ("bad.md", "date is required"),
         ("bad.md", "slug is required"),
-        ("bad.md", "type is required"),
-        ("other.md", "type must be one of post, til, link, not 'nope'"),
+        ("other.md", "tags must be a string or a list of strings, not 1"),
     ]
     assert [note.path.as_posix() for note in selection.published] == ["good.md"]
 
@@ -239,14 +238,14 @@ def test_select_notes_reports_a_shared_slug_beside_other_failures(
     tmp_path: Path,
 ) -> None:
     _write(tmp_path, "a.md", published_text("same"))
-    _write(tmp_path, "b.md", published_text("same", entry_type="nope"))
+    _write(tmp_path, "b.md", published_text("same", extra="tags: 1\n"))
 
     selection = select_notes(tmp_path, NOW)
 
     assert selection.published == ()
     reasons = [failure.reason for failure in selection.failures]
     assert sum("used by more than one note" in reason for reason in reasons) == 2
-    assert "type must be one of post, til, link, not 'nope'" in reasons
+    assert "tags must be a string or a list of strings, not 1" in reasons
 
 
 def test_select_notes_ignores_files_that_are_not_notes(tmp_path: Path) -> None:

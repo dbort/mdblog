@@ -24,8 +24,6 @@
 <link rel="alternate" type="application/rss+xml" href="{{ .Permalink }}" title="{{ $title }}">
 {{- end }}
 {{- end }}
-{{- range site.Home.OutputFormats }}
-{{- if eq .MediaType.Type "application/rss+xml" }}
+{{- with site.Home.OutputFormats.Get "rss" }}
 <link rel="alternate" type="application/rss+xml" href="{{ .Permalink }}">
-{{- end }}
 {{- end }}

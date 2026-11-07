@@ -1,7 +1,0 @@
-{{- partial "feed.xml" (dict
-  "page" .
-  "pages" (where site.RegularPages "Params.entry_type" "til")
-  "format" "tilfeed"
-  "title" (printf "%s: TILs" site.Title)
-  "description" (printf "TILs on %s" site.Title)
-) -}}
