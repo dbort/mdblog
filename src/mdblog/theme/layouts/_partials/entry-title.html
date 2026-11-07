@@ -1,6 +1,0 @@
-{{- /* A link entry's title leaves the site, so its page is reached from its date. */ -}}
-{{- if eq .Params.entry_type "link" -}}
-<a class="u-bookmark-of" href="{{ .Params.link_url }}">{{ .Title }}</a>
-{{- else -}}
-<a href="{{ .RelPermalink }}">{{ .Title }}</a>
-{{- end -}}

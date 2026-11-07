@@ -6,12 +6,8 @@ import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
-from urllib.parse import urlsplit
 
 SLUG_PATTERN = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
-ENTRY_TYPES = ("post", "til", "link")
-LINK_ENTRY = "link"
-URL_SCHEMES = ("http", "https")
 TAG_PUNCTUATION = "-_+."
 
 
@@ -24,11 +20,7 @@ class PageProperties:
     date: date
     # Sets the page's URL, `/posts/<slug>/`.
     slug: str
-    # One of `ENTRY_TYPES`.
-    entry_type: str
     tags: tuple[str, ...]
-    # Set only when `entry_type` is `LINK_ENTRY`.
-    link_url: str | None
 
 
 def valid_slug(value: object) -> str | None:
@@ -86,16 +78,6 @@ def _slug(value: object, failures: list[str]) -> str | None:
     return slug
 
 
-def _entry_type(value: object, failures: list[str]) -> str | None:
-    if value is None:
-        failures.append("type is required")
-    elif isinstance(value, str) and value in ENTRY_TYPES:
-        return value
-    else:
-        failures.append(f"type must be one of {', '.join(ENTRY_TYPES)}, not {value!r}")
-    return None
-
-
 def _is_word_character(character: str) -> bool:
     category = unicodedata.category(character)
     return category == "Nd" or category.startswith("L")
@@ -150,27 +132,6 @@ def _tags(value: object, failures: list[str]) -> tuple[str, ...] | None:
     return None if unsafe else tags
 
 
-def _is_web_url(value: str) -> bool:
-    if any(character.isspace() for character in value):
-        return False
-    try:
-        parts = urlsplit(value)
-    # urlsplit raises ValueError for a malformed host such as `http://[x`.
-    except ValueError:
-        return False
-    return parts.scheme in URL_SCHEMES and bool(parts.netloc)
-
-
-def _link_url(value: object, failures: list[str]) -> str | None:
-    if value is None:
-        failures.append("a link entry requires url")
-    elif isinstance(value, str) and _is_web_url(value):
-        return value
-    else:
-        failures.append(f"url must be an http or https URL, not {value!r}")
-    return None
-
-
 def validate_properties(
     properties: Mapping[object, object], stem: str, now: datetime
 ) -> PageProperties | tuple[str, ...]:
@@ -180,50 +141,26 @@ def validate_properties(
     missing. `now` is the timezone-aware current time, and its date is today, so it
     should be in the local zone. A datetime with no offset means local time and is
     returned with its offset. A null property counts as missing. Reads `title`,
-    `date`, `slug`, `type`, `tags` and, on a link entry only, `url`. Other properties
-    have no effect.
+    `date`, `slug` and `tags`. Other properties have no effect.
     """
     failures: list[str] = []
     title = _title(properties.get("title"), stem, failures)
     page_date = _date(properties.get("date"), now, failures)
     slug = _slug(properties.get("slug"), failures)
-    entry_type = _entry_type(properties.get("type"), failures)
     tags = _tags(properties.get("tags"), failures)
-    link_url = None
-    if entry_type == LINK_ENTRY:
-        link_url = _link_url(properties.get("url"), failures)
-    if (
-        failures
-        or title is None
-        or page_date is None
-        or slug is None
-        or entry_type is None
-        or tags is None
-    ):
+    if failures or title is None or page_date is None or slug is None or tags is None:
         return tuple(failures)
-    return PageProperties(
-        title=title,
-        date=page_date,
-        slug=slug,
-        entry_type=entry_type,
-        tags=tags,
-        link_url=link_url,
-    )
+    return PageProperties(title=title, date=page_date, slug=slug, tags=tags)
 
 
 def front_matter(page: PageProperties) -> bytes:
     """The Hugo front matter for `page`, ending in a newline.
 
-    The result is one JSON object holding `title`, `date`, `tags` when there are any,
-    and `params`, which holds `entry_type` and any `link_url`.
+    The result is one JSON object holding `title`, `date` and `tags` when there are any.
     """
-    params = {"entry_type": page.entry_type}
-    if page.link_url is not None:
-        params["link_url"] = page.link_url
     data: dict[str, object] = {"title": page.title, "date": page.date.isoformat()}
     if page.tags:
         data["tags"] = list(page.tags)
-    data["params"] = params
     # Hugo reads a leading JSON object as front matter, and JSON has one reading of each
     # string, where a YAML reader could take a title of `yes` for a boolean.
     return json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8") + b"\n"

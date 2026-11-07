@@ -1,7 +1,6 @@
 ---
 publish: true
 slug: syntax
-type: post
 date: 2026-01-03
 ---
 ## Linking Out

@@ -12,11 +12,9 @@ The build reads these properties and ignores every other one. An empty property 
 | `title` | no | The page title. | A string. When missing, the title is the file name without `.md`. |
 | `date` | yes | The publish date. | A YAML date or datetime, not a quoted string. A date after the local date or a datetime after the current time fails. A datetime with no offset means the local time of the machine running the build, and is published with that offset. |
 | `slug` | yes | Sets the page's URL, `/posts/<slug>/`. | Lowercase ASCII letters and digits joined by single hyphens, such as `first-note`. Two notes with one slug fail, and the message names both. |
-| `type` | yes | The entry type, which layouts read as `.Params.entry_type`. | Exactly `post`, `til` or `link`. |
 | `tags` | no | Site tags. `project/alpha` builds a tag page at `/tags/project/alpha/`. | One string or a list of strings. Each `/`-separated part may use only letters, combining marks, digits, `-`, `_`, `+` and `.`, must hold a letter or digit, and when it holds a `.` must hold an ASCII letter or digit. Anything else fails, including spaces, because Hugo removes some characters from a tag's path, and what remains could write outside `/tags/`. |
-| `url` | on `type: link` | The linked page, which layouts read as `.Params.link_url`. | An `http` or `https` URL. On `post` and `til` notes `url` has no effect, whatever its value. |
 
-A note's vault folder, file name and type have no effect on its URL, so moving or retyping a note never moves its page.
+A note's vault folder and file name have no effect on its URL, so moving or renaming a note never moves its page.
 
 Hugo lowercases tag paths, so `Project/Alpha` builds at `/tags/project/alpha/` and shares a page with `project/alpha`. Tag text also displays in lowercase, so `Node.JS` shows as `node.js`. A nested tag builds a page only for itself: a note tagged only `project/alpha` builds no page at `/tags/project/`. A tag holding `page/<number>`, such as `a/page/2`, can replace a page of tag `a`'s listing if a site's layouts paginate tag pages. The packaged layouts do not.
 
@@ -24,7 +22,7 @@ A future date fails the build because nothing rebuilds the site when that date a
 
 ## Generated front matter
 
-Each page's Hugo front matter is written from scratch, holding only `title`, `date`, `tags` when there are any, and `params`. `params` holds `entry_type` and, on a link entry, `link_url`. The note's body after its front matter reaches Hugo byte for byte, apart from the conversions under [Obsidian syntax](#obsidian-syntax).
+Each page's Hugo front matter is written from scratch, holding only `title`, `date` and `tags` when there are any. The note's body after its front matter reaches Hugo byte for byte, apart from the conversions under [Obsidian syntax](#obsidian-syntax).
 
 ## Hugo collisions
 
@@ -40,6 +38,7 @@ A vault property that shares a name with a Hugo front matter key would change th
 | `headless` | Publishes no page for the note. |
 | `build` | Can stop the page rendering or listing. |
 | `layout` | Selects a different layout. |
+| `type` | Selects a different layout type. |
 | `draft` | Hides the page. |
 | `cascade` | Applies front matter to other pages. |
 | `outputs` | Changes which formats the page renders to. |
@@ -115,4 +114,4 @@ The `_site/` folder at the vault's root holds the site's own files. Its notes ar
 
 The packaged layouts build the home page with the latest 15 entries, an archive of every entry by year at `/posts/`, a page per tag listing its entries, an index of tags at `/tags/`, and a page per entry. No list is paginated.
 
-Each feed is RSS holding the full text of its latest 50 entries: `/index.xml` for the whole site, `/types/post/index.xml`, `/types/til/index.xml` and `/types/link/index.xml` for each entry type, and `/tags/<tag>/index.xml` for each tag. A link entry's item links to its page on the site and starts with a link to its `url`.
+Each feed is RSS holding the full text of its latest 50 entries: `/index.xml` for the whole site and `/tags/<tag>/index.xml` for each tag.

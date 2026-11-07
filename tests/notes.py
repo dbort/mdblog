@@ -5,21 +5,11 @@ def published_text(
     slug: str = "a-note",
     *,
     extra: str = "",
-    entry_type: str = "post",
     date: str = "2026-01-01",
     body: str = "",
 ) -> str:
     """A note holding every required property; `extra` is more front matter lines."""
-    return (
-        "---\n"
-        "publish: true\n"
-        f"slug: {slug}\n"
-        f"type: {entry_type}\n"
-        f"date: {date}\n"
-        f"{extra}"
-        "---\n"
-        f"{body}"
-    )
+    return f"---\npublish: true\nslug: {slug}\ndate: {date}\n{extra}---\n{body}"
 
 
 # Headings exercising each rule of Hugo's heading IDs. test_build.py builds them with

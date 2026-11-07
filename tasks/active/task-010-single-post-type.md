@@ -34,9 +34,9 @@ Removes the TIL and link entry types, so every published note is the same kind o
 - Standing obligation, test where the risk is: delete tests of the removed rules rather than inverting each one. Add one properties unit test that `type` and `url` values, including invalid ones, leave the result unchanged, and extend the collision test with `type`. Keep the real-Hugo site tests that pin the feed list and list markup, because a stray type feed or label would ship silently.
 
 ## Plan
-- [ ] **Step 1** (`src/mdblog/properties.py`, `tests/notes.py`, `tests/test_properties.py`, `tests/test_publish.py`): drop `ENTRY_TYPES`, `LINK_ENTRY`, `URL_SCHEMES`, `_entry_type`, `_link_url`, `_is_web_url` and the `entry_type` and `link_url` fields; front matter writes no `params`; update docstrings to the new contract.
-- [ ] **Step 2** (`src/mdblog/build.py`, `src/mdblog/theme/layouts/`, `tests/test_build.py`): `hugo_config` renders only the site feed on the home page plus tag feeds; delete the three per-type feed layouts and `entry-label.html`; list items, entry titles and feed items render every entry as a post.
-- [ ] **Step 3** (`tests/fixtures/vault/`, `tests/test_site.py`, `tests/test_serve_hugo.py` if renamed): fixtures without `type` or `url`; site tests assert the single-type output and the exact feed list.
-- [ ] **Step 4** (`docs/vault-format.md`): remove the `type` and `url` rows, link-entry and per-type feed text, the `params` description under § Generated front matter, and the retyping sentence; add `type` to § Hugo collisions.
+- [x] **Step 1** (`src/mdblog/properties.py`, `tests/notes.py`, `tests/test_properties.py`, `tests/test_publish.py`): drop `ENTRY_TYPES`, `LINK_ENTRY`, `URL_SCHEMES`, `_entry_type`, `_link_url`, `_is_web_url` and the `entry_type` and `link_url` fields; front matter writes no `params`; update docstrings to the new contract.
+- [x] **Step 2** (`src/mdblog/build.py`, `src/mdblog/theme/layouts/`, `tests/test_build.py`): `hugo_config` renders only the site feed on the home page plus tag feeds; delete the three per-type feed layouts and `entry-label.html`; list items, entry titles and feed items render every entry as a post.
+- [x] **Step 3** (`tests/fixtures/vault/`, `tests/test_site.py`, `tests/test_serve_hugo.py` if renamed): fixtures without `type` or `url`; site tests assert the single-type output and the exact feed list.
+- [x] **Step 4** (`docs/vault-format.md`): remove the `type` and `url` rows, link-entry and per-type feed text, the `params` description under § Generated front matter, and the retyping sentence; add `type` to § Hugo collisions.
 
 ## Review log

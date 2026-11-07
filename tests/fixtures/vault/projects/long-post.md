@@ -1,7 +1,6 @@
 ---
 publish: true
 slug: long-post
-type: post
 title: Tips & Tricks
 date: 2026-01-04
 tags:
