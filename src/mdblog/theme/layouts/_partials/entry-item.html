@@ -1,6 +1,6 @@
 <article class="h-entry entry-item">
 <header class="entry-header">
-<h2 class="p-name"><a href="{{ .RelPermalink }}">{{ .Title }}</a></h2>
+<h2 class="p-name"><a href="{{ .RelPermalink }}">{{ .Title }}</a>{{ with partial "entry-status.html" . }} {{ . }}{{ end }}</h2>
 {{ partial "entry-meta.html" . }}
 </header>
 <div class="p-summary entry-summary">

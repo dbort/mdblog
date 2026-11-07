@@ -299,12 +299,12 @@ def test_recent_posts_lists_the_five_newest_other_entries_then_the_archive(
     site: Site,
 ) -> None:
     titles = {
-        "long-post": ("Tips & Tricks", "January 4, 2026"),
-        "offset-time": ("Offset time", "January 2, 2026"),
-        "syntax": ("syntax", "January 3, 2026"),
-        "link-target": ("link-target", "January 2, 2026"),
-        "first-note": ("first-note", "January 1, 2026"),
-        "last-year": ("A note from last year", "June 1, 2025"),
+        "long-post": ("Tips & Tricks", "Jan 4, 2026"),
+        "offset-time": ("Offset time", "Jan 2, 2026"),
+        "syntax": ("syntax", "Jan 3, 2026"),
+        "link-target": ("link-target", "Jan 2, 2026"),
+        "first-note": ("first-note", "Jan 1, 2026"),
+        "last-year": ("A note from last year", "Jun 1, 2025"),
     }
 
     def expected(*slugs: str) -> list[tuple[str, str, str]]:
@@ -361,20 +361,20 @@ def test_sidebar_tags_are_the_ten_most_used_then_by_name(tmp_path: Path) -> None
         built.page("posts/index.html").one("aside", "sidebar").one(cls="sidebar-tags")
     )
     shown = [
-        (item.one("a").text, item.one(cls="tag-count").text)
+        (item.one("a", "tag").text, item.one(cls="tag-count").text)
         for item in section.all("li")
     ]
     assert shown == [
-        ("t12", "12"),
-        ("t11", "11"),
-        ("t10", "10"),
-        ("a-tie", "9"),
-        ("t09", "9"),
-        ("z-tie", "9"),
-        ("t08", "8"),
-        ("t07", "7"),
-        ("t06", "6"),
-        ("t05", "5"),
+        ("t12 12", "12"),
+        ("t11 11", "11"),
+        ("t10 10", "10"),
+        ("a-tie 9", "9"),
+        ("t09 9", "9"),
+        ("z-tie 9", "9"),
+        ("t08 8", "8"),
+        ("t07 7", "7"),
+        ("t06 6", "6"),
+        ("t05 5", "5"),
     ]
     assert section.all("li")[0].hrefs() == ["/tags/t12/"]
     assert section.hrefs()[-1] == "/tags/"
@@ -397,7 +397,7 @@ def test_lists_show_each_entry_with_its_summary_and_metadata(site: Site) -> None
         assert title.hrefs() == ["/posts/long-post/"]
         summary = post.one(cls="p-summary")
         assert summary.text == "FIXTURE-BEFORE-MORE & more."
-        assert post.one("time").text == "January 4, 2026"
+        assert post.one("time").text == "Jan 4, 2026"
         assert [tag.text for tag in post.all(cls="p-category")] == ["node.js"]
         offset = _entry(site.page(name), "offset-time")
         assert offset.one(cls="p-summary").text == "FIXTURE-OFFSET-BODY."
@@ -423,13 +423,13 @@ def test_archive_lists_every_entry_under_year_headings(site: Site) -> None:
     lines = [[item.text for item in year.all("li")] for year in years]
     assert lines == [
         [
-            "Tips & Tricks January 4, 2026",
-            "Offset time January 2, 2026",
-            "syntax January 3, 2026",
-            "link-target January 2, 2026",
-            "first-note January 1, 2026",
+            "Tips & Tricks Jan 4, 2026",
+            "Offset time Jan 2, 2026",
+            "syntax Jan 3, 2026",
+            "link-target Jan 2, 2026",
+            "first-note Jan 1, 2026",
         ],
-        ["A note from last year June 1, 2025"],
+        ["A note from last year Jun 1, 2025"],
     ]
     assert main.all(cls="p-summary") == []
     assert main.all(cls="p-category") == []
@@ -444,8 +444,8 @@ def test_tag_pages_list_their_entries_and_the_index_lists_every_tag(
     assert urls == _posts("long-post", "offset-time")
     index = site.page("tags/index.html").one("main")
     assert [(item.hrefs(), item.text) for item in index.all("li")] == [
-        (["/tags/node.js/"], "node.js (2)"),
-        (["/tags/project/alpha/"], "project/alpha (1)"),
+        (["/tags/node.js/"], "node.js 2"),
+        (["/tags/project/alpha/"], "project/alpha 1"),
     ]
 
 
@@ -457,7 +457,7 @@ def test_a_nested_tags_parent_gets_no_page(site: Site) -> None:
 def test_entry_page_shows_the_entry_and_no_other_entry_links(site: Site) -> None:
     entry = site.page("posts/long-post/index.html").one("main").one(cls="h-entry")
     assert entry.one("h1").text == "Tips & Tricks"
-    assert entry.one("time").text == "January 4, 2026"
+    assert entry.one("time").text == "Jan 4, 2026"
     content = entry.one(cls="e-content")
     assert "FIXTURE-AFTER-MORE" in content.text
     outside_content = [href for href in entry.hrefs() if href not in content.hrefs()]
@@ -473,7 +473,7 @@ def test_entry_page_shows_the_entry_and_no_other_entry_links(site: Site) -> None
 def test_dates_show_the_day_in_their_own_offset(site: Site) -> None:
     time = site.page("posts/offset-time/index.html").one("main").one("time")
     assert time.attrs["datetime"] == "2026-01-02T23:30:00-07:00"
-    assert time.text == "January 2, 2026"
+    assert time.text == "Jan 2, 2026"
 
 
 def test_a_date_only_value_shows_its_own_day_in_any_zone(
@@ -490,7 +490,7 @@ def test_a_date_only_value_shows_its_own_day_in_any_zone(
     built = _build(vault, tmp_path / "output")
 
     time = built.page("posts/dated/index.html").one("main").one("time")
-    assert time.text == "January 2, 2026"
+    assert time.text == "Jan 2, 2026"
     assert time.attrs["datetime"].startswith("2026-01-02T")
 
 

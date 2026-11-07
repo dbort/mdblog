@@ -1,8 +1,10 @@
+from collections.abc import Iterator
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
-from manual_qa import CHECKS, Result, Verdict, parse_verdict, render_log
+from manual_qa import CHECKS, Result, Verdict, ask_notes, parse_verdict, render_log
 
 
 @pytest.mark.parametrize(
@@ -62,3 +64,40 @@ def test_log_records_each_verdict_with_its_notes_and_failure_details() -> None:
         "boom\n"
         "```\n"
     )
+
+
+def _asker(answers: list[str]) -> Iterator[str]:
+    yield from answers
+
+
+@pytest.mark.parametrize("answer", ["", "n", " No "])
+def test_declined_notes_are_empty_and_open_no_editor(
+    tmp_path: Path, answer: str
+) -> None:
+    def edit(path: Path) -> None:
+        raise AssertionError(path)
+
+    assert ask_notes(lambda _: answer, edit, tmp_path / "notes.md") == ""
+
+
+def test_accepted_notes_are_what_the_editor_saved(tmp_path: Path) -> None:
+    answers = _asker(["maybe", "y"])
+
+    def edit(path: Path) -> None:
+        assert path.read_text(encoding="utf-8") == ""
+        path.write_text("\nfirst line\nsecond line\n\n", encoding="utf-8")
+
+    notes = ask_notes(lambda _: next(answers), edit, tmp_path / "notes.md")
+
+    assert notes == "first line\nsecond line"
+
+
+def test_notes_are_typed_when_the_editor_cannot_start(tmp_path: Path) -> None:
+    answers = _asker(["yes", "typed note", ""])
+
+    def edit(path: Path) -> None:
+        raise FileNotFoundError(2, "No such file or directory", "no-such-editor")
+
+    notes = ask_notes(lambda _: next(answers), edit, tmp_path / "notes.md")
+
+    assert notes == "typed note"

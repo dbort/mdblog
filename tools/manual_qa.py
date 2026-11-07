@@ -6,6 +6,8 @@ the author hands back to the agent running `/work`.
 """
 
 import argparse
+import os
+import shlex
 import shutil
 import socket
 import subprocess
@@ -226,12 +228,44 @@ def _ask_verdict(ask: Callable[[str], str]) -> Verdict:
             return verdict
 
 
-def _ask_notes(ask: Callable[[str], str]) -> str:
+def _type_notes(ask: Callable[[str], str]) -> str:
     print("Notes, ending with an empty line:")
     lines: list[str] = []
     while line := ask("> "):
         lines.append(line)
     return "\n".join(lines)
+
+
+def editor_command() -> list[str]:
+    """`$VISUAL`, else `$EDITOR`, else `vi`, split into words as a shell would."""
+    return shlex.split(os.environ.get("VISUAL") or os.environ.get("EDITOR") or "vi")
+
+
+def _edit(path: Path) -> None:
+    subprocess.run([*editor_command(), str(path)], check=False)
+
+
+def ask_notes(
+    ask: Callable[[str], str], edit: Callable[[Path], None], path: Path
+) -> str:
+    """The author's notes, stripped, or "" when they decline to add any.
+
+    Notes the author accepts are written by `edit` into `path`. When the editor cannot
+    start, the notes are typed line by line instead.
+    """
+    while True:
+        answer = ask("Add notes? [y/N]: ").strip().lower()
+        if answer in ("", "n", "no"):
+            return ""
+        if answer in ("y", "yes"):
+            break
+    path.write_text("", encoding="utf-8")
+    try:
+        edit(path)
+    except OSError as error:
+        print(f"  (could not start the editor: {error})")
+        return _type_notes(ask).strip()
+    return path.read_text(encoding="utf-8").strip()
 
 
 def _tail(path: Path) -> str:
@@ -240,11 +274,16 @@ def _tail(path: Path) -> str:
 
 
 def run_check(
-    check: Check, places: Places, work: Path, ask: Callable[[str], str]
+    check: Check,
+    places: Places,
+    work: Path,
+    ask: Callable[[str], str],
+    edit: Callable[[Path], None],
 ) -> Result:
-    """Runs `check` with `places`, writing its command output under `work`."""
+    """Runs `check` with `places`, writing its command output and notes under `work`."""
     command = tuple(places.fill(part) for part in check.command)
-    output = work / f"{check.name.replace(':', '').replace(' ', '-')}.log"
+    stem = check.name.replace(":", "").replace(" ", "-")
+    output = work / f"{stem}.log"
     print(f"\n== {check.name}\n$ {' '.join(command)}\n  (output: {output})")
     print(f"  (scratch vault: {places.vault})")
     with output.open("wb") as sink:
@@ -254,7 +293,7 @@ def run_check(
         for number, step in enumerate(check.steps, start=1):
             print(f"{number}. {places.fill(step)}")
         verdict = _ask_verdict(ask)
-        notes = _ask_notes(ask)
+        notes = ask_notes(ask, edit, work / f"{stem}-notes.md")
         early_exit = process.poll()
     finally:
         if process.poll() is None:
@@ -322,7 +361,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             for number, check in enumerate(checks, start=1):
                 vault = scratch_vault(work / f"vault-{number}", check)
                 places = Places(vault=vault, port=port)
-                results.append(run_check(check, places, work, input))
+                results.append(run_check(check, places, work, input, _edit))
         except KeyboardInterrupt, EOFError:
             print("\nStopped; the log holds the checks finished so far.")
         finally:

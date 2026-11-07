@@ -17,7 +17,7 @@
 <ul class="sidebar-recent-list">
 {{- range . }}
 {{- /* No dt-published class: these dates belong to no h-entry on this page. */}}
-<li><a href="{{ .RelPermalink }}"><span class="sidebar-recent-title">{{ .Title }}</span> <time datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Date.Format "January 2, 2006" }}</time></a></li>
+<li><a href="{{ .RelPermalink }}"><span class="sidebar-recent-title">{{ .Title }}</span> <time datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Date.Format "Jan 2, 2006" }}</time></a></li>
 {{- end }}
 </ul>
 {{- with site.GetPage "/posts" }}
@@ -32,7 +32,7 @@
 <h2 class="sidebar-label">Tags</h2>
 <ul class="sidebar-tag-list">
 {{- range first 10 . }}
-<li><a href="{{ .Page.RelPermalink }}">{{ lower .Page.Data.Term }}</a> <span class="tag-count">{{ .Count }}</span></li>
+<li><a class="tag" href="{{ .Page.RelPermalink }}">{{ lower .Page.Data.Term }} <span class="tag-count">{{ .Count }}</span></a></li>
 {{- end }}
 </ul>
 {{- with site.GetPage "/tags" }}

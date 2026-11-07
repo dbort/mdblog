@@ -31,6 +31,15 @@ The default theme gets a new look modeled on two sites the author likes: serif b
   - Header: a brand link in the text color at weight 600, with a muted `« ` on non-home pages and no rule under the header. The header nav shows only below the sidebar breakpoint, hidden by CSS, because the sidebar's Site links cover wide screens.
   - Footer: the existing `© author` line, muted, with a thin top rule.
   - Palettes follow `prefers-color-scheme` with no toggle or JavaScript, as task-007 decided.
+- User decisions from the first manual QA run (2026-11-07, log at f12811f). These override the earlier bullets where they differ.
+  - The About box's apparent blank line was the fixture headshot, an empty transparent 10x10 SVG. The fixture headshot draws a visible shape so the bio image shows in QA.
+  - List summaries: every heading inside `.entry-summary` renders at body size in bold sans with no top margin, and list titles (`entry-item`) grow to 1.5rem, so a summary's headings never outrank its title.
+  - The home page's "All entries" link is an outlined button: "All entries →" in sans weight 600 and the link color, inside a 1px rounded border in the link color, with a light tint on hover.
+  - Draft and Invalid labels sit inline at the end of the entry title, inside the title heading, on list items and entry pages as well as the archive. They never render on the live site, so the preview-only change to the `p-name` text does not matter.
+  - Archive titles match the sidebar's Recent posts titles: sans, weight 600, text color, link color and underline on hover. The tag index takes tag chips.
+  - Every tag on the site is a chip: post meta, the tag index and the sidebar Tags box. Neutral chips: lowercase sans text in the text color on the tinted surface, a 1px border in the border color, a small corner radius (rounded rectangle, not a pill), the count inside the chip in muted text, and the link color on hover. They stay distinct from the uppercase colored Draft and Invalid labels.
+  - Displayed dates abbreviate the month to three letters with no period ("Jan 4, 2026"). Machine dates (`datetime`, feeds) are unchanged.
+  - `tools/manual-qa`: after each verdict it asks whether to add notes. Yes opens `$VISUAL`, else `$EDITOR`, else `vi`, on a scratch file whose text becomes the notes; no records none.
 - Keep every text pair at WCAG AA (4.5:1), including links on the tinted surface, muted text, code tokens on the new code backgrounds, and callout titles on their tints. The GitHub light Chroma colors pass on `#f7f2ea` but not on `#e7dbcb`, which is why the code background differs from the surface. Re-derive any callout color that falls below AA on ivory, and update `main.css`'s header comment if the generated-palette edits change.
 - Not blocked by task-011, which is deferred past v1 (user decision, 2026-11-07). The theme stays at `src/mdblog/theme/`; task-011 moves it later along with this task's layouts and CSS.
 - Restyle task-009's Draft and Invalid labels and its banner in both palettes.

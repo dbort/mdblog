@@ -224,7 +224,8 @@ main h1 {
   border-bottom: 2px solid var(--border);
 }
 
-.entry-content h1 {
+.entry-content h1,
+.entry-summary h1 {
   margin: 1.6em 0 0.5em;
   padding-bottom: 0;
   border-bottom: 0;
@@ -336,7 +337,7 @@ main h1 {
 .sidebar-tag-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem 0.9rem;
+  gap: 0.35rem;
 }
 
 .sidebar-link-list {
@@ -363,7 +364,7 @@ main h1 {
 
 .entry-header h2 {
   margin-bottom: 0.25rem;
-  font-size: 1.35rem;
+  font-size: 1.5rem;
 }
 
 /* The link color tells a list's titles from its summaries, which share a color
@@ -375,7 +376,8 @@ main h1 {
 .entry-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 0.75rem;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
   margin: 0 0 1rem;
   color: var(--muted);
   font-family: var(--font-ui);
@@ -393,7 +395,32 @@ main h1 {
 .tags {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 0 0.5rem;
+  gap: 0.35rem;
+}
+
+/* Tag chips. Rounded rectangles, so they never read as the Draft and Invalid pills. */
+a.tag {
+  display: inline-block;
+  padding: 0 0.45em;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+a.tag:hover {
+  color: var(--link);
+  text-decoration: none;
+}
+
+.tag .tag-count {
+  margin-left: 0.15em;
+  color: var(--muted);
+  font-size: inherit;
 }
 
 .entry-item {
@@ -404,9 +431,30 @@ main h1 {
   margin-bottom: 0;
 }
 
+/* A summary's headings are part of its text and never outrank the entry's title. */
+.entry-summary :is(h1, h2, h3, h4, h5, h6) {
+  margin: 0 0 0.5rem;
+  font-size: 1em;
+  font-weight: 700;
+}
+
 .more {
+  margin-top: 2.5rem;
+}
+
+.button {
+  display: inline-block;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--link);
+  border-radius: 6px;
   font-family: var(--font-ui);
+  font-size: 1rem;
   font-weight: 600;
+}
+
+.button:hover {
+  background: color-mix(in srgb, var(--link) 10%, var(--bg));
+  text-decoration: none;
 }
 
 /* Prose links carry a thin underline; every other link shows one on hover only. */
@@ -428,13 +476,13 @@ main h1 {
   padding: 0;
 }
 
-.archive-list a,
-.tag-list a {
+.archive-list a {
   color: var(--text);
+  font-family: var(--font-ui);
+  font-weight: 600;
 }
 
-.archive-list a:hover,
-.tag-list a:hover {
+.archive-list a:hover {
   color: var(--link);
 }
 
@@ -456,13 +504,7 @@ main h1 {
 .tag-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-}
-
-.tag-count {
-  color: var(--muted);
-  font-family: var(--font-ui);
-  font-size: 0.85rem;
+  gap: 0.5rem;
 }
 
 .not-found {
@@ -488,9 +530,10 @@ main h1 {
 
 .entry-status {
   --status: var(--callout-question);
-  /* In the flex rows of the archive and entry meta, the default stretch would make
-     the box as tall as the title's line and leave the text at its top. */
+  /* In the archive's flex rows, the default stretch would make the box as tall as
+     the title's line and leave the text at its top. */
   align-self: center;
+  vertical-align: 0.2em;
   padding: 0 0.45em;
   border: 1px solid var(--status);
   border-radius: 10px;
