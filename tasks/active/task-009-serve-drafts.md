@@ -51,3 +51,7 @@ Adds `mdblog serve --drafts`, which also shows entries still being written: note
 - [x] **Step 6**: run the manual QA with the author and record their approval, dated, in `## Advice`.
 
 ## Review log
+### Round 1: APPROVED
+- N1: A draft with several unsafe tags prints one warning per tag (`src/mdblog/properties.py:146`). Not blocking: each warning names the note and property, production counts each unsafe tag as its own failure, and the Must Have for invalid published notes asks for one warning per failure. To remove the ambiguity, reword the draft-property Must Have to "a warning for each failure, naming the note and property".
+- N2: `docs/vault-format.md:139` reads "the home page, the archive and its tag pages"; "the tag pages" says what is meant.
+- N3: Spot checks: a fixture build on `main` and on `task-009` is byte-identical apart from the stylesheet link and file. Label and banner contrast passes WCAG AA in both palettes, lowest dark Invalid at 4.76:1.
