@@ -302,6 +302,9 @@ main {
 
 .entry-status {
   --status: var(--callout-question);
+  /* In the flex rows of the archive and entry meta, the default stretch would make
+     the box as tall as the title's line and leave the text at its top. */
+  align-self: center;
   padding: 0 0.4em;
   border: 1px solid var(--status);
   border-radius: 3px;
