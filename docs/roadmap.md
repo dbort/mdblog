@@ -1,6 +1,6 @@
 # Roadmap
 
-The v1 target is a personal site in the shape of [jacobian.org](https://jacobian.org): a short bio on the home page, one reverse-chronological stream mixing posts, TILs and links, a date and tags on every entry, and a full archive. Notes are written in Obsidian and reach the site without anyone editing generated files.
+The v1 target is a personal site in the shape of [jacobian.org](https://jacobian.org): a short bio on the home page, one reverse-chronological stream of posts, a date and tags on every entry, and a full archive. Notes are written in Obsidian and reach the site without anyone editing generated files.
 
 That site is a model for what readers see. [Its publishing setup](https://jacobian.org/til/hugo-obsidian/) keeps the vault inside the site repo and converts notes in a pre-commit hook, while mdblog keeps the vault in a separate checkout and converts at build time.
 
@@ -10,22 +10,23 @@ M1 to M5 make up v1. M6 and M7 follow it. Each milestone's decisions are settled
 
 Search, comments, series, scheduled publishing, and packaging mdblog for other people's sites are outside v1. Each site's settings live in its own vault, so in the long run this repo can host multiple independent sites.
 
-## M3: Site design and content types
+## M3: Site design
 
-**Status:** Tasks task-006, task-007
+**Status:** Tasks task-006, task-010, task-007
 
 - [x] task-006: Build the site's pages, feeds and entry markup (blocked on task-004)
-- [ ] task-007: Give the site its visual design and 404 page (blocked on task-006, task-008)
+- [ ] task-010: Make every entry a plain post
+- [ ] task-007: Give the site its visual design and 404 page (blocked on task-006, task-008, task-010)
 
 Build the reader-facing site from the default Hugo layouts in the `mdblog` package, using fixtures until real content arrives.
 
-- Three entry types: posts, TILs and links, all at `/posts/<slug>/`. The converter records the type as `.Params.entry_type` and a link's target as `.Params.link_url`, so list pages filter on those. A link entry points to the external page and carries a short commentary and its own permalink.
-- A home page with the bio from the vault's `_site/bio.md`, when it has one, and the latest 15 entries of every type, plus a full archive by year and tag pages.
-- Full-text RSS feeds of the latest 50 entries: one of all types, one per type at `/types/<type>/index.xml` and one per tag, with the site and type feeds advertised from each page's `<head>`. Hugo generates these as `index.xml`, newest first, and M6 and M7 can read them too. A link entry's feed item links to its permalink on the site, and its body starts with the external link.
+- One entry type: every published note is a post at `/posts/<slug>/`.
+- A home page with the bio from the vault's `_site/bio.md`, when it has one, and the latest 15 entries, plus a full archive by year and tag pages.
+- Full-text RSS feeds of the latest 50 entries: one for the site and one per tag, with the site feed advertised from each page's `<head>`. Hugo generates these as `index.xml`, newest first, and M6 and M7 can read them too.
 - A visual design of its own in plain CSS, with no Node: system fonts, light and dark palettes that follow the reader's system, and syntax highlighting in both. It works at phone width, and there is a 404 page.
 - h-entry microformats in entry templates and lists, so M6 and M7 need no template retrofit.
 
-**Done when:** a fixture build generates every page type, the tests assert each entry's date, tags, permalink and h-entry markup, `index.xml` parses as RSS and lists entries of all three types, and each type feed lists only its type.
+**Done when:** a fixture build generates every page type, the tests assert each entry's date, tags, permalink and h-entry markup, `index.xml` parses as RSS and lists the latest entries, and each tag feed lists only that tag's entries.
 
 ## M3.1: Local preview
 
@@ -37,7 +38,7 @@ Build the reader-facing site from the default Hugo layouts in the `mdblog` packa
 Let the author watch the real vault's site change while writing, with nothing deployed.
 
 - `mdblog serve VAULT` runs Hugo's server on the vault's site and rebuilds whenever the vault changes, so open pages reload by themselves. Links point at the local server and keep any base path. A vault that fails validation keeps the last good site on screen until a later edit fixes it.
-- A draft mode, `mdblog serve --drafts`, that also shows unpublished notes with a `type` and marks them as such. The converter passes them to Hugo with a generated `draft: true`, runs Hugo with `--buildDrafts`, and renders links and embeds of unpublished notes normally. Validation failures that stop a production build only warn in this mode. Authors only write `publish`.
+- A draft mode, `mdblog serve --drafts`, that also shows notes with `publish: false` and marks them as such. The converter passes them to Hugo with a generated `draft: true`, runs Hugo with `--buildDrafts`, and renders links and embeds of unpublished notes normally. Validation failures that stop a production build only warn in this mode. Authors only write `publish`.
 
 **Done when:** saving an edit to a note changes its page in an open browser with no command run, and draft mode shows an unpublished note marked as a draft while a production build of the same vault leaves it out.
 
@@ -69,7 +70,7 @@ Serve the built site from a Cloudflare Worker as static assets, with no custom W
 Make publishing part of writing, then go live.
 
 - A check command that runs the build's validation pass with nothing deployed, so problems surface before anything goes live.
-- Note templates for each entry type, for use in Obsidian. They leave out `publish` and `date`, so a new note starts unpublished with or without a template, and the author sets the date when publishing it.
+- A note template for use in Obsidian. It sets `publish: false`, which keeps the note off the site and shows it under `mdblog serve --drafts`, and leaves out `date`, which the author sets when publishing.
 - A way to trigger a publish from the vault.
 - The production domain, and the first real content.
 

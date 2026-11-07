@@ -1,7 +1,7 @@
 ---
 id: task-007
 title: "Give the site its visual design and 404 page"
-blocked_by: [task-006, task-008]
+blocked_by: [task-006, task-008, task-010]
 ---
 
 # task-007: Give the site its visual design and 404 page
@@ -19,8 +19,8 @@ Gives the site a look of its own with one plain CSS file: a single readable colu
 - [ ] Fenced code with a language renders with Hugo's `chroma` classes and no inline `style` attribute, and the stylesheet colors those classes in both palettes.
 - [ ] `/404.html` is in the output with the site's header and footer, a message saying the page was not found, and a link home.
 - [ ] With `base_url` set to `https://example.test/blog/`, the stylesheet link and each internal link on the 404 page start with `/blog/`.
-- [ ] Each of these is styled: type labels, entry lists, year headings, tag lists, tables, inline and fenced code, `<mark>`, images, and task-004's callouts in each form, including closed and open `<details>`.
-- [ ] Manual QA by the author: a fixture build looks right at phone width (375px) and desktop width, in light and dark modes, on the home page, archive, tag index, a tag page, each entry type and the 404 page, and no page scrolls sideways.
+- [ ] Each of these is styled: entry lists, year headings, tag lists, tables, inline and fenced code, `<mark>`, images, and task-004's callouts in each form, including closed and open `<details>`.
+- [ ] Manual QA by the author: a fixture build looks right at phone width (375px) and desktop width, in light and dark modes, on the home page, archive, tag index, a tag page, an entry page and the 404 page, and no page scrolls sideways.
 - [ ] `tools/check` exits 0 on the finished branch.
 
 ## Advice
@@ -29,7 +29,7 @@ Gives the site a look of its own with one plain CSS file: a single readable colu
 - Set `markup.highlight.noClasses = false` in `hugo_config`. Hugo's default writes inline styles from a dark theme, which cannot follow the reader's mode. Generate each palette once with `hugo gen chromastyles`, check the result into `main.css`, and scope the dark one inside the media query. Tested on Hugo 0.169: fenced code renders `class="chroma"` with this setting, and a fingerprinted resource's `.RelPermalink` keeps a base path.
 - Keep text at WCAG AA contrast (4.5:1 for body text) in both palettes, including code tokens, labels and links.
 - Long URLs, wide tables and wide code blocks must not widen the page at 375px: let code and tables scroll inside their own boxes, wrap long words in text, and cap images at the column width.
-- Change markup only where the design needs it, and keep every class and element task-006's tests read.
+- Change markup only where the design needs it, and keep every class and element task-006's and task-010's tests read.
 - Standing obligation, strict static checks: the only Python change is one `hugo_config` line, which stays typed.
 - Standing obligation, scripts stay simple: no new scripts.
 - Standing obligation, test where the risk is: test the stylesheet link, site override, 404 and highlight classes with real Hugo, because each can break silently. Do not test CSS values or restate the stylesheet in tests, which leaves the design itself to manual QA.
