@@ -35,6 +35,9 @@ class Commands:
     """The argv of each external tool, replaceable so tests can inject failures."""
 
     # `npm ci` installs exactly the lockfile and fails when package.json disagrees.
+    # package.json's `allowScripts` turns off esbuild's and workerd's install scripts:
+    # each only checks the platform binary npm already installed as an optional
+    # package, and npm blocks dependency install scripts unless they are listed.
     npm_install: Sequence[str] = ("npm", "ci", "--no-audit", "--no-fund")
     format_check: Sequence[str] = ("ruff", "format", "--check", *CHECKED_PATHS)
     lint: Sequence[str] = ("ruff", "check", *CHECKED_PATHS)

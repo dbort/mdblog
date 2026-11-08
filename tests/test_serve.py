@@ -10,7 +10,6 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
-from mdblog import serve
 from mdblog.build import MARKER, BuildError
 from mdblog.serve import (
     ServeError,
@@ -100,19 +99,14 @@ def test_requested_port_held_only_in_time_wait_is_used() -> None:
     assert choose_port(port) == port
 
 
-def test_default_port_is_used_when_free(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_default_port_is_used_when_free() -> None:
     port = _free_port()
-    monkeypatch.setattr(serve, "DEFAULT_PORT", port)
 
-    assert choose_port(None) == port
+    assert choose_port(None, port) == port
 
 
-def test_busy_default_port_falls_back_to_a_free_one(
-    busy_port: int, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(serve, "DEFAULT_PORT", busy_port)
-
-    port = choose_port(None)
+def test_busy_default_port_falls_back_to_a_free_one(busy_port: int) -> None:
+    port = choose_port(None, busy_port)
 
     assert port != busy_port
     with socket.socket() as probe:

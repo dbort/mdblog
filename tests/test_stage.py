@@ -9,7 +9,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 
 import pytest
@@ -17,7 +17,7 @@ import pytest
 from mdblog import stage
 from mdblog.build import MARKER, BuildError, build_site
 from mdblog.config import ConfigError, SiteConfig, WorkerConfig
-from mdblog.serve import ServeError, choose_port
+from mdblog.serve import ServeError
 from mdblog.stage import (
     ASSETS_DIR,
     COMPATIBILITY_DATE,
@@ -94,15 +94,6 @@ def _free_port() -> int:
         probe.bind(("127.0.0.1", 0))
         port: int = probe.getsockname()[1]
         return port
-
-
-@pytest.fixture
-def busy_port() -> Iterator[int]:
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        listener.listen()
-        port: int = listener.getsockname()[1]
-        yield port
 
 
 @pytest.mark.parametrize(
@@ -312,18 +303,6 @@ def test_stage_refuses_an_output_inside_the_vault(tmp_path: Path) -> None:
         stage_site(vault, vault / "output", hugo=FAKE_HUGO)
 
     assert _snapshot(tmp_path) == before
-
-
-def test_choose_port_uses_the_given_default_when_free() -> None:
-    port = _free_port()
-
-    assert choose_port(None, port) == port
-
-
-def test_choose_port_falls_back_from_a_busy_default(busy_port: int) -> None:
-    port = choose_port(None, busy_port)
-
-    assert port != busy_port
 
 
 def test_wrangler_dev_listens_on_localhost_only(tmp_path: Path) -> None:

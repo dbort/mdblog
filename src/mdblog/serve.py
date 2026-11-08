@@ -55,19 +55,14 @@ def _bound_port(port: int) -> int:
         return bound
 
 
-def choose_port(requested: int | None, default: int | None = None) -> int:
+def choose_port(requested: int | None, default: int = DEFAULT_PORT) -> int:
     """A port that is free on `HOST`: `requested`, else `default`, else any free port.
-
-    `default` is `DEFAULT_PORT` when not given.
 
     Raises `ServeError` naming the port when `requested` cannot be bound, or when no
     port can be bound on `HOST`. The port is free when probed; another process can
     still take it before Hugo binds it.
     """
-    if requested is not None:
-        port = requested
-    else:
-        port = DEFAULT_PORT if default is None else default
+    port = default if requested is None else requested
     try:
         return _bound_port(port)
     except OSError as exc:
@@ -307,10 +302,15 @@ class ServerProcess:
         return self.process.poll()
 
     def stop(self) -> None:
-        if self.process.poll() is not None:
+        exited = self.process.poll() is not None
+        # The whole group, because wrangler runs its server in grandchild processes,
+        # which can outlive a wrangler that exited on its own.
+        try:
+            os.killpg(self.process.pid, signal.SIGTERM)
+        except ProcessLookupError:
             return
-        # The whole group, because wrangler runs its server in grandchild processes.
-        os.killpg(self.process.pid, signal.SIGTERM)
+        if exited:
+            return
         try:
             self.process.wait(timeout=STOP_TIMEOUT)
         except subprocess.TimeoutExpired:

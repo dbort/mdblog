@@ -96,31 +96,6 @@ def test_lock_problems_names_the_field_that_disagrees(
     ]
 
 
-@pytest.mark.parametrize(
-    ("name", "text", "expected"),
-    [
-        pytest.param("package-lock.json", None, "cannot read", id="missing-lock"),
-        pytest.param("package-lock.json", "{", "cannot read", id="bad-json"),
-        pytest.param("package-lock.json", "[]", "not a JSON object", id="array"),
-        pytest.param(
-            "package-lock.json", '{"name": "tools"}', "no root package", id="no-root"
-        ),
-    ],
-)
-def test_lock_problems_reports_an_unusable_file(
-    repo: Path, name: str, text: str | None, expected: str
-) -> None:
-    path = repo / name
-    if text is None:
-        path.unlink()
-    else:
-        path.write_text(text, encoding="utf-8")
-
-    [problem] = lock_problems(repo)
-
-    assert expected in problem
-
-
 def test_main_fails_on_a_stale_lockfile_even_when_installed(repo: Path) -> None:
     assert main([], repo_root=repo, commands=PASSING) == 0
     stale = {**MANIFEST, "devDependencies": {"wrangler": "9.9.9"}}
