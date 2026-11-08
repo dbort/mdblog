@@ -3,7 +3,7 @@ author, so a list item hides the name but keeps its h-card, which h-entry
 consumers read. */ -}}
 {{- $page := .page -}}
 <p class="entry-meta">
-<a class="u-url" href="{{ $page.Permalink }}">{{ partial "date.html" $page }}</a>
+<a class="u-url" href="{{ $page.Permalink }}">{{ partial "date.html" (dict "page" $page "published" true) }}</a>
 <span class="p-author h-card"{{ if .listed }} hidden{{ end }}>{{ site.Params.author }}</span>
 {{ partial "tags.html" $page }}
 </p>

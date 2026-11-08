@@ -729,10 +729,10 @@ summary.callout-title {
  * numbers #7f7f7f to #656d76, NameBuiltinPseudo #6a737d to #59636e, TextWhitespace
  * #fff to inherit and the LineHighlight background #dedede to #fffcf7; dark
  * PreWrapper background #0d1117 to #2b2b2b, line numbers and TextWhitespace to
- * #8b949e and the LineHighlight background #6e7681 to #222222. A highlighted line is
- * lighter than the code background in light mode and darker in dark mode, because
- * the other direction drops keywords and line numbers below AA. Every token color
- * meets AA on a highlighted line too.
+ * #8b949e, Error #f85149 to #f96963 and the LineHighlight background #6e7681 to
+ * #222222. A highlighted line is lighter than the code background in light mode and
+ * darker in dark mode, because the other direction drops keywords and line numbers
+ * below AA. Every token color meets AA on a highlighted line too.
  */
 
 /* Generated using: hugo gen chromastyles --style=github */
@@ -812,7 +812,7 @@ summary.callout-title {
 @media (prefers-color-scheme: dark) {
   /* Generated using: hugo gen chromastyles --style=github-dark */
   /* PreWrapper */ .chroma { color:#e6edf3;background-color:#2b2b2b;-webkit-text-size-adjust:none; }
-  /* Error */ .chroma .err { color:#f85149 }
+  /* Error */ .chroma .err { color:#f96963 }
   /* LineLink */ .chroma .lnlinks { outline:none;text-decoration:none;color:inherit }
   /* LineTableTD */ .chroma .lntd { vertical-align:top;padding:0;margin:0;border:0; }
   /* LineTable */ .chroma .lntable { border-spacing:0;padding:0;margin:0;border:0; }

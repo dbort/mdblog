@@ -5,7 +5,7 @@
 <h2>{{ .Key }}</h2>
 <ul class="archive-list">
 {{- range .Pages }}
-<li><a href="{{ .RelPermalink }}">{{ .Title }}</a>{{ with partial "entry-status.html" . }} {{ . }}{{ end }} {{ partial "date.html" . }}</li>
+<li><a href="{{ .RelPermalink }}">{{ .Title }}</a>{{ with partial "entry-status.html" . }} {{ . }}{{ end }} {{ partial "date.html" (dict "page" . "published" true) }}</li>
 {{- end }}
 </ul>
 </section>

@@ -90,7 +90,7 @@ CHECKS = (
         steps=(
             "With the system in light mode, open {site} in a desktop-width window. "
             "The Draft preview banner is expected: this check serves drafts.",
-            "Visit the home page, All posts, Tags, {site}tags/project/alpha/, "
+            "Visit the home page, All posts, All tags, {site}tags/project/alpha/, "
             "{site}posts/syntax/ and {site}404.html.",
             "Compare each with the decisions in "
             "tasks/active/task-012-restyle-default-theme.md, section Advice: serif "
