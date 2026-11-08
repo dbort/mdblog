@@ -1,7 +1,10 @@
+import os
 import time
 from collections.abc import Callable, Iterator
 
 import pytest
+
+from check_runner import OFFLINE_ENV
 
 
 @pytest.fixture
@@ -15,3 +18,14 @@ def local_zone() -> Iterator[Callable[[str], None]]:
 
         yield set_zone
     time.tzset()
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    if os.environ.get(OFFLINE_ENV) != "1":
+        return
+    skip = pytest.mark.skip(
+        reason="tools/check --offline skips tests that run wrangler"
+    )
+    for item in items:
+        if item.get_closest_marker("wrangler") is not None:
+            item.add_marker(skip)
