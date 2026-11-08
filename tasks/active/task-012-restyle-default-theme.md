@@ -7,10 +7,10 @@ blocked_by: [task-009]
 # task-012: Restyle the default theme with serif text, ivory and dark palettes, and a sidebar
 
 ## Summary
-The default theme gets a new look modeled on two sites the author likes: serif body text and a dark palette from ludic.mataroa.blog, and an ivory light palette and a right-hand sidebar from wheresyoured.at. The bio moves from the top of the home page into the sidebar, alongside recent posts, top tags and the site links.
+The default theme gets a new look modeled on two sites the author likes: serif body text and a dark palette from ludic.mataroa.blog, and an ivory light palette and a right-hand sidebar from wheresyoured.at. The bio moves from the top of the home page into the sidebar, alongside recent posts and top tags.
 
 ## Must Have
-- [ ] Every page, the 404 page included, has an `<aside class="sidebar">` after `<main>` holding, in order: an About section with the bio (when `_site/bio.md` exists), Recent posts (except on the home page), and Tags (when any tag exists).
+- [ ] Every page, the 404 page included, has an `<aside class="sidebar">` after `<main>` holding, in order: an About section with the bio (when `_site/bio.md` exists), Recent posts, and Tags (when any tag exists).
 - [ ] The home page's `<main>` holds no bio. The bio renders in the sidebar on every page, and its embedded image's `src` resolves from an entry page and under a `base_url` with a path such as `https://example.test/blog/`.
 - [ ] Recent posts lists the five newest entries other than the current page, newest first, each with its title and date, followed by a link to `/posts/`. With no other entries, the section is omitted.
 - [ ] Tags lists at most ten tags, ordered by entry count with the highest first and ties by name, each with its count, followed by a link to `/tags/`.
@@ -43,6 +43,7 @@ The default theme gets a new look modeled on two sites the author likes: serif b
   - List items (home and tag pages) hide the author, because a site has one author; entry pages still show it. The list item keeps its `p-author h-card` with the `hidden` attribute, so task-006's h-entry markup is unchanged for M6 and M7 (user decision, 2026-11-07).
   - The year-grouped list at `/posts/` is "All posts" everywhere a reader sees it: its heading and `<title>` ("All posts | <site>"), the header nav, the sidebar's link under Recent posts and the home page's "All posts →" button. Tag feeds describe themselves as "Posts tagged ...". The URL stays `/posts/`. Earlier bullets that say Archive or All entries mean this page (user decision, 2026-11-07).
   - The tag index link reads "All tags" in the header nav, matching the Tags box. The sidebar has no Site box, since Recent posts and Tags end in All posts and All tags links and the home page has its button. RSS moves to the footer, after the copyright, on every page at every width; the header nav drops it as rarely used (user decision, 2026-11-07).
+  - The home page shows Recent posts too, so its sidebar has an All posts link on wide screens like every other page, even though the box repeats the top of the home list (user decision, 2026-11-07).
   - `tools/manual-qa`: after each verdict it asks whether to add notes. Yes opens `$VISUAL`, else `$EDITOR`, else `vi`, on a scratch file whose text becomes the notes; no records none.
 - Keep every text pair at WCAG AA (4.5:1), including links on the tinted surface, muted text, code tokens on the new code backgrounds, and callout titles on their tints. The GitHub light Chroma colors pass on `#f7f2ea` but not on `#e7dbcb`, which is why the code background differs from the surface. Re-derive any callout color that falls below AA on ivory, and update `main.css`'s header comment if the generated-palette edits change.
 - Not blocked by task-011, which is deferred past v1 (user decision, 2026-11-07). The theme stays at `src/mdblog/theme/`; task-011 moves it later along with this task's layouts and CSS.

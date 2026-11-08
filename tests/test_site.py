@@ -274,10 +274,7 @@ def test_every_page_ends_main_with_the_sidebar_in_section_order(site: Site) -> N
         tags = [child.tag for child in layout if isinstance(child, Element)]
         assert tags == ["main", "aside"], name
         labels = [label for label, _ in _sidebar_sections(page)]
-        expected = ["About", "Tags"]
-        if name != "index.html":
-            expected.insert(1, "Recent posts")
-        assert labels == expected, name
+        assert labels == ["About", "Recent posts", "Tags"], name
         assert _sidebar_sections(page)[-1] == TAG_LINKS, name
     assert "404.html" in site.html_pages()
 
@@ -309,6 +306,7 @@ def test_recent_posts_lists_the_five_newest_other_entries_then_the_archive(
     def expected(*slugs: str) -> list[tuple[str, str, str]]:
         return [(f"/posts/{slug}/", *titles[slug]) for slug in slugs]
 
+    assert _recent(site.page("index.html")) == expected(*NEWEST_FIRST[:5])
     assert _recent(site.page("posts/index.html")) == expected(*NEWEST_FIRST[:5])
     assert _recent(site.page("404.html")) == expected(*NEWEST_FIRST[:5])
     assert _recent(site.page("posts/long-post/index.html")) == expected(
@@ -321,7 +319,7 @@ def test_recent_posts_lists_the_five_newest_other_entries_then_the_archive(
     assert recent.all(cls="dt-published") == []
 
 
-def test_a_lone_untagged_entry_without_a_bio_gets_only_site_links(
+def test_a_lone_untagged_entry_without_a_bio_gets_an_empty_sidebar(
     tmp_path: Path,
 ) -> None:
     vault = tmp_path / "vault"

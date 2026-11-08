@@ -9,8 +9,6 @@
 </div>
 </section>
 {{- end }}
-{{- /* The home page already lists the newest entries. */}}
-{{- if not .IsHome }}
 {{- with first 5 (where site.RegularPages "RelPermalink" "ne" .RelPermalink) }}
 <section class="sidebar-section sidebar-recent">
 <h2 class="sidebar-label">Recent posts</h2>
@@ -24,7 +22,6 @@
 <p class="sidebar-more"><a href="{{ .RelPermalink }}">All posts</a></p>
 {{- end }}
 </section>
-{{- end }}
 {{- end }}
 {{- /* ByCount breaks ties by name. */}}
 {{- with site.Taxonomies.tags.ByCount }}
