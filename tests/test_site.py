@@ -15,7 +15,14 @@ from urllib.parse import unquote, urlsplit
 
 import pytest
 
-from mdblog.build import PACKAGED_THEME, build_site
+from mdblog.build import (
+    FEED_LIMIT,
+    HOME_LIMIT,
+    PACKAGED_THEME,
+    RECENT_LIMIT,
+    TAG_LIMIT,
+    build_site,
+)
 from notes import published_text
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -308,9 +315,11 @@ def _recent(page: Element) -> list[tuple[str, str, str]]:
     ]
 
 
-def test_recent_posts_lists_the_five_newest_other_entries_then_the_archive(
+def test_recent_posts_lists_the_newest_other_entries_then_the_archive(
     site: Site,
 ) -> None:
+    # Truncation shows only while the fixture holds more entries than the limit.
+    assert len(NEWEST_FIRST) > RECENT_LIMIT
     titles = {
         "long-post": ("Tips & Tricks", "Jan 4, 2026"),
         "offset-time": ("Offset time", "Jan 2, 2026"),
@@ -323,14 +332,18 @@ def test_recent_posts_lists_the_five_newest_other_entries_then_the_archive(
     def expected(*slugs: str) -> list[tuple[str, str, str]]:
         return [(f"/posts/{slug}/", *titles[slug]) for slug in slugs]
 
-    assert _recent(site.page("index.html")) == expected(*NEWEST_FIRST[:5])
-    assert _recent(site.page("posts/index.html")) == expected(*NEWEST_FIRST[:5])
-    assert _recent(site.page("404.html")) == expected(*NEWEST_FIRST[:5])
+    assert _recent(site.page("index.html")) == expected(*NEWEST_FIRST[:RECENT_LIMIT])
+    assert _recent(site.page("posts/index.html")) == expected(
+        *NEWEST_FIRST[:RECENT_LIMIT]
+    )
+    assert _recent(site.page("404.html")) == expected(*NEWEST_FIRST[:RECENT_LIMIT])
     assert _recent(site.page("posts/long-post/index.html")) == expected(
-        *NEWEST_FIRST[1:]
+        *NEWEST_FIRST[1:][:RECENT_LIMIT]
     )
     without_syntax = [slug for slug in NEWEST_FIRST if slug != "syntax"]
-    assert _recent(site.page("posts/syntax/index.html")) == expected(*without_syntax)
+    assert _recent(site.page("posts/syntax/index.html")) == expected(
+        *without_syntax[:RECENT_LIMIT]
+    )
     recent = site.page("posts/index.html").one(cls="sidebar-recent")
     assert recent.hrefs()[-1] == "/posts/"
     assert recent.all(cls="dt-published") == []
@@ -352,14 +365,16 @@ def test_a_lone_untagged_entry_without_a_bio_gets_an_empty_sidebar(
     ] == ["Recent posts"]
 
 
-def test_sidebar_tags_are_the_ten_most_used_then_by_name(tmp_path: Path) -> None:
+def test_sidebar_tags_are_the_most_used_then_by_name(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     (vault / "_site").mkdir(parents=True)
     shutil.copy(FIXTURE_VAULT / "_site" / "mdblog.toml", vault / "_site")
-    # Tag t<n> is on the first n notes, so counts fall from 12 to 1; ties come from
-    # the extra tags that share a count with one of those.
-    counts = {f"t{n:02}": n for n in range(1, 13)} | {"a-tie": 9, "z-tie": 9}
-    for number in range(1, 13):
+    # Tag t<n> is on the first n notes, so counts fall from the note count, two past the
+    # limit, to 1. The extra tags tie with t<limit>, one sorting before it and one after.
+    notes = TAG_LIMIT + 2
+    counts = {f"t{n:02}": n for n in range(1, notes + 1)}
+    counts |= {"a-tie": TAG_LIMIT, "z-tie": TAG_LIMIT}
+    for number in range(1, notes + 1):
         tags = sorted(tag for tag, count in counts.items() if count >= number)
         (vault / f"n{number:02}.md").write_text(
             published_text(f"n{number:02}", extra=f"tags: [{', '.join(tags)}]\n"),
@@ -375,19 +390,12 @@ def test_sidebar_tags_are_the_ten_most_used_then_by_name(tmp_path: Path) -> None
         (item.one("a", "tag").text, item.one(cls="tag-count").text)
         for item in section.all("li")
     ]
-    assert shown == [
-        ("t12 12", "12"),
-        ("t11 11", "11"),
-        ("t10 10", "10"),
-        ("a-tie 9", "9"),
-        ("t09 9", "9"),
-        ("z-tie 9", "9"),
-        ("t08 8", "8"),
-        ("t07 7", "7"),
-        ("t06 6", "6"),
-        ("t05 5", "5"),
-    ]
-    assert section.all("li")[0].hrefs() == ["/tags/t12/"]
+    ranked = sorted(counts, key=lambda tag: (-counts[tag], tag))
+    assert (
+        shown
+        == [(f"{tag} {counts[tag]}", str(counts[tag])) for tag in ranked][:TAG_LIMIT]
+    )
+    assert section.all("li")[0].hrefs() == [f"/tags/t{notes:02}/"]
     assert section.hrefs()[-1] == "/tags/"
 
 
@@ -765,8 +773,8 @@ def test_recent_json_lists_the_sidebars_entries_as_the_feed_does(site: Site) -> 
         "recent.json"
     ]
     recent = site.recent()
-    assert [item["url"] for item in recent] == _posts(*NEWEST_FIRST[:5])
-    # The 404 page is none of the entries, so its sidebar lists the newest five.
+    assert [item["url"] for item in recent] == _posts(*NEWEST_FIRST[:RECENT_LIMIT])
+    # The 404 page is none of the entries, so its sidebar lists the newest entries.
     sidebar = _recent(site.page("404.html"))
     assert [(item["url"], item["title"]) for item in recent] == [
         (FIXTURE_URL + href.removeprefix("/"), title) for href, title, _ in sidebar
@@ -823,7 +831,9 @@ def test_home_and_feeds_hold_only_their_latest_entries(tmp_path: Path) -> None:
     (vault / "_site").mkdir(parents=True)
     shutil.copy(FIXTURE_VAULT / "_site" / "mdblog.toml", vault / "_site")
     first_day = dt.date(2026, 1, 1)
-    posts = [f"post-{number:02}" for number in range(51, 0, -1)]
+    posts = [
+        f"post-{number:02}" for number in range(max(FEED_LIMIT, HOME_LIMIT) + 1, 0, -1)
+    ]
     for slug in posts:
         date = first_day + dt.timedelta(days=int(slug.removeprefix("post-")))
         (vault / f"{slug}.md").write_text(
@@ -834,8 +844,8 @@ def test_home_and_feeds_hold_only_their_latest_entries(tmp_path: Path) -> None:
 
     home = built.page("index.html").one(cls="h-feed").all(cls="h-entry")
     home_urls = [entry.one(cls="u-url").attrs["href"] for entry in home]
-    assert home_urls == _posts(*posts[:15])
-    assert _item_links(built.feed("index.xml")) == _posts(*posts[:50])
+    assert home_urls == _posts(*posts[:HOME_LIMIT])
+    assert _item_links(built.feed("index.xml")) == _posts(*posts[:FEED_LIMIT])
 
 
 def _internal_urls(site: Site, origin: str) -> list[str]:

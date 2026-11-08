@@ -21,7 +21,7 @@ mdblog's look is already a Hugo theme, but the theme also holds the callout and 
 - [ ] A `_site/hugo.toml` that is a symbolic link fails the build with an error naming it.
 - [ ] Symbolic links and any `.git` entry inside the theme directory are not copied into the Hugo source.
 - [ ] `mdblog serve` on a vault whose `theme` path lies outside the vault rebuilds after a file under that theme changes, shown with a fake watcher. A theme inside the vault reloads through the existing vault watch.
-- [ ] `docs/vault-format.md` documents the `theme` key, `_site/hugo.toml` and which of its keys mdblog overrides, the core hooks that apply under every theme, and that the feed contract, the 404 page (with the marker `mdblog verify` looks for, if task-017 has shipped) and task-009's draft labels hold only for the default theme. `CLAUDE.md` § Sites lists `_site/hugo.toml` and the `theme` key.
+- [ ] `docs/vault-format.md` documents the `theme` key, `_site/hugo.toml` and which of its keys mdblog overrides, the core hooks that apply under every theme, and that the packaged feeds, the 404 page (with the marker `mdblog verify` looks for, if task-017 has shipped) and task-009's draft labels hold only for the default theme.
 - [ ] `tools/check` exits 0 on the finished branch.
 
 ## Advice
@@ -45,6 +45,6 @@ mdblog's look is already a Hugo theme, but the theme also holds the callout and 
 - [ ] **Step 3** (`src/mdblog/build.py`, `src/mdblog/serve.py`, tests): the `_site/hugo.toml` overlay in build and serve, its symlink refusal, and the precedence test.
 - [ ] **Step 4** (`tests/fixtures/themes/`, `tests/test_site.py` or a new test module): a minimal third-party fixture theme with home, list and single layouts that print a param, plus a variant with its own `render-image.html`. Cover the theme-selection, core-hook and hook-precedence Must Haves.
 - [ ] **Step 5** (`src/mdblog/serve.py`, `tests/test_serve.py`): watch an outside-vault theme directory as well as the vault.
-- [ ] **Step 6** (`docs/vault-format.md`, `CLAUDE.md`): document the `theme` key, the overlay and its overridden keys, the core hooks, and the default-theme-only features listed in the Must Haves.
+- [ ] **Step 6** (`docs/vault-format.md`): document the `theme` key, the overlay and its overridden keys, the core hooks, and the default-theme-only features listed in the Must Haves.
 
 ## Review log

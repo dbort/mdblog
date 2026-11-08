@@ -28,22 +28,8 @@ log happens only when the user asks.
 
 ## Entries
 
-- `bug-001` - **One glyph can build two tag pages**: a note tagged `café`
-  with precomposed `é` (U+00E9) and a note tagged `café` with decomposed
-  `é` (`e` + U+0301) both pass validation and build separate directories
-  under `tags/`, so a reader sees the same tag twice with each page listing
-  only some of its notes. Obsidian or an editor can write either form, and
-  the two look identical in the note. Found while probing tags against real
-  Hugo during task-003, and reproduced on Linux. macOS is untested, where
-  the filesystem may treat the two paths as one. Root cause:
-  `_is_safe_tag_segment` and `_tags` in `src/mdblog/properties.py` pass the
-  tag text through unchanged and Hugo keeps the bytes it receives, while
-  case variants merge because Hugo lowercases tag paths. Canonicalize tags
-  so each glyph emits one tag however it is composed, for example with
-  Unicode NFC before front matter is written. Fix: a task, not yet planned,
-  because choosing the normalization form and where it applies is a design
-  decision on the rule every tag passes through.
+- `bug-001` - **One glyph can build two tag pages**: tags `café` with precomposed `é` (U+00E9) and with decomposed `é` (`e` + U+0301) both validate and build separate directories under `tags/`, so readers see one tag twice, each page listing only some notes. Editors can write either form, and they look identical. Found probing tags against real Hugo in task-003, reproduced on Linux, untested on macOS. Root cause: `_tags` in `src/mdblog/properties.py` passes tag text through unchanged, and Hugo keeps the bytes it receives. Canonicalize tags, for example with Unicode NFC, before writing front matter. Fix: a task, not yet planned, because choosing the normalization form and where it applies is a design decision.
 
-- `bug-002` - **A footnote whose text is one word fails the build**: a note holding `text[^1]` and `[^1]: Word.` fails with "Markdown link to 'Word.' is internal; use a wikilink", though Hugo renders it as a footnote. Found while adding a footnote to the fixture in task-006. Root cause: `internal_destinations` in `src/mdblog/markdown.py` parses with plain CommonMark, which reads `[^1]: Word.` as a link reference definition and `[^1]` as a reference link. A definition holding a space is no valid reference definition, so most footnotes pass. Fix: `ad hoc`, by parsing with a footnote plugin or skipping `[^...]` labels, since the correct behavior is not in question.
+- `bug-002` - **A footnote whose text is one word fails the build**: `text[^1]` with `[^1]: Word.` fails with "Markdown link to 'Word.' is internal; use a wikilink", though Hugo renders a footnote. Found in task-006. Root cause: `internal_destinations` in `src/mdblog/markdown.py` parses plain CommonMark, which reads `[^1]: Word.` as a link reference definition. A definition holding a space is not one, so most footnotes pass. Fix: `ad hoc`, with a footnote plugin or by skipping `[^...]` labels, since the correct behavior is not in question.
 
-- `bug-003` - **Footnote links in the home and tag lists point at the list page**: a post's summary or a link entry's full commentary renders in the list with Goldmark's page-relative footnote hrefs (`#fn:1`, `#fnref:1`). They resolve against the list page, so two link entries with footnotes on one list share the ids `fn:1`, and a footnote reference before `<!--more-->` points at a target the list does not hold. Entry pages and feeds are correct. Found by task-006's review. Hugo 0.169 has no footnote id-prefix option, so a fix rewrites the hrefs in the list layouts, as the feed item partial does, or prefixes the ids per entry. Fix: `task-XXX task`, because the choice between rewriting to the entry page and keeping footnotes in place needs a design decision.
+- `bug-003` - **Footnote links in the home and tag lists point at the list page**: list summaries keep Goldmark's page-relative footnote hrefs (`#fn:1`), so two entries on one list share ids, and a reference before `<!--more-->` points at a target the list lacks. Entry pages and feeds are correct. Found by task-006's review. Hugo 0.169 has no footnote id prefix, so a fix rewrites the hrefs in the list layouts, as the feed item partial does, or prefixes the ids per entry. Fix: `task-XXX task`, because choosing between those needs a design decision.

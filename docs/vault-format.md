@@ -1,120 +1,72 @@
 # Vault format
 
-How mdblog reads an Obsidian vault: which notes it publishes, the properties it reads, the Obsidian syntax it converts and the site files the vault holds.
+How mdblog reads an Obsidian vault: which notes it publishes, the properties and Obsidian syntax it reads, and the site files the vault holds.
 
-A note is published only when its front matter holds the boolean `publish: true`. The other rules on this page apply only to those notes, so a draft can hold any properties, as long as its front matter parses. mdblog reads every `.md` file in the vault outside `_site/`, skipping symbolic links and any path with a part starting with `.`; these are the selected notes. Every selected note fails the build on invalid YAML, including an impossible date like `2026-13-45`, a duplicate key, a block that is not a mapping or text that is not UTF-8.
+mdblog reads every `.md` file outside `_site/`, skipping symbolic links and hidden paths, whose parts start with `.`. A note is published only when its front matter holds the boolean `publish: true`. Any note mdblog reads fails the build when its front matter is not UTF-8 or not a YAML mapping, including one with a duplicate key or an impossible date. Every other rule here applies only to published notes.
 
 ## Properties
 
-mdblog reads these properties and ignores every other one. An empty property in Obsidian is null, and null counts as missing, except on `publish`, where it fails the build.
+mdblog reads only these properties. An empty property counts as missing, except an empty `publish`, which fails the build.
 
-| Property | Required | Meaning | Validation |
-|---|---|---|---|
-| `publish` | to publish | Puts the note on the site. | `true` or `false`. Anything else, such as `yes` or `"true"`, fails the build, on any selected note. |
-| `title` | no | The page title. | A string. When missing, the title is the file name without `.md`. |
-| `date` | yes | The publish date. | A YAML date or datetime, not a quoted string. A date after the local date or a datetime after the current time fails. A datetime with no offset means the local time of the machine running the build, and is published with that offset. |
-| `slug` | yes | Sets the page's URL, `/posts/<slug>/`. | Lowercase ASCII letters and digits joined by single hyphens, such as `first-note`. Two notes with one slug fail, and the message names both. |
-| `tags` | no | Site tags. `project/alpha` has its page at `/tags/project/alpha/`. | One string or a list of strings. Each `/`-separated part may use only letters, combining marks, digits, `-`, `_`, `+` and `.`, must hold a letter or digit, and when it holds a `.` must hold an ASCII letter or digit. Anything else fails, including spaces, because each part becomes part of a URL. |
+| Property | Required | Rule |
+|---|---|---|
+| `publish` | to publish | `true` or `false`. Anything else fails the build on any note. |
+| `title` | no | A string. When missing, the title is the file name. |
+| `date` | yes | A YAML date or datetime, not a quoted string, and not in the future, because nothing rebuilds the site when that date arrives. A datetime with no offset is the build machine's local time. |
+| `slug` | yes | The page's URL, `/posts/<slug>/`. Lowercase ASCII letters and digits joined by single hyphens, unique across notes. |
+| `tags` | no | A string or a list. `project/alpha` is its own tag, with no `project` tag implied. Each `/`-separated part uses letters, digits, `-`, `_`, `+` and `.`, with no spaces. Tags ignore case and display in lowercase. |
 
-A note's vault folder and file name have no effect on its URL, so moving or renaming a note never moves its page.
-
-Tags ignore case. `Project/Alpha` and `project/alpha` are one tag, and tags display in lowercase, so `Node.JS` shows as `node.js`. A nested tag stands alone: a note tagged only `project/alpha` creates no `project` tag.
-
-A future date fails the build, because nothing rebuilds the site when that date arrives.
-
-Properties that site generators often read, such as `aliases`, `url`, `draft`, `weight` or `layout`, have no effect, like any other property not listed above.
+Every other property has no effect, including ones other site generators read, such as `aliases` or `draft`. A note's folder and file name never affect its URL.
 
 ## Obsidian syntax
 
-mdblog converts the Obsidian syntax below in each published note, and publishes any other Markdown as written. None of it applies inside fenced code, indented code or inline code, which stay byte for byte, and none of it applies to unpublished notes.
+mdblog converts this syntax outside code spans and code blocks, and publishes other Markdown as written.
 
 | Syntax | Result |
 |---|---|
-| `[[note]]`, `[[note\|alias]]` | A link to the note's page. The link text is the alias, or otherwise the target as written. Inside a table, write the alias as `[[note\\|alias]]`. |
-| `[[note#heading]]`, `[[#heading]]` | A link to that heading of the note, or of the current note. `[[note#a#b]]` targets heading `b`. |
-| `[[note#^id]]`, `[[#^id]]` | A link to the top of the note, because a block has no anchor on the site. The block ID must exist. |
-| `![[note]]` | The same link as `[[note]]`. Notes are never transcluded. |
-| `![[image.png]]` | The image. `![[image.png\|300]]` sets its width, `![[image.png\|300x200]]` its width and height, and any other alias its alt text, which is otherwise the file name. |
+| `[[note]]`, `[[note\|alias]]`, `![[note]]` | A link to the note's page. Notes are never transcluded. Inside a table, write `[[note\\|alias]]`. |
+| `[[note#heading]]`, `[[#heading]]` | A link to the heading. |
+| `[[note#^id]]`, `[[#^id]]` | A link to the top of the note. The block ID must exist. |
+| `![[image.png]]` | The image. `\|300` sets its width, `\|300x200` its size, and any other alias its alt text. |
 | `[[image.png]]` | A link to the image file. |
-| `%%comment%%` | Removed, inline or across lines, along with any links inside it. A `%%` with no closing `%%` removes the rest of the note, because leaking a private aside is worse than losing text. A comment hides text only on the site, since the vault itself is not secret. |
-| `^block-id` | Removed when it ends a line or stands alone on one. |
-| `> [!type] Title` | A callout headed by its title, or by its type capitalized. `[!type]-` makes it collapsible and closed, and `[!type]+` collapsible and open. A plain quote stays a quote. |
+| `%%comment%%` | Removed. An unclosed `%%` removes the rest of the note. Comments hide text from the site, not from anyone who can read the vault. |
+| `^block-id` | Removed at the end of a line. |
+| `> [!type] Title` | A callout. `[!type]-` makes it collapsible and closed, `[!type]+` collapsible and open. |
 | `==text==` | Highlighted text. |
 | `#tag` in the body | Literal text. Only the `tags` property creates site tags. |
 
-An image is published with each note that uses it. An image no published note or the bio uses is never published.
+Raw HTML in a note renders as nothing. An image publishes only with a note or the bio that uses it.
 
-Raw HTML in a note renders as nothing, so an `<img>` or `<a>` written in a note cannot bypass these rules.
-
-### Finding a link's target
-
-The part of a target before the first `#` names a file, found in this order:
-
-1. A target starting with `./` or `../` is a path from the note's folder.
-2. Any other target holding `/` is a path from the vault root.
-3. Anything else is a file name, which must be unique across the vault, ignoring folders.
-
-Case never matters. A note matches with or without `.md`, and a note wins over any other file with the same name, so `[[v1.2 notes]]` finds `v1.2 notes.md`. A heading matches ignoring case and treating each run of punctuation and spaces as one space, so `[[note#Café Über]]` matches the heading `Café & Über:`. When two headings match, the link goes to the first. Files in `_site/`, in a folder or with a name starting with `.`, and symbolic links are never found.
+A link target starting with `./` or `../` is a path from the note's folder, any other target holding `/` is a path from the vault root, and a bare name must be unique across the vault. Matching ignores case and the `.md` extension, and a note wins over another file with the same name. Heading matching ignores case and treats any run of punctuation and spaces as one space.
 
 ### Build failures
 
-A published note fails the build when it holds any of these, and the message names the note and the link as written:
+A published note fails the build when it holds:
 
-- a link or embed that matches no file, matches more than one, resolves outside the vault, or targets a path under `_site/` or a hidden folder
-- a link or embed of a note that is not published, or that fails its own validation
-- a heading or block ID the target note does not have, outside its comments
-- a link or embed of a file other than a note or an `avif`, `bmp`, `gif`, `jpeg`, `jpg`, `png`, `svg` or `webp` image (in any case), such as `paper.pdf` or `clip.mp4`
-- two different images with the same file name, because they would share one URL on the page
-- a standard Markdown link or image, inline or reference-style, whose destination has no URL scheme and does not start with `#`, such as `[text](note.md)`; keep Obsidian's "Use [[Wikilinks]]" setting on
+- a link or embed that matches no file or several, or points outside the vault, into `_site/` or into a hidden folder
+- a link or embed of a note that is unpublished or fails its own validation, or of a heading or block ID the note does not have
+- a link or embed of a file that is neither a note nor an image (the image formats are `IMAGE_SUFFIXES` in [`src/mdblog/markdown.py`](../src/mdblog/markdown.py))
+- two different images with the same file name
+- a standard Markdown link or image whose destination has no URL scheme and does not start with `#`, such as `[text](note.md)`. Keep Obsidian's "Use [[Wikilinks]]" setting on.
 
-One build reports every failure in every note, together with the property failures above, and leaves the output directory unchanged. A note goes live only when everything it links to is published.
-
-### Known limits
-
-- Math, note transclusion and audio, video and PDF players are unsupported.
-- A callout type holding a hyphen, such as `[!custom-thing]`, renders as a plain quote with its marker as literal text.
-- A link to a heading holding a numeric character reference, such as `&#42;`, can miss the heading without failing the build.
+Math, note transclusion, and audio, video and PDF players are unsupported. A callout type holding a hyphen, such as `[!custom-thing]`, renders as a plain quote. A link to a heading holding a numeric character reference, such as `&#42;`, can miss the heading without failing the build.
 
 ## Site folder
 
-The `_site/` folder at the vault's root holds the site's own files. Its notes are never published, and a link into it fails the build. The build never follows a symbolic link inside it.
+The `_site/` folder at the vault's root holds the site's own files. mdblog never publishes its notes or follows its symbolic links.
 
 | Path | Required | Meaning |
 |---|---|---|
-| `_site/mdblog.toml` | yes | The site's `base_url`, `title` and `author`. `base_url` may hold a path, such as `https://example.test/blog/`, and every page, link and feed then lives under `/blog/`. A trailing slash makes no difference. |
-| `_site/bio.md` | no | The author's bio, which the theme shows on the site. Its front matter has no effect, including `publish: false`. Its wikilinks and embeds convert as a note's do and fail the build the same way, with failures naming `_site/bio.md`. Because no link may target `_site/`, keep the bio's images elsewhere in the vault. A symbolic link at this path fails the build. |
-| `_site/layouts/`, `_site/assets/` | no | Theme overrides: each file replaces the packaged theme's layout or asset at the same path, so `_site/assets/css/main.css` replaces the stylesheet. |
-| `_site/static/` | no | Files published at the site's root as they are, so `_site/static/favicon.ico` is served at `/favicon.ico`. |
-| `_site/Templates/` | no | Obsidian templates, such as the [post template](#post-template). mdblog never reads them. |
+| `_site/mdblog.toml` | yes | The site's `base_url`, `title` and `author`. A path in `base_url`, such as `https://example.test/blog/`, puts the whole site under that path. |
+| `_site/bio.md` | no | The author's bio, shown on the site whatever its front matter says. Its links convert and fail like a note's. Keep its images outside `_site/`. |
+| `_site/layouts/`, `_site/assets/` | no | Theme overrides. Each file replaces the packaged theme's file at the same path. |
+| `_site/static/` | no | Files published at the site's root as they are. |
+| `_site/Templates/` | no | Obsidian templates, such as the post template below. |
 
 ## Post template
 
-The repository's [`templates/Post Template.md`](../templates/Post%20Template.md) starts a new note as a draft with the properties mdblog reads, plus a `created` property that mdblog ignores.
-
-To use it, copy it to `_site/Templates/Post Template.md` in the vault, then open Obsidian's settings, turn on the Templates core plugin, and set its template folder location to `_site/Templates`. Obsidian's "Insert template" command then fills a note with these properties, replacing the `created` placeholder with the current time, such as `created: 2026-11-07T14:03:22-08:00`.
-
-The template has to live in `_site/`. Until Obsidian fills it in, the `created` placeholder is not valid YAML, so the template file itself would fail `mdblog build` anywhere else in the vault, and print a warning under `mdblog serve --drafts`. mdblog never reads notes in `_site/`.
-
-The empty `slug`, `title` and `date` count as missing. While the note is a draft, each falls back as described under [Draft preview](#draft-preview). Once it is marked `publish: true`, an empty `date` or `slug` fails the build, but an empty `title` becomes the file name without any warning, so fill in `title` when the file name is not the title you want.
+To start new notes from [`templates/Post Template.md`](../templates/Post%20Template.md), copy it to `_site/Templates/` and set the folder of Obsidian's Templates core plugin to `_site/Templates`. The template has to live in `_site/`, because its unfilled placeholder is not valid YAML. Before publishing, fill in `title` unless the file name is the title you want.
 
 ## Draft preview
 
-`mdblog serve --drafts` previews the site with the notes still being written. `mdblog build` has no such option, so a built site never holds a draft.
-
-The preview holds every note `mdblog build` would publish, and every draft: a note whose front matter holds the boolean `publish: false`. A note with no `publish` property stays off the preview, whatever its other properties, so journals and reference notes never appear. A note whose front matter does not parse, whose `publish` is not a boolean, or whose text is not UTF-8 is left out with a warning.
-
-A draft needs no properties beyond `publish: false`:
-
-- With no `date`, it takes the file's modification time in the local zone, with its offset. A future date stays as written.
-- With no `slug`, it takes one made from its file name: lowercased, each run of characters other than ASCII letters and digits turned into one hyphen, and hyphens trimmed from the ends, so `My Draft Note.md` gets `my-draft-note`. A name with no ASCII letter or digit, such as one in a non-Latin script, gets `note`.
-- A property that is present but invalid prints a warning naming the note and the property, and the note still renders: an invalid `title` falls back to the file name, an invalid `date` to the modification time, an invalid `slug` to the file-name slug and invalid `tags` to no tags.
-
-A published note that would fail the build renders anyway with the same fallbacks, and prints one warning per failure, link failures included. A future date on it is kept.
-
-Every slug stays unique. A note's own valid slug wins over a generated one, a published note's own slug wins over a draft's, and between two drafts or two published notes, the first by vault path keeps it. Every other note, in path order, adds the first free numeric suffix, such as `my-draft-2`, and prints a warning naming the note holding the slug. A published note whose own slug was taken counts as failing.
-
-A link or embed that would fail the build stays on the page exactly as written, which shows where it is, and prints a warning. This applies to the bio too. A link to a draft goes to the draft's page.
-
-The preview labels each draft "Draft" and each published note that fails "Invalid", and every page carries a banner saying it is a draft preview and not the live site. The preview's feeds include drafts but are never published.
-
-After each rebuild, `serve --drafts` prints the current warnings to stderr as `path: reason` lines, in the format of `mdblog build`'s failures, under a heading that says they are warnings. A failing note never stops or delays the preview. An unusable `_site/mdblog.toml` still stops it until a change fixes the file, as with plain `serve`.
+`mdblog serve --drafts` adds drafts, notes marked `publish: false`, labeled "Draft", and renders published notes that would fail the build, labeled "Invalid". A note with no `publish` property never appears. Instead of failing, a missing or invalid property falls back (`title` to the file name, `date` to the file's modification time, `slug` to one made from the file name, `tags` to none), a broken link stays as written, and a slug already taken gets a numeric suffix. Each problem other than a draft's missing property prints a warning. `mdblog build` never publishes a draft.

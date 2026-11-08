@@ -1,6 +1,10 @@
-{{- /* Pages outside the blog read this file, so its shape is a contract: see
-       .claude/docs/hugo-site.md. It lists the entries the sidebar's Recent posts box
-       lists on a page that is none of them, in the same order. */ -}}
+{{- /* Pages outside the blog fetch this file, so its shape is a contract. It is an
+       object whose only key, `items`, holds an array, possibly empty, of the entries the
+       sidebar's Recent posts box lists on a page that is none of them, in the same
+       order. Each item has exactly the string keys `title`; `url`, the absolute URL that
+       is the entry's <link> in /index.xml; and `date`, ISO 8601 with its UTC offset, the
+       same instant as its <pubDate>. JSON Feed would require each item's content,
+       making the file as heavy as the full-text feed. */ -}}
 {{- $items := slice -}}
 {{- range first site.Params.mdblog_recent_limit site.RegularPages -}}
 {{- $items = $items | append (dict

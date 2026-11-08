@@ -1,7 +1,6 @@
 {{ define "main" }}
-{{- $latest := 15 }}
 <section class="h-feed entry-list">
-{{- range first $latest site.RegularPages }}
+{{- range first site.Params.mdblog_home_limit site.RegularPages }}
 {{ partial "entry-item.html" . }}
 {{- end }}
 </section>
