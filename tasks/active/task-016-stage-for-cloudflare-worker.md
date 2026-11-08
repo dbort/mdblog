@@ -48,3 +48,9 @@ title: "Stage the site for a Cloudflare Worker and serve it with wrangler dev"
 - [x] **Step 6** (`README.md`, `docs/vault-format.md`, code comments, a pointer in `.claude/docs/hugo-site.md`, `CLAUDE.md` § Toolchain only if every session needs to know about the npm lockfile): document the work.
 
 ## Review log
+
+### Round 1: REJECTED
+- **F1: Test of pathological input to repo tooling** (`tests/test_check_runner.py:99-121`): `test_lock_problems_reports_an_unusable_file` feeds `lock_problems` a missing lockfile, invalid JSON, a JSON array and a lockfile with no root package. Each fails loudly and leaves output intact, and `check_runner` is repo tooling, so CLAUDE.md's **Test where the risk is** excludes the test. Delete it; keep the stale-lock, stamp and offline-variable tests.
+- **N1: Install-script opt-out has no recorded reason** (`package.json:8`): `allowScripts` turns off `esbuild`'s and `workerd`'s install scripts with no reason recorded anywhere. Record one line near the npm step or in a commit message.
+- **N2: Wrangler's leftover processes after it exits on its own** (`src/mdblog/serve.py:309-310`): `ServerProcess.stop` returns early when the leader has exited and never signals the group, so orphaned `workerd` grandchildren keep running. Signal the group regardless, ignoring `ProcessLookupError`.
+- **N3: `choose_port` default** (`src/mdblog/serve.py:58`): `default: int = DEFAULT_PORT` would replace the `None` branch.
