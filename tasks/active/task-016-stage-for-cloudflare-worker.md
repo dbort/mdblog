@@ -54,3 +54,6 @@ title: "Stage the site for a Cloudflare Worker and serve it with wrangler dev"
 - **N1: Install-script opt-out has no recorded reason** (`package.json:8`): `allowScripts` turns off `esbuild`'s and `workerd`'s install scripts with no reason recorded anywhere. Record one line near the npm step or in a commit message.
 - **N2: Wrangler's leftover processes after it exits on its own** (`src/mdblog/serve.py:309-310`): `ServerProcess.stop` returns early when the leader has exited and never signals the group, so orphaned `workerd` grandchildren keep running. Signal the group regardless, ignoring `ProcessLookupError`.
 - **N3: `choose_port` default** (`src/mdblog/serve.py:58`): `default: int = DEFAULT_PORT` would replace the `None` branch.
+
+### Round 2: REJECTED
+- **F1: The new group-signal branch in `ServerProcess.stop` has no test** (`src/mdblog/serve.py:305-312`): the round 1 N2 fix signals the group after the leader has already exited, but no test reaches that path: the exit-on-its-own fake starts no child, and the SIGINT test stops a running leader. A regression would leave `workerd` running with every test green. Have the exit-on-its-own fake start a grandchild, record its pid and exit 3, then assert the grandchild is gone after the `ServeError`.
