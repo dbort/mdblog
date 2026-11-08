@@ -21,7 +21,7 @@
 {{- end }}
 </ul>
 {{- with site.GetPage "/posts" }}
-<p class="sidebar-more"><a href="{{ .RelPermalink }}">All entries</a></p>
+<p class="sidebar-more"><a href="{{ .RelPermalink }}">All posts</a></p>
 {{- end }}
 </section>
 {{- end }}
@@ -44,7 +44,7 @@
 <h2 class="sidebar-label">Site</h2>
 <ul class="sidebar-link-list">
 {{- with site.GetPage "/posts" }}
-<li><a href="{{ .RelPermalink }}">Archive</a></li>
+<li><a href="{{ .RelPermalink }}">All posts</a></li>
 {{- end }}
 {{- with site.GetPage "/tags" }}
 <li><a href="{{ .RelPermalink }}">Tags</a></li>

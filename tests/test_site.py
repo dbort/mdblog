@@ -417,7 +417,10 @@ def test_no_page_labels_an_entry_or_marks_up_another_url(site: Site) -> None:
 
 
 def test_archive_lists_every_entry_under_year_headings(site: Site) -> None:
-    main = site.page("posts/index.html").one("main")
+    page = site.page("posts/index.html")
+    assert page.one("title").text == "All posts | mdblog fixture"
+    main = page.one("main")
+    assert main.one("h1").text == "All posts"
     assert [heading.text for heading in main.all("h2")] == ["2026", "2025"]
     years = main.all(cls="archive-year")
     lines = [[item.text for item in year.all("li")] for year in years]
@@ -535,7 +538,7 @@ def test_every_page_has_the_header_and_footer(site: Site) -> None:
         brand = "mdblog fixture" if name == "index.html" else "« mdblog fixture"
         assert links == [
             (brand, "/"),
-            ("Archive", "/posts/"),
+            ("All posts", "/posts/"),
             ("Tags", "/tags/"),
             ("RSS", "/index.xml"),
         ], name

@@ -90,7 +90,7 @@ CHECKS = (
         steps=(
             "With the system in light mode, open {site} in a desktop-width window. "
             "The Draft preview banner is expected: this check serves drafts.",
-            "Visit the home page, Archive, Tags, {site}tags/project/alpha/, "
+            "Visit the home page, All posts, Tags, {site}tags/project/alpha/, "
             "{site}posts/syntax/ and {site}404.html.",
             "Compare each with the decisions in "
             "tasks/active/task-012-restyle-default-theme.md, section Advice: serif "
@@ -99,11 +99,11 @@ CHECKS = (
             "« before the site title on every page but home.",
             "Repeat at phone width: the browser's device toolbar set to 375px wide. "
             "The sidebar sits after the content and before the footer, and the "
-            "header shows the Archive, Tags and RSS links.",
+            "header shows the All posts, Tags and RSS links.",
             "Switch the system to dark mode and repeat both widths: blue links and "
             "markers, solid sidebar borders.",
             "On posts/syntax/, open and close each callout and scroll the code block "
-            "and the table sideways. On the home page and Archive, find the Draft "
+            "and the table sideways. On the home page and All posts, find the Draft "
             "label on marked-false and the Invalid label on An invalid note.",
             "Pass if every page matches those decisions and reads well in both modes "
             "at both widths, and no page scrolls sideways as a whole. Note anything "
@@ -119,7 +119,7 @@ CHECKS = (
             "With the system in light mode, open {site} in a desktop-width window.",
             "On the home page, find marked-false labeled Draft and An invalid note "
             "labeled Invalid, beside entries with no label, and the banner at the top.",
-            "Visit Archive, {site}tags/project/alpha/, {site}posts/marked-false/, "
+            "Visit All posts, {site}tags/project/alpha/, {site}posts/marked-false/, "
             "{site}posts/invalid-note/ and {site}posts/first-note/.",
             "Repeat at phone width: the browser's device toolbar set to 375px wide.",
             "Switch the system to dark mode and repeat both widths.",
