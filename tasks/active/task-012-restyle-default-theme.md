@@ -29,7 +29,7 @@ The default theme gets a new look modeled on two sites the author likes: serif b
   - Layout: one grid with the sidebar on the right (about 16.5rem) from roughly 60rem up. Below that, one column with the sidebar after `<main>` and before the footer. The sidebar is not sticky.
   - Sidebar sections are boxes with a 1px border in the border color and 10px radius, each headed by a small uppercase sans label with a 10px ring marker in the accent color. The border is dashed in light mode and solid in dark mode, because a dashed `#353535` on `#212529` was too faint to see (user decision, 2026-11-07). The dark border color stays `#353535`.
   - Header: a brand link in the text color at weight 600, with a muted `« ` on non-home pages and no rule under the header. The header nav shows only below the sidebar breakpoint, hidden by CSS, because the sidebar's All posts and All tags links cover wide screens.
-  - Footer: the existing `© author` line, muted, with a thin top rule.
+  - Footer: the existing `© author` line, muted, with a thin top rule, and an RSS link after it (see the 2026-11-07 decisions below).
   - Palettes follow `prefers-color-scheme` with no toggle or JavaScript, as task-007 decided.
 - User decisions from the first manual QA run (2026-11-07, log at f12811f). These override the earlier bullets where they differ.
   - The About box's apparent blank line was the fixture headshot, an empty transparent 10x10 SVG. The fixture headshot draws a visible shape so the bio image shows in QA.
@@ -46,6 +46,7 @@ The default theme gets a new look modeled on two sites the author likes: serif b
   - The home page shows Recent posts too, so its sidebar has an All posts link on wide screens like every other page, even though the box repeats the top of the home list (user decision, 2026-11-07).
   - Dark-mode tag chips are lighter than the surface so they stand out from the page: background `#3a3f45` with a `#4a5057` border. Chip text, counts and the hover link stay at AA on it. Light chips keep the surface and border colors (user decision, 2026-11-07).
   - `tools/manual-qa`: after each verdict it asks whether to add notes. Yes opens `$VISUAL`, else `$EDITOR`, else `vi`, on a scratch file whose text becomes the notes; no records none.
+- Manual QA approved by the author on 2026-11-07 at 5fd0981. The first `tools/manual-qa restyle` run (log at f12811f) passed with notes, applied above. The author reviewed each later change on the served fixture site in conversation, gave the notes recorded above, and approved the result ("Looks great") with `/ship task-012`. No second log was written.
 - Keep every text pair at WCAG AA (4.5:1), including links on the tinted surface, muted text, code tokens on the new code backgrounds, and callout titles on their tints. The GitHub light Chroma colors pass on `#f7f2ea` but not on `#e7dbcb`, which is why the code background differs from the surface. Re-derive any callout color that falls below AA on ivory, and update `main.css`'s header comment if the generated-palette edits change.
 - Not blocked by task-011, which is deferred past v1 (user decision, 2026-11-07). The theme stays at `src/mdblog/theme/`; task-011 moves it later along with this task's layouts and CSS.
 - Restyle task-009's Draft and Invalid labels and its banner in both palettes.
@@ -54,11 +55,11 @@ The default theme gets a new look modeled on two sites the author likes: serif b
 - Before running the reviewer, replace the `design: phone and desktop, light and dark` check in `tools/manual_qa.py` with one covering this task's manual-QA Must Have. That check runs `mdblog serve --drafts` on the fixture vault so the labels are visible. Have the author run `tools/manual-qa` with its name, apply their feedback, and record the approval from the log in `## Advice` with the date and commit.
 - Standing obligation, strict static checks: Python changes are limited to `tools/manual_qa.py` and tests, which stay fully typed.
 - Standing obligation, scripts stay simple: no new scripts.
-- Standing obligation, test where the risk is: test the sidebar contents, ordering, omissions, home-page exclusion, header brand text and bio placement with real Hugo, because each can silently show the wrong list. Do not test CSS values; the look is manual QA.
+- Standing obligation, test where the risk is: test the sidebar contents, ordering, omissions, header brand text and bio placement with real Hugo, because each can silently show the wrong list. Do not test CSS values; the look is manual QA.
 
 ## Plan
 - [x] **Step 1** (`src/mdblog/theme/layouts/`): the grid in `baseof.html`, a sidebar partial with its four sections, the header's brand link and phone nav, and the home page without the bio. Update the affected tests named in `## Advice` and add tests for the new markup Must Haves.
 - [x] **Step 2** (`src/mdblog/theme/assets/css/main.css`): the palettes, type, link and title rules, sidebar boxes, header, footer, and task-009's labels, then the WCAG AA recheck including Chroma and callouts.
-- [ ] **Step 3** (`tools/manual_qa.py`): the replacement manual-QA check, then the author's run and the recorded approval.
+- [x] **Step 3** (`tools/manual_qa.py`): the replacement manual-QA check, then the author's run and the recorded approval.
 
 ## Review log
