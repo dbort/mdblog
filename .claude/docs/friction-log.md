@@ -26,22 +26,5 @@ the papercut and its fix in its message.
 
 ## Entries
 
-- `friction-001` - **Seeing the rendered site during task-012's restyle**:
-  the environment has no headless browser (no Chromium, Firefox or
-  Playwright), so the agent could not render a page, take a screenshot or
-  measure layout. It checked markup with real-Hugo tests and left the whole
-  visual check (sidebar placement at 375px and desktop width, light and
-  dark palettes, no sideways scroll) to the author's manual QA, the first
-  time anyone saw the pages. Simpler if: a headless browser in the pixi
-  environment (for example Playwright with Chromium), so the agent can
-  screenshot fixture pages at each width and color scheme before manual
-  QA, and tests can assert layout facts such as no horizontal overflow at
-  375px and the sidebar's position.
-- `friction-002` - **Checking task-012's palettes against WCAG AA**: no
-  contrast tool exists, so the agent wrote a throwaway script that
-  hardcodes both palettes, computes `color-mix()` tints by hand and
-  regex-parses the Chroma rules out of `main.css`. Its results depend on
-  the hardcoded values staying in step with the stylesheet. Simpler if: a
-  contrast check in `tools/check` that reads the color pairs from
-  `main.css` itself, so the stylesheet header's AA claim is enforced
-  instead of rechecked by hand.
+- `friction-001` - **Seeing the rendered site during task-012's restyle**: with no headless browser, the agent could not screenshot or measure layout, so it checked markup with real-Hugo tests and left the visual check (sidebar placement at 375px and desktop, both palettes, no sideways scroll) to manual QA. Simpler if: a headless browser in the pixi environment, such as Playwright with Chromium, so agents can screenshot fixture pages and tests can assert layout facts like no horizontal overflow at 375px.
+- `friction-002` - **Checking task-012's palettes against WCAG AA**: with no contrast tool, the agent wrote a throwaway script that hardcoded both palettes, computed `color-mix()` tints by hand and regex-parsed the Chroma rules from `main.css`. Simpler if: a contrast check in `tools/check` that reads the color pairs from `main.css`, so the stylesheet's AA claim is enforced.

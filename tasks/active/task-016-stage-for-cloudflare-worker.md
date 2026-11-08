@@ -20,12 +20,13 @@ title: "Stage the site for a Cloudflare Worker and serve it with wrangler dev"
 - [ ] The pixi environment provides Node from conda-forge. `package.json` and a committed `package-lock.json` pin wrangler, and `node_modules/` is git-ignored.
 - [ ] `tools/check` installs from the npm lockfile and fails when `package.json` and `package-lock.json` disagree. When `node_modules/` already matches the lockfile, it doesn't reinstall. Under `--offline`, the install, the dry run and every wrangler-dependent test skip, and the gate reports the skip.
 - [ ] `tools/check` validates the Worker config generated for a staged fixture bundle without Cloudflare credentials or network access: `wrangler deploy --dry-run` if that works offline, otherwise a test of the fields above. A gate test shows that a failing npm or dry-run step fails the gate.
-- [ ] `README.md` documents `stage` and `--serve`, and its Development section points to the gate's contract instead of listing steps. `docs/vault-format.md` documents `[worker] name`. A `.claude/docs/` file documents the bundle layout and each generated wrangler field, with its reason.
+- [ ] `README.md` documents `stage` and `--serve`, and its Development section points to the gate's contract instead of listing steps. `docs/vault-format.md` documents `[worker] name`. Comments in the code that writes the bundle give the reason for its layout and for each generated wrangler field. `.claude/docs/hugo-site.md` points to that code and copies none of it.
 - [ ] `tools/check` exits 0 on the finished branch.
 
 ## Advice
 - mdblog generates the wrangler config, and the vault supplies only the Worker name (routes come in M5). The assets directory, 404 handling and compatibility date are what the staging layout depends on, so mdblog owns them, and a vault cannot break them. Pin `compatibility_date` as a constant in code.
 - Validate `name` against Cloudflare's rule for Worker names. Check the rule in Cloudflare's docs during `/work` instead of trusting memory (roughly lowercase letters, digits and hyphens, at most 63 characters). Then a bad name fails at load time rather than at deploy.
+- Wrangler comes from npm because conda-forge has no wrangler package. The gate checks the npm lockfile itself because `pixi run --locked` does not detect a stale `package-lock.json`. (Moved from the roadmap, 2026-11-07.)
 - Keep the marker outside the assets directory, for example `DIR/.mdblog-output` beside `DIR/wrangler.json` and `DIR/public/`. Wrangler uploads everything under the assets directory, and local output must never reach Cloudflare. Strip the marker `build_site` writes into its own output.
 - Hugo writes files at the output's root even when `base_url` holds a path, so staging moves the whole output under the path. With a root `base_url`, the output goes at the assets root.
 - `--serve` overlaps with `mdblog serve` only in port choice and output protection. Reuse `choose_port`, with the default port as a parameter, and `check_output`, rather than duplicating them. Leave `mdblog serve` alone. Its value is Hugo's live reload, incremental rebuilds and drafts, none of which `wrangler dev` offers, and routing authoring preview through wrangler would add Node to the writing loop for no gain.
@@ -44,6 +45,6 @@ title: "Stage the site for a Cloudflare Worker and serve it with wrangler dev"
 - [ ] **Step 3** (`src/mdblog/config.py`, `tests/test_config.py`): add the `[worker]` table.
 - [ ] **Step 4** (new `src/mdblog/stage.py`, `src/mdblog/serve.py` for the shared helpers, `src/mdblog/cli.py`): staging into a protected bundle, the generated wrangler config, and `--serve` via `wrangler dev`.
 - [ ] **Step 5** (new `tests/test_stage.py`, `tests/test_cli.py`): unit tests with fakes, plus the one real-wrangler end-to-end test.
-- [ ] **Step 6** (`README.md`, `docs/vault-format.md`, a `.claude/docs/` file, `CLAUDE.md` § Toolchain only if every session needs to know about the npm lockfile): document the work.
+- [ ] **Step 6** (`README.md`, `docs/vault-format.md`, code comments, a pointer in `.claude/docs/hugo-site.md`, `CLAUDE.md` § Toolchain only if every session needs to know about the npm lockfile): document the work.
 
 ## Review log

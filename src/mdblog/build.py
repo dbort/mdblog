@@ -20,10 +20,19 @@ THEME = "mdblog"
 PACKAGED_THEME = Path(__file__).resolve().parent / "theme"
 # Every feed holds at most this many of its latest entries.
 FEED_LIMIT = 50
+# The home page lists at most this many of the latest entries.
+HOME_LIMIT = 15
 # The sidebar's Recent posts box and `recent.json` hold at most this many entries.
 RECENT_LIMIT = 5
-# The site param holding `RECENT_LIMIT`, which the layouts read.
-RECENT_PARAM = "mdblog_recent_limit"
+# The sidebar's Tags box lists at most this many of the most used tags.
+TAG_LIMIT = 10
+# The site params that pass each layout limit to the layouts, so a site's own layouts
+# can read them too.
+LIMIT_PARAMS = {
+    "mdblog_home_limit": HOME_LIMIT,
+    "mdblog_recent_limit": RECENT_LIMIT,
+    "mdblog_tag_limit": TAG_LIMIT,
+}
 # A vault's `_site/` directories that Hugo reads beside the packaged theme's.
 SITE_DIRECTORIES = ("layouts", "assets", "static")
 # The site param that turns on the draft preview banner. Only draft mode writes it.
@@ -96,11 +105,12 @@ def hugo_config(config: SiteConfig, drafts: bool = False) -> str:
     """The text of a `hugo.toml` that applies `config` and the packaged theme.
 
     The site renders a feed at `/index.xml` and one per tag, and no other feed. The
-    home page also renders `/recent.json`. The site param `RECENT_PARAM` is
-    `RECENT_LIMIT`. With `drafts`, the site param `PREVIEW_PARAM` is true, and otherwise
+    home page also renders `/recent.json`. Each entry of `LIMIT_PARAMS` is a site
+    param. With `drafts`, the site param `PREVIEW_PARAM` is true, and otherwise
     it is absent.
     """
     preview = f"{PREVIEW_PARAM} = true\n" if drafts else ""
+    limits = "".join(f"{name} = {limit}\n" for name, limit in LIMIT_PARAMS.items())
     return (
         f"baseURL = {_toml_string(config.base_url)}\n"
         f"title = {_toml_string(config.title)}\n"
@@ -108,7 +118,7 @@ def hugo_config(config: SiteConfig, drafts: bool = False) -> str:
         "\n"
         "[params]\n"
         f"author = {_toml_string(config.author)}\n"
-        f"{RECENT_PARAM} = {RECENT_LIMIT}\n"
+        f"{limits}"
         f"{preview}"
         "\n"
         # Renders `==text==` as <mark>. Raw HTML stays off, so a note cannot bypass the
@@ -125,7 +135,8 @@ def hugo_config(config: SiteConfig, drafts: bool = False) -> str:
         "[taxonomies]\n"
         'tag = "tags"\n'
         "\n"
-        # Pages outside the blog fetch this to list its latest entries.
+        # Pages outside the blog fetch this to list its latest entries. `notAlternative`
+        # keeps a layout that lists a page's alternative formats from advertising it.
         "[outputFormats.recent]\n"
         'mediaType = "application/json"\n'
         'baseName = "recent"\n'

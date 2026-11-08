@@ -9,6 +9,8 @@
 </div>
 </section>
 {{- end }}
+{{- /* Lists drafts and invalid entries under draft preview, deliberately without the
+       labels that entry pages and lists show. */}}
 {{- with first site.Params.mdblog_recent_limit (where site.RegularPages "RelPermalink" "ne" .RelPermalink) }}
 <section class="sidebar-section sidebar-recent">
 <h2 class="sidebar-label">Recent posts</h2>
@@ -28,7 +30,7 @@
 <section class="sidebar-section sidebar-tags">
 <h2 class="sidebar-label">Tags</h2>
 <ul class="sidebar-tag-list">
-{{- range first 10 . }}
+{{- range first site.Params.mdblog_tag_limit . }}
 <li><a class="tag" href="{{ .Page.RelPermalink }}">{{ lower .Page.Data.Term }} <span class="tag-count">{{ .Count }}</span></a></li>
 {{- end }}
 </ul>

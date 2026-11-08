@@ -132,7 +132,8 @@ class CodeMap:
 def remove_comments(text: str) -> str:
     """`text` without its `%%` comments, which may span lines.
 
-    A `%%` with no closing marker removes the rest of the text. A marker that overlaps
+    A `%%` with no closing marker removes the rest of the text, because leaking a private
+    aside is worse than losing text. A marker that overlaps
     code is literal.
     """
     code = CodeMap(text)

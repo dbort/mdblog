@@ -131,7 +131,10 @@ in dependency order, with a checklist directly below it:
     - [ ] task-010: second delivering task (blocked on task-009)
 
 `/new-task` adds the task's checklist line and status id in the same
-commit as the task file. `/ship` ticks the task's box, and when it was the
+commit as the task file. It also moves the milestone's scope bullets that
+the task covers into the task file and deletes them from the roadmap,
+which keeps each milestone's goal, `**Done when:**` and any decisions no
+task has settled yet. `/ship` ticks the task's box, and when it was the
 last box, deletes the milestone's section. No other step edits a status
 line or a box.
 
