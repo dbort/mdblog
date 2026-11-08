@@ -51,3 +51,7 @@ title: "Add mdblog check and a post template"
 ### Round 1: APPROVED
 - **N1: Docstring wraps short mid-sentence** (`src/mdblog/build.py:282`): the `build_site` docstring breaks a line early after "Raises `BuildError`", a leftover from inserting the new sentences. Cosmetic; reflow the paragraph.
 - **N2: A second fake Hugo** (`tests/test_cli.py:115`): the PATH fake sits beside the one in `tests/test_build.py`. Justified, since `check_vault` takes no `hugo` argument and the PATH fake with `capfd` proves `quiet` drops Hugo's stdout and keeps its stderr. No change needed.
+
+### Round 2: APPROVED
+- **N1: Round 1 N1 still open** (`src/mdblog/build.py:282`): the `build_site` docstring still breaks a line early after "Raises `BuildError`". Cosmetic; reflow the paragraph.
+- **N2: Example timestamp depends on the placeholder format** (`docs/vault-format.md:94`): `created: 2026-11-07T14:03:22-08:00` illustrates Obsidian's output, not a copy of the template, but goes stale if the `{{date:...}}` format changes. Acceptable as an illustration.
