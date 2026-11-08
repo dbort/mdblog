@@ -250,8 +250,9 @@ def ask_notes(
 ) -> str:
     """The author's notes, stripped, or "" when they decline to add any.
 
-    Notes the author accepts are written by `edit` into `path`. When the editor cannot
-    start, the notes are typed line by line instead.
+    The question repeats until the answer is yes or no. On yes, `path` is emptied and
+    `edit` opens it for the notes; when the editor cannot start, the notes are typed
+    line by line instead.
     """
     while True:
         answer = ask("Add notes? [y/N]: ").strip().lower()
