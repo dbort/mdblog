@@ -10,14 +10,14 @@ blocked_by: [task-009]
 The default theme gets a new look modeled on two sites the author likes: serif body text and a dark palette from ludic.mataroa.blog, and an ivory light palette and a right-hand sidebar from wheresyoured.at. The bio moves from the top of the home page into the sidebar, alongside recent posts and top tags.
 
 ## Must Have
-- [ ] Every page, the 404 page included, has an `<aside class="sidebar">` after `<main>` holding, in order: an About section with the bio (when `_site/bio.md` exists), Recent posts, and Tags (when any tag exists).
-- [ ] The home page's `<main>` holds no bio. The bio renders in the sidebar on every page, and its embedded image's `src` resolves from an entry page and under a `base_url` with a path such as `https://example.test/blog/`.
-- [ ] Recent posts lists the five newest entries other than the current page, newest first, each with its title and date, followed by a link to `/posts/`. With no other entries, the section is omitted.
-- [ ] Tags lists at most ten tags, ordered by entry count with the highest first and ties by name, each with its count, followed by a link to `/tags/`.
-- [ ] The header holds a brand link to the home page reading the site title, preceded by `« ` on every page except the home page, and a nav with the All posts and All tags links. The footer holds the copyright and an RSS link.
-- [ ] The stylesheet still contains no `@font-face` or `@import`, and no page contains `<script` (task-007's tests stay green).
-- [ ] Manual QA by the author: a fixture build under `mdblog serve` matches the decisions in `## Advice` at phone width (375px) and desktop width, in light and dark modes, on the home page, archive, tag index, a tag page, an entry page and the 404 page, plus task-009's draft labels and banner under `--drafts`, and no page scrolls sideways.
-- [ ] `tools/check` exits 0 on the finished branch.
+- [x] Every page, the 404 page included, has an `<aside class="sidebar">` after `<main>` holding, in order: an About section with the bio (when `_site/bio.md` exists), Recent posts, and Tags (when any tag exists).
+- [x] The home page's `<main>` holds no bio. The bio renders in the sidebar on every page, and its embedded image's `src` resolves from an entry page and under a `base_url` with a path such as `https://example.test/blog/`.
+- [x] Recent posts lists the five newest entries other than the current page, newest first, each with its title and date, followed by a link to `/posts/`. With no other entries, the section is omitted.
+- [x] Tags lists at most ten tags, ordered by entry count with the highest first and ties by name, each with its count, followed by a link to `/tags/`.
+- [x] The header holds a brand link to the home page reading the site title, preceded by `« ` on every page except the home page, and a nav with the All posts and All tags links. The footer holds the copyright and an RSS link.
+- [x] The stylesheet still contains no `@font-face` or `@import`, and no page contains `<script` (task-007's tests stay green).
+- [x] Manual QA by the author: a fixture build under `mdblog serve` matches the decisions in `## Advice` at phone width (375px) and desktop width, in light and dark modes, on the home page, archive, tag index, a tag page, an entry page and the 404 page, plus task-009's draft labels and banner under `--drafts`, and no page scrolls sideways.
+- [x] `tools/check` exits 0 on the finished branch.
 
 ## Advice
 - User decisions (2026-11-06). Visual reference: the mockup at https://claude.ai/artifact/5enBLueAcKroP13hxFv6me, variant "Blue in dark + red in light" (read it with the Artifact tool). The values below govern where the two differ.
