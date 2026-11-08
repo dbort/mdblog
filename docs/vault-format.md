@@ -89,22 +89,11 @@ The `_site/` folder at the vault's root holds the site's own files. Its notes ar
 
 ## Post template
 
-The repository's `templates/Post Template.md` starts a new note as a draft with the properties mdblog reads:
+The repository's [`templates/Post Template.md`](../templates/Post%20Template.md) starts a new note as a draft with the properties mdblog reads, plus a `created` property that mdblog ignores.
 
-```yaml
----
-publish: false
-slug:
-title:
-tags: []
-date:
-created: {{date:YYYY-MM-DDTHH:mm:ssZ}}
----
-```
+To use it, copy it to `_site/Templates/Post Template.md` in the vault, then open Obsidian's settings, turn on the Templates core plugin, and set its template folder location to `_site/Templates`. Obsidian's "Insert template" command then fills a note with these properties, replacing the `created` placeholder with the current time, such as `created: 2026-11-07T14:03:22-08:00`.
 
-To use it, copy it to `_site/Templates/Post Template.md` in the vault, then open Obsidian's settings, turn on the Templates core plugin, and set its template folder location to `_site/Templates`. Obsidian's "Insert template" command then fills a note with these properties, replacing the placeholder with the current time, such as `created: 2026-11-07T14:03:22-08:00`. mdblog ignores `created`.
-
-The template has to live in `_site/`. Until Obsidian fills it in, `{{date:YYYY-MM-DDTHH:mm:ssZ}}` is not valid YAML, so the template file itself would fail `mdblog build` anywhere else in the vault, and print a warning under `mdblog serve --drafts`. mdblog never reads notes in `_site/`.
+The template has to live in `_site/`. Until Obsidian fills it in, the `created` placeholder is not valid YAML, so the template file itself would fail `mdblog build` anywhere else in the vault, and print a warning under `mdblog serve --drafts`. mdblog never reads notes in `_site/`.
 
 The empty `slug`, `title` and `date` count as missing. While the note is a draft, each falls back as described under [Draft preview](#draft-preview). Once it is marked `publish: true`, an empty `date` or `slug` fails the build, but an empty `title` becomes the file name without any warning, so fill in `title` when the file name is not the title you want.
 

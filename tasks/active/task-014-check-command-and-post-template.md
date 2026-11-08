@@ -37,6 +37,7 @@ title: "Add mdblog check and a post template"
 - `check` takes no `--output` and no `--drafts`. It answers one question: would `mdblog build` succeed now.
 - Put the template parse test in the test module for draft properties. Run it through the same functions `select_notes` uses, rather than a bare YAML load, so it breaks if the draft rules change.
 - Standing obligations: strict static checks apply. No shell scripts. Tests: one CLI test per Must Have exit path, using a fake `hugo` (see `tests/test_cli.py`) for the Hugo-failure case, and no new real-Hugo test, since `check` reuses `build_site`.
+- (2026-11-07, author) `docs/vault-format.md` links to `templates/Post Template.md` and never copies its front matter or placeholder, so the doc cannot drift from the file. Docs point to the file that owns a fact rather than restating it.
 - No manual QA. Obsidian's fill-in of `{{date:...}}` is outside mdblog, and the author sees the result the first time they use the template.
 
 ## Plan
