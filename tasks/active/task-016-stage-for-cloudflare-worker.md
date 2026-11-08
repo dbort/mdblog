@@ -57,3 +57,6 @@ title: "Stage the site for a Cloudflare Worker and serve it with wrangler dev"
 
 ### Round 2: REJECTED
 - **F1: The new group-signal branch in `ServerProcess.stop` has no test** (`src/mdblog/serve.py:305-312`): the round 1 N2 fix signals the group after the leader has already exited, but no test reaches that path: the exit-on-its-own fake starts no child, and the SIGINT test stops a running leader. A regression would leave `workerd` running with every test green. Have the exit-on-its-own fake start a grandchild, record its pid and exit 3, then assert the grandchild is gone after the `ServeError`.
+
+### Round 3: APPROVED
+- Round 2's F1 is fixed: `test_serve_bundle_reports_wrangler_exiting_on_its_own` (`tests/test_stage.py:336-358`) now leaves a grandchild in the exited leader's process group and asserts it is gone. In a throwaway copy, a mutation that returns early from `ServerProcess.stop` for an exited leader fails it. Round 1's fixes are still in place, and `tools/check` exits 0 on HEAD (678 passed).
