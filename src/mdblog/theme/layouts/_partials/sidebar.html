@@ -9,7 +9,7 @@
 </div>
 </section>
 {{- end }}
-{{- with first 5 (where site.RegularPages "RelPermalink" "ne" .RelPermalink) }}
+{{- with first site.Params.mdblog_recent_limit (where site.RegularPages "RelPermalink" "ne" .RelPermalink) }}
 <section class="sidebar-section sidebar-recent">
 <h2 class="sidebar-label">Recent posts</h2>
 <ul class="sidebar-recent-list">

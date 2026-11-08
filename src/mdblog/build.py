@@ -20,6 +20,10 @@ THEME = "mdblog"
 PACKAGED_THEME = Path(__file__).resolve().parent / "theme"
 # Every feed holds at most this many of its latest entries.
 FEED_LIMIT = 50
+# The sidebar's Recent posts box and `recent.json` hold at most this many entries.
+RECENT_LIMIT = 5
+# The site param holding `RECENT_LIMIT`, which the layouts read.
+RECENT_PARAM = "mdblog_recent_limit"
 # A vault's `_site/` directories that Hugo reads beside the packaged theme's.
 SITE_DIRECTORIES = ("layouts", "assets", "static")
 # The site param that turns on the draft preview banner. Only draft mode writes it.
@@ -91,8 +95,10 @@ def _toml_string(value: str) -> str:
 def hugo_config(config: SiteConfig, drafts: bool = False) -> str:
     """The text of a `hugo.toml` that applies `config` and the packaged theme.
 
-    The site renders a feed at `/index.xml` and one per tag, and no other feed. With
-    `drafts`, the site param `PREVIEW_PARAM` is true, and otherwise it is absent.
+    The site renders a feed at `/index.xml` and one per tag, and no other feed. The
+    home page also renders `/recent.json`. The site param `RECENT_PARAM` is
+    `RECENT_LIMIT`. With `drafts`, the site param `PREVIEW_PARAM` is true, and otherwise
+    it is absent.
     """
     preview = f"{PREVIEW_PARAM} = true\n" if drafts else ""
     return (
@@ -102,6 +108,7 @@ def hugo_config(config: SiteConfig, drafts: bool = False) -> str:
         "\n"
         "[params]\n"
         f"author = {_toml_string(config.author)}\n"
+        f"{RECENT_PARAM} = {RECENT_LIMIT}\n"
         f"{preview}"
         "\n"
         # Renders `==text==` as <mark>. Raw HTML stays off, so a note cannot bypass the
@@ -118,8 +125,15 @@ def hugo_config(config: SiteConfig, drafts: bool = False) -> str:
         "[taxonomies]\n"
         'tag = "tags"\n'
         "\n"
+        # Pages outside the blog fetch this to list its latest entries.
+        "[outputFormats.recent]\n"
+        'mediaType = "application/json"\n'
+        'baseName = "recent"\n'
+        "isPlainText = true\n"
+        "notAlternative = true\n"
+        "\n"
         "[outputs]\n"
-        'home = ["html", "rss"]\n'
+        'home = ["html", "rss", "recent"]\n'
         'section = ["html"]\n'
         'taxonomy = ["html"]\n'
         'term = ["html", "rss"]\n'

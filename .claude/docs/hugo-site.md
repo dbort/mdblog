@@ -59,6 +59,12 @@ A tag holding `page/<number>`, such as `a/page/2`, can replace a page of tag `a`
 - The home page lists the latest 15 entries and ends with an "All posts" button. `/posts/` lists all posts by year, each tag has a page listing its entries, and `/tags/` indexes the tags. No list is paginated.
 - Every page has a sidebar, to the right on wide screens and after the content on narrow ones. It holds an About box with the bio, a Recent posts box with the five newest other entries and a link to `/posts/`, and a Tags box with the ten most used tags and a link to `/tags/`. A box with nothing to show is left out. The footer links the site's RSS feed.
 - Each feed is RSS holding the full text of its latest 50 entries: `/index.xml` for the whole site and `/tags/<tag>/index.xml` for each tag.
+- `recent.json` at the site's root, such as `/blog/recent.json` under `base_url = "https://example.test/blog/"`, lists the newest entries for pages outside the blog, such as a home page on the same domain that fetches it with a script. Its shape is a contract those pages rely on:
+  - The file is a JSON object whose only key, `items`, holds an array of at most 5 objects, newest first. With no published entries the array is empty.
+  - Each item has exactly the string keys `title`, `url` and `date`. `title` is the entry's page title. `url` is its absolute URL, the same as its `<link>` in `/index.xml`. `date` is ISO 8601 with a UTC offset, such as `2026-01-02T23:30:00-07:00`, and is the same instant as its `<pubDate>` in `/index.xml`.
+  - The items are the entries the sidebar's Recent posts box lists on a page that is none of them, in the same order. The site param `mdblog_recent_limit` holds the limit both layouts read.
+  - The shape is mdblog's own rather than JSON Feed 1.1, which requires content on every item and would make the file as heavy as the full-text feed.
+  - The file is a Hugo output format named `recent` on the home page, with `notAlternative` set so a layout listing the page's alternative formats does not advertise it.
 
 ## Draft preview
 

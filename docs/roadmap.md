@@ -15,7 +15,7 @@ Search, comments, series, scheduled publishing, and packaging mdblog for other p
 **Status:** Tasks task-014, task-015, task-016, task-017
 
 - [x] task-014: Add mdblog check and a post template
-- [ ] task-015: Publish a recent-posts JSON file
+- [x] task-015: Publish a recent-posts JSON file
 - [ ] task-016: Stage the site for a Cloudflare Worker and serve it with wrangler dev
 - [ ] task-017: Verify that a URL serves the site (blocked on task-015, task-016)
 
@@ -36,7 +36,6 @@ Produce and check exactly what Cloudflare will serve, on a machine with no Cloud
 **Decisions:**
 - Where each site's Worker name and routes live. Recommended: in the vault's `_site/`, because this repo holds nothing site-specific.
 - Whether custom headers are needed at launch.
-- The shape of `recent.json` and how many entries it holds, including whether it follows [JSON Feed](https://www.jsonfeed.org/) or a smaller format of its own.
 
 ## M5: Deploy and launch
 
