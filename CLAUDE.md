@@ -25,7 +25,7 @@ destination).
 ## Project conventions
 
 - **Language:** Python, checked by pyrefly at its strict preset. `pixi.toml` pins the version.
-- **Toolchain:** pixi with conda-forge provides Python, Hugo and the dev tools for the platforms `pixi.toml` lists.
+- **Toolchain:** pixi with conda-forge provides Python, Hugo, Node and the dev tools for the platforms `pixi.toml` lists. Wrangler comes from npm, pinned by `package-lock.json`, which `tools/check` installs and checks against `package.json`.
 - **Site:** Hugo builds the site, and a Cloudflare Worker serves the output as static assets with no custom Worker code.
 - **Vault format and Hugo:** `docs/vault-format.md` is the vault author's contract, with no Hugo terms or theme behavior, so it could describe another generator. `.claude/docs/hugo-site.md` maps it onto Hugo and the theme, pointing into the code.
 - **Gate:** `tools/check`, whose contract is in `.claude/docs/pipeline.md` § Checks and whose steps are in `tools/check_runner.py`.

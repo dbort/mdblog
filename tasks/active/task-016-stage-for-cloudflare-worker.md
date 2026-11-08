@@ -40,11 +40,11 @@ title: "Stage the site for a Cloudflare Worker and serve it with wrangler dev"
 - Standing obligations: strict static checks apply. All logic is in Python. The npm steps in `check_runner.py` are plain argv entries in `Commands`, and any lockfile comparison is an importable function. Tests: fakes for argv construction and port handling, one real-wrangler happy path that includes the 404 body (a wrong 404 is silent), and a gate test that a failing npm step fails the gate. No test that restates the generated config's literal values beyond the Must Have fields.
 
 ## Plan
-- [ ] **Step 1** (`pixi.toml`, `pixi.lock`, `package.json`, `package-lock.json`, `.gitignore`): add Node and wrangler.
-- [ ] **Step 2** (`tools/check_runner.py`, `tests/test_check_runner.py`): add the npm install and stale-lock check, the offline skips and the dry run.
-- [ ] **Step 3** (`src/mdblog/config.py`, `tests/test_config.py`): add the `[worker]` table.
-- [ ] **Step 4** (new `src/mdblog/stage.py`, `src/mdblog/serve.py` for the shared helpers, `src/mdblog/cli.py`): staging into a protected bundle, the generated wrangler config, and `--serve` via `wrangler dev`.
-- [ ] **Step 5** (new `tests/test_stage.py`, `tests/test_cli.py`): unit tests with fakes, plus the one real-wrangler end-to-end test.
-- [ ] **Step 6** (`README.md`, `docs/vault-format.md`, code comments, a pointer in `.claude/docs/hugo-site.md`, `CLAUDE.md` § Toolchain only if every session needs to know about the npm lockfile): document the work.
+- [x] **Step 1** (`pixi.toml`, `pixi.lock`, `package.json`, `package-lock.json`, `.gitignore`): add Node and wrangler.
+- [x] **Step 2** (`tools/check_runner.py`, `tests/test_check_runner.py`): add the npm install and stale-lock check, the offline skips and the dry run. The dry run runs as a `wrangler`-marked test in `tests/test_stage.py`, since it needs a bundle staged by step 4's code; pytest is a gate step, and `--offline` skips that marker.
+- [x] **Step 3** (`src/mdblog/config.py`, `tests/test_config.py`): add the `[worker]` table.
+- [x] **Step 4** (new `src/mdblog/stage.py`, `src/mdblog/serve.py` for the shared helpers, `src/mdblog/cli.py`): staging into a protected bundle, the generated wrangler config, and `--serve` via `wrangler dev`.
+- [x] **Step 5** (new `tests/test_stage.py`, `tests/test_cli.py`): unit tests with fakes, plus the one real-wrangler end-to-end test.
+- [x] **Step 6** (`README.md`, `docs/vault-format.md`, code comments, a pointer in `.claude/docs/hugo-site.md`, `CLAUDE.md` § Toolchain only if every session needs to know about the npm lockfile): document the work.
 
 ## Review log
