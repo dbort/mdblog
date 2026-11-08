@@ -9,15 +9,15 @@ title: "Add mdblog check and a post template"
 `mdblog check VAULT` runs a full production build into a throwaway directory and reports anything that would stop the site from publishing, with no output directory to manage. The repo also gains an Obsidian post template that starts each note as a draft. The docs say where to keep it so its unfilled placeholder never breaks a build.
 
 ## Must Have
-- [ ] `mdblog check VAULT` on the fixture vault exits 0 and prints one line to stdout giving the number of notes that would publish.
-- [ ] `mdblog check` writes nothing under the vault or the current directory, and leaves no temporary directory behind after a success, a note failure or a Hugo failure.
-- [ ] On a vault with failing notes, `mdblog check` exits 1 and prints to stderr the same failure text `mdblog build` prints for that vault.
-- [ ] On an unusable `_site/mdblog.toml`, `mdblog check` exits 1 with the same `ConfigError` message `mdblog build` prints.
-- [ ] When Hugo fails, for example on a `_site/layouts/` override with a template syntax error, `mdblog check` exits 1 with the same message `mdblog build` gives for that failure.
-- [ ] `templates/Post Template.md` holds exactly the front matter in `## Advice` and no body.
-- [ ] A test replaces `{{date:YYYY-MM-DDTHH:mm:ssZ}}` in the template with a timestamp in that format, such as `2026-11-07T14:03:22-08:00`, and reads the result through mdblog's front-matter and draft-property code. It finds `publish` false, `created` a timezone-aware datetime, no warnings, and the file-name title and slug and the modification-time date as fallbacks.
-- [ ] `README.md` documents `mdblog check`. `docs/vault-format.md` documents the template: copy it to `_site/Templates/Post Template.md` and set the folder of Obsidian's Templates core plugin to `_site/Templates`. It explains why the template lives in `_site/`, and the `_site/` table gains a `_site/Templates/` row.
-- [ ] `tools/check` exits 0 on the finished branch.
+- [x] `mdblog check VAULT` on the fixture vault exits 0 and prints one line to stdout giving the number of notes that would publish.
+- [x] `mdblog check` writes nothing under the vault or the current directory, and leaves no temporary directory behind after a success, a note failure or a Hugo failure.
+- [x] On a vault with failing notes, `mdblog check` exits 1 and prints to stderr the same failure text `mdblog build` prints for that vault.
+- [x] On an unusable `_site/mdblog.toml`, `mdblog check` exits 1 with the same `ConfigError` message `mdblog build` prints.
+- [x] When Hugo fails, for example on a `_site/layouts/` override with a template syntax error, `mdblog check` exits 1 with the same message `mdblog build` gives for that failure.
+- [x] `templates/Post Template.md` holds exactly the front matter in `## Advice` and no body.
+- [x] A test replaces `{{date:YYYY-MM-DDTHH:mm:ssZ}}` in the template with a timestamp in that format, such as `2026-11-07T14:03:22-08:00`, and reads the result through mdblog's front-matter and draft-property code. It finds `publish` false, `created` a timezone-aware datetime, no warnings, and the file-name title and slug and the modification-time date as fallbacks.
+- [x] `README.md` documents `mdblog check`. `docs/vault-format.md` documents the template: copy it to `_site/Templates/Post Template.md` and set the folder of Obsidian's Templates core plugin to `_site/Templates`. It explains why the template lives in `_site/`, and the `_site/` table gains a `_site/Templates/` row.
+- [x] `tools/check` exits 0 on the finished branch.
 
 ## Advice
 - The template's front matter, as the author specified it:
