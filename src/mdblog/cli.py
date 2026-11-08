@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -18,6 +19,17 @@ def _port(text: str) -> int:
     if not 1 <= port <= 65535:
         raise argparse.ArgumentTypeError(f"{text!r} is not a port from 1 to 65535")
     return port
+
+
+def check_vault(vault: Path) -> int:
+    """The number of notes `mdblog build` would publish from `vault` now.
+
+    Runs the full build, Hugo included, into a temporary directory that is removed
+    afterward, with Hugo's standard output discarded. Raises what `build_site` raises.
+    Writes nothing under `vault` or the current directory.
+    """
+    with tempfile.TemporaryDirectory(prefix="mdblog-check-") as scratch:
+        return build_site(vault, Path(scratch) / "site", quiet=True)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -39,6 +51,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="DIR",
         help="the directory to replace with the site",
     )
+    check = commands.add_parser(
+        "check",
+        help="report whether one vault would build, without keeping the site",
+        allow_abbrev=False,
+    )
+    check.add_argument("vault", type=Path, metavar="VAULT", help="the vault to check")
     serve = commands.add_parser(
         "serve",
         help="preview one vault's site, rebuilding as the vault changes",
@@ -67,6 +85,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.command == "build":
             build_site(args.vault, args.output)
+        elif args.command == "check":
+            count = check_vault(args.vault)
+            print(f"{count} {'note' if count == 1 else 'notes'} would publish")
         else:
             serve_site(args.vault, args.output, args.port, drafts=args.drafts)
     except (BuildError, ConfigError, ServeError) as exc:

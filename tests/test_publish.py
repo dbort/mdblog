@@ -13,6 +13,7 @@ from mdblog.publish import (
     PublishedNote,
     SlugClaim,
     assign_slugs,
+    marked_parts,
     published_parts,
     read_bio,
     select_notes,
@@ -20,6 +21,7 @@ from mdblog.publish import (
 )
 from notes import published_text
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
 NOW = dt.datetime(2026, 6, 15, 12, 0, tzinfo=dt.UTC)
 
 
@@ -665,3 +667,28 @@ def test_an_unusable_note_is_absent_with_a_warning_under_draft_mode(
     assert len(warnings) == 1
     assert warnings[0][0] == "bad.md"
     assert reason in warnings[0][1]
+
+
+@pytest.mark.usefixtures("_local")
+def test_the_post_template_filled_by_obsidian_is_a_clean_draft(tmp_path: Path) -> None:
+    template = (REPO_ROOT / "templates" / "Post Template.md").read_text(
+        encoding="utf-8"
+    )
+    placeholder = "{{date:YYYY-MM-DDTHH:mm:ssZ}}"
+    assert placeholder in template
+    filled = template.replace(placeholder, "2026-11-07T14:03:22-08:00")
+    _draft_note(tmp_path, "notes/A New Post.md", filled)
+
+    marked = marked_parts(filled.encode("utf-8"))
+    entries, warnings = _preview(tmp_path)
+
+    assert marked is not None
+    publish, properties, _ = marked
+    assert publish is False
+    created = properties["created"]
+    assert isinstance(created, dt.datetime)
+    assert created.utcoffset() == dt.timedelta(hours=-8)
+    assert warnings == []
+    assert entries["notes/A New Post.md"].page == PageProperties(
+        "A New Post", MODIFIED, "a-new-post", ()
+    )

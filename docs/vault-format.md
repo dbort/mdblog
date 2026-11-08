@@ -85,6 +85,17 @@ The `_site/` folder at the vault's root holds the site's own files. Its notes ar
 | `_site/bio.md` | no | The author's bio, which the theme shows on the site. Its front matter has no effect, including `publish: false`. Its wikilinks and embeds convert as a note's do and fail the build the same way, with failures naming `_site/bio.md`. Because no link may target `_site/`, keep the bio's images elsewhere in the vault. A symbolic link at this path fails the build. |
 | `_site/layouts/`, `_site/assets/` | no | Theme overrides: each file replaces the packaged theme's layout or asset at the same path, so `_site/assets/css/main.css` replaces the stylesheet. |
 | `_site/static/` | no | Files published at the site's root as they are, so `_site/static/favicon.ico` is served at `/favicon.ico`. |
+| `_site/Templates/` | no | Obsidian templates, such as the [post template](#post-template). mdblog never reads them. |
+
+## Post template
+
+The repository's [`templates/Post Template.md`](../templates/Post%20Template.md) starts a new note as a draft with the properties mdblog reads, plus a `created` property that mdblog ignores.
+
+To use it, copy it to `_site/Templates/Post Template.md` in the vault, then open Obsidian's settings, turn on the Templates core plugin, and set its template folder location to `_site/Templates`. Obsidian's "Insert template" command then fills a note with these properties, replacing the `created` placeholder with the current time, such as `created: 2026-11-07T14:03:22-08:00`.
+
+The template has to live in `_site/`. Until Obsidian fills it in, the `created` placeholder is not valid YAML, so the template file itself would fail `mdblog build` anywhere else in the vault, and print a warning under `mdblog serve --drafts`. mdblog never reads notes in `_site/`.
+
+The empty `slug`, `title` and `date` count as missing. While the note is a draft, each falls back as described under [Draft preview](#draft-preview). Once it is marked `publish: true`, an empty `date` or `slug` fails the build, but an empty `title` becomes the file name without any warning, so fill in `title` when the file name is not the title you want.
 
 ## Draft preview
 
