@@ -2,7 +2,7 @@
 
 How mdblog reads an Obsidian vault: which notes it publishes, the properties it reads, the Obsidian syntax it converts and the site files the vault holds.
 
-A note is published only when its front matter holds the boolean `publish: true`. The other rules on this page apply only to those notes, so a draft can hold any properties, as long as its front matter parses. Every selected note fails the build on invalid YAML, including an impossible date like `2026-13-45`, a duplicate key, a block that is not a mapping or text that is not UTF-8.
+A note is published only when its front matter holds the boolean `publish: true`. The other rules on this page apply only to those notes, so a draft can hold any properties, as long as its front matter parses. mdblog reads every `.md` file in the vault outside `_site/`, skipping symbolic links and any path with a part starting with `.`; these are the selected notes. Every selected note fails the build on invalid YAML, including an impossible date like `2026-13-45`, a duplicate key, a block that is not a mapping or text that is not UTF-8.
 
 ## Properties
 
@@ -42,7 +42,7 @@ mdblog converts the Obsidian syntax below in each published note, and publishes 
 | `==text==` | Highlighted text. |
 | `#tag` in the body | Literal text. Only the `tags` property creates site tags. |
 
-An image is published with each note that embeds it. An image no published note uses is never published.
+An image is published with each note that uses it. An image no published note or the bio uses is never published.
 
 Raw HTML in a note renders as nothing, so an `<img>` or `<a>` written in a note cannot bypass these rules.
 
