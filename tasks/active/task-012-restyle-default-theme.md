@@ -63,3 +63,9 @@ The default theme gets a new look modeled on two sites the author likes: serif b
 - [x] **Step 3** (`tools/manual_qa.py`): the replacement manual-QA check, then the author's run and the recorded approval.
 
 ## Review log
+
+### Round 1: REJECTED
+- **F1** `src/mdblog/theme/assets/css/main.css:815`: the github-dark Error token `#f85149` is 4.22:1 on the dark code background `#2b2b2b`, below AA. Recolor it (for example `#f96963`) and list the edit in the Chroma header comment.
+- **F2** `docs/vault-format.md:108`: says the bio renders on the home page above the latest entries; it now renders in the sidebar's About box on every page. Line 115 should mention the sidebar (About, Recent posts, Tags) and the footer RSS link.
+- **N1** `tools/manual_qa.py:93`: step text says "Tags"; the nav link is "All tags".
+- **N2** `src/mdblog/theme/layouts/_partials/sidebar.html:17`: duplicates `_partials/date.html`'s formats; pass the `dt-published` class as a parameter to keep one source.
