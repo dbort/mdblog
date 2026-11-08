@@ -10,42 +10,46 @@ M1 to M5 make up v1. M6 and M7 follow it. Each milestone's decisions are settled
 
 Search, comments, series, scheduled publishing, and packaging mdblog for other people's sites are outside v1. Each site's settings live in its own vault, so in the long run this repo can host multiple independent sites.
 
-## M4: Deploy to Cloudflare
+## M4: Publish-ready output, locally
 
 **Status:** Planned
 
-Serve the built site from a Cloudflare Worker as static assets, with no custom Worker code.
-
-- Node from conda-forge, and wrangler from npm with a committed `package-lock.json`. No wrangler package turned up on conda-forge, so `CLAUDE.md`'s line about adding wrangler to the pixi environment needs correcting.
-- `tools/check` installs from the npm lockfile itself, so callers need no setup step, and fails on a stale lockfile, which `pixi run --locked` does not detect. Under `--offline`, the install and any check that depends on it skip.
-- A deploy command that runs a fresh production build of the current working directories, then uploads it without `mdblog build`'s output marker, so the site reflects their current state and local preview output cannot reach Cloudflare.
-- A separate command that takes a deployed URL and fails if it does not serve the home page and feed, runnable at any time and independent of a deploy.
-- A site whose `base_url` holds a path, such as `https://example.org/blog/`, served under that path. Hugo writes files at the output's root, so the upload places them under the path, including `404.html`.
-- A preview deployment separate from production, built with its own site URL because Hugo writes the URL into links and feeds, and kept out of search indexes.
-- Worker configuration checked in `tools/check`: a `wrangler deploy --dry-run` if it works without network access or credentials, otherwise a test of the fields the deploy relies on.
-
-**Done when:** one command publishes the fixture site to a preview URL, a separate command confirms that URL serves, and the gate validates the Worker configuration on a machine without Cloudflare credentials. `tools/check` never contacts a deployed site.
-
-**Decisions:**
-- Where the build runs. Recommended: locally or in CI through pixi, uploading the finished output, so Cloudflare never needs pixi and Hugo stays at the pinned version.
-- Whether custom headers are needed at launch.
-- Where each site's Worker name and routes live. Recommended: in the vault's `_site/`, because this repo holds nothing site-specific.
-
-## M5: Authoring workflow and launch
-
-**Status:** Planned
-
-Make publishing part of writing, then go live.
+Produce and check exactly what Cloudflare will serve, on a machine with no Cloudflare credentials.
 
 - A check command that runs the build's validation pass with nothing deployed, so problems surface before anything goes live.
 - A note template for use in Obsidian. It sets `publish: false`, which keeps the note off the site and shows it under `mdblog serve --drafts`, and leaves out `date`, which the author sets when publishing.
+- Node from conda-forge, and wrangler from npm with a committed `package-lock.json`. No wrangler package turned up on conda-forge.
+- `tools/check` installs from the npm lockfile itself, so callers need no setup step, and fails on a stale lockfile, which `pixi run --locked` does not detect. Under `--offline`, the install and any check that depends on it skip.
+- A staging command that runs a fresh production build of the current working directories and lays it out for upload without `mdblog build`'s output marker, so local preview output cannot reach Cloudflare. Hugo writes files at the output's root, so a site whose `base_url` holds a path, such as `https://example.org/blog/`, is staged under that path, including `404.html`.
+- Worker configuration for serving the staged output as static assets, with no custom Worker code. `wrangler dev` serves it locally, so local checks see the same asset handling as production, including which `404.html` answers a missing path.
+- Worker configuration checked in `tools/check`: a `wrangler deploy --dry-run` if it works without network access or credentials, otherwise a test of the fields the deploy relies on.
+- A separate command that takes a URL and fails unless it serves the home page, the feed and the recent-posts file, and answers a missing path under the site's path with status 404 and the site's 404 page. It is runnable at any time and independent of a deploy, against `wrangler dev` here and against deployed URLs in M5.
+- Recent posts for pages outside the blog. A page elsewhere on the same domain, such as a home page at `/` served by another Worker, can show the blog's latest entries the way the sidebar's Recent posts box does, and keeps them current without redeploying when a post publishes. Recommended: the build writes a small `recent.json` at the site's root, such as `/blog/recent.json`, holding the title, URL and date of each of the latest entries, and the other page fetches it with a script. Both Workers serve one origin, so the fetch needs no CORS setup. The script belongs to the other site, and mdblog documents the file's fields as the contract between them.
+
+**Done when:** the check command reports a broken fixture note with nothing built, and the fixture site, staged under a path and served by `wrangler dev`, passes the URL command, and the gate validates the Worker configuration, all on a machine without Cloudflare credentials.
+
+**Decisions:**
+- Where each site's Worker name and routes live. Recommended: in the vault's `_site/`, because this repo holds nothing site-specific.
+- Whether custom headers are needed at launch.
+- The shape of `recent.json` and how many entries it holds, including whether it follows [JSON Feed](https://www.jsonfeed.org/) or a smaller format of its own.
+
+## M5: Deploy and launch
+
+**Status:** Planned
+
+Upload the staged site to Cloudflare, make publishing part of writing, then go live.
+
+- A deploy command that runs the staging command and uploads its output, so the site reflects the current state of the working directories.
+- A preview deployment separate from production, built with its own site URL because Hugo writes the URL into links and feeds, and kept out of search indexes.
 - A way to trigger a publish from the vault.
 - The production domain, and the first real content.
 
-**Done when:** a new note written in Obsidian, marked `publish: true` and given a `date` and `slug`, reaches the live site with no change to this repo.
+**Done when:** one command publishes the fixture site to a preview URL, M4's separate URL command confirms that URL serves, and a new note written in Obsidian, marked `publish: true` and given a `date` and `slug`, reaches the live site with no change to this repo. `tools/check` never contacts a deployed site.
 
 **Decisions:**
+- Where the build runs. Recommended: locally or in CI through pixi, uploading the finished output, so Cloudflare never needs pixi and Hugo stays at the pinned version.
 - Publish trigger. Recommended: start with a manual command, then add CI on vault pushes once the check command has earned trust. The `publish` rule keeps new notes off the site, but an automatic trigger would still put a half-finished edit to an already published note live.
+- How a site under a path shares its domain with other content. Recommended: the blog's Worker claims a route such as `example.org/blog/*` and a separate Worker claims `example.org/*`. Cloudflare sends each request to the more specific route, so the other content deploys on its own and mdblog knows nothing about it. A request for `/blog` without the trailing slash matches only the other Worker's route, which then needs to redirect it.
 
 ## M6: POSSE
 

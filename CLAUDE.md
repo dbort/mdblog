@@ -9,7 +9,9 @@ Work is planned, implemented, and reviewed through the task pipeline:
 Doc placement: `docs/` is human-facing prose, swept by `doc-hygiene`;
 `.claude/docs/` is agent-contract material whose absolutes are never
 style-swept. Process rules, tool contracts, runtime notes and the logs go
-in `.claude/docs/`, even when a human also reads them.
+in `.claude/docs/`, even when a human also reads them. This file holds
+what every session needs and points to the doc that owns a detail rather
+than restating it. Planned work lives only in `docs/roadmap.md`.
 
 ## Invariants
 
@@ -23,13 +25,13 @@ in `.claude/docs/`, even when a human also reads them.
 
 - **Language:** Python 3.14. Static checker: pyrefly at `preset = "strict"`.
 - **Toolchain:** pixi with conda-forge provides Python, Hugo and the dev tools. `pixi.lock` covers `linux-64`, `linux-aarch64` and `osx-arm64`.
-- **Site:** Hugo builds the site, and a Cloudflare Worker serves the output as static assets with no custom Worker code. The task that adds deployment also adds Node and wrangler to the pixi environment.
+- **Site:** Hugo builds the site, and a Cloudflare Worker serves the output as static assets with no custom Worker code.
 - **Vault format and Hugo:** `docs/vault-format.md` is the user-facing contract between a vault and mdblog, written with no Hugo terms so it could describe another generator. `.claude/docs/hugo-site.md` holds how that contract maps onto Hugo and the packaged theme: generated front matter, Hugo collisions, the reasons behind rules, theme pages and feeds. Keep Hugo mechanics and theme behavior out of the user doc and update the agent doc with them.
-- **Gate:** `tools/check` runs `ruff format --check`, `ruff check`, pyrefly and pytest. `--smoke` and `--offline` run the same steps.
+- **Gate:** `tools/check`, whose contract is in `.claude/docs/pipeline.md` § Checks and whose steps are in `tools/check_runner.py`.
 - **Platforms:** the repo runs on Linux and macOS.
 - **Vault:** the Obsidian vault is never part of this repo. Tools point at a parallel checkout of it.
 - **Manual QA:** each manual-QA Must Have is a check in `tools/manual_qa.py`. The author runs `tools/manual-qa [NAME...]`, which runs each check's command on a scratch copy of the fixture vault, records their verdicts and notes, and writes a log they hand back. Ask the author to run it rather than giving them ad hoc steps or setup.
-- **Sites:** one vault is one site, and building several sites means running `mdblog build` once per vault. A site's settings (`_site/mdblog.toml`), optional bio (`_site/bio.md`), overriding layouts (`_site/layouts/`), assets (`_site/assets/`) and static files (`_site/static/`) live in its vault. The repo's only site configs are test fixtures.
+- **Sites:** one vault is one site, and building several sites means running `mdblog build` once per vault. A site's own files live in its vault's `_site/` folder, listed in `docs/vault-format.md`. The repo's only site configs are test fixtures.
 
 ## Standing task-planning obligations
 
