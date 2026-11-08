@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from mdblog.config import ConfigError, SiteConfig, load_config
+from mdblog.config import ConfigError, SiteConfig, WorkerConfig, load_config
 
 VALID = 'base_url = "https://example.test/"\ntitle = "A title"\nauthor = "An author"\n'
 
@@ -47,6 +47,61 @@ def test_load_config_names_the_file_and_the_problem(
     tmp_path: Path, text: str | bytes, expected: str
 ) -> None:
     path = _write_config(tmp_path, text)
+
+    with pytest.raises(ConfigError) as exc:
+        load_config(tmp_path)
+
+    assert str(path) in str(exc.value)
+    assert expected in str(exc.value)
+
+
+def test_load_config_reads_the_worker_table(tmp_path: Path) -> None:
+    _write_config(tmp_path, VALID + '[worker]\nname = "my-site-2"\n')
+
+    assert load_config(tmp_path).worker == WorkerConfig(name="my-site-2")
+
+
+def test_load_config_has_no_worker_without_the_table(tmp_path: Path) -> None:
+    _write_config(tmp_path, VALID)
+
+    assert load_config(tmp_path).worker is None
+
+
+@pytest.mark.parametrize("name", ["a", "a1", "my-site", "x" * 63])
+def test_load_config_accepts_a_valid_worker_name(tmp_path: Path, name: str) -> None:
+    _write_config(tmp_path, VALID + f'[worker]\nname = "{name}"\n')
+
+    assert load_config(tmp_path).worker == WorkerConfig(name=name)
+
+
+INVALID_NAME = "is not a valid Worker name"
+
+
+@pytest.mark.parametrize(
+    ("worker", "expected"),
+    [
+        pytest.param('worker = "site"\n', "[worker] must be a table", id="not-table"),
+        pytest.param("[worker]\n", "[worker] is missing key 'name'", id="no-name"),
+        pytest.param(
+            "[worker]\nname = 3\n", "[worker] key 'name' must be a string", id="int"
+        ),
+        pytest.param('[worker]\nname = ""\n', INVALID_NAME, id="empty"),
+        pytest.param('[worker]\nname = "My-Site"\n', INVALID_NAME, id="uppercase"),
+        pytest.param('[worker]\nname = "my_site"\n', INVALID_NAME, id="underscore"),
+        pytest.param('[worker]\nname = "-site"\n', INVALID_NAME, id="leading-dash"),
+        pytest.param('[worker]\nname = "site-"\n', INVALID_NAME, id="trailing-dash"),
+        pytest.param(f'[worker]\nname = "{"x" * 64}"\n', INVALID_NAME, id="too-long"),
+        pytest.param(
+            '[worker]\nname = "site"\nroute = "x"\n',
+            "[worker] has unknown key 'route'",
+            id="unknown-key",
+        ),
+    ],
+)
+def test_load_config_names_the_file_and_the_worker_problem(
+    tmp_path: Path, worker: str, expected: str
+) -> None:
+    path = _write_config(tmp_path, VALID + worker)
 
     with pytest.raises(ConfigError) as exc:
         load_config(tmp_path)
