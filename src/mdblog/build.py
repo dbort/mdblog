@@ -278,13 +278,13 @@ def build_site(
     """Replaces `output` with the site built from `vault`, running Hugo as `hugo`.
 
     Returns the number of notes published. On success `output` holds Hugo's output plus
-    the marker file. With `quiet`, Hugo's standard output is discarded, and its
-    standard error still reaches this process's. Raises `BuildError`
-    or `ConfigError` on any refusal or failure, with `output` unchanged. A `BuildError`
-    for bad notes lists every one with each of its reasons, including every failed
-    link, and lists the bio's failures in the same message. Writes nothing under
-    `vault`. `now` is the timezone-aware time that decides which dates are in the
-    future, by default the current local time.
+    the marker file. With `quiet`, Hugo's standard output is discarded, and its standard
+    error still reaches this process's. Raises `BuildError` or `ConfigError` on any
+    refusal or failure, with `output` unchanged. A `BuildError` for bad notes lists
+    every one with each of its reasons, including every failed link, and lists the bio's
+    failures in the same message. Writes nothing under `vault`. `now` is the
+    timezone-aware time that decides which dates are in the future, by default the
+    current local time.
     """
     vault = vault.resolve()
     output = output.resolve()
