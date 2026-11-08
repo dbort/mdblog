@@ -15,7 +15,7 @@ Search, comments, series, scheduled publishing, and packaging mdblog for other p
 **Status:** Tasks task-014, task-015, task-016, task-017
 
 - [x] task-014: Add mdblog check and a post template
-- [ ] task-015: Publish a recent-posts JSON file
+- [x] task-015: Publish a recent-posts JSON file
 - [ ] task-016: Stage the site for a Cloudflare Worker and serve it with wrangler dev
 - [ ] task-017: Verify that a URL serves the site (blocked on task-015, task-016)
 
