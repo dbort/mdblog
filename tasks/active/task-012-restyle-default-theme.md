@@ -69,3 +69,6 @@ The default theme gets a new look modeled on two sites the author likes: serif b
 - **F2** `docs/vault-format.md:108`: says the bio renders on the home page above the latest entries; it now renders in the sidebar's About box on every page. Line 115 should mention the sidebar (About, Recent posts, Tags) and the footer RSS link.
 - **N1** `tools/manual_qa.py:93`: step text says "Tags"; the nav link is "All tags".
 - **N2** `src/mdblog/theme/layouts/_partials/sidebar.html:17`: duplicates `_partials/date.html`'s formats; pass the `dt-published` class as a parameter to keep one source.
+
+### Round 2: APPROVED
+- **N1** `docs/vault-format.md:141`: the draft-preview bullet still calls `/posts/` "the archive" and says a draft carries its label "in every list that shows it", but the sidebar's Recent posts box lists drafts and invalid entries without a label. Non-blocking: reword the bullet, or label sidebar items in a later task.
