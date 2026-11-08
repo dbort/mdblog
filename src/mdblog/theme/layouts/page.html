@@ -1,8 +1,8 @@
 {{ define "main" }}
 <article class="h-entry entry">
 <header class="entry-header">
-<h1 class="p-name"><a href="{{ .RelPermalink }}">{{ .Title }}</a></h1>
-{{ partial "entry-meta.html" . }}
+<h1 class="p-name"><a href="{{ .RelPermalink }}">{{ .Title }}</a>{{ with partial "entry-status.html" . }} {{ . }}{{ end }}</h1>
+{{ partial "entry-meta.html" (dict "page" . "listed" false) }}
 </header>
 <div class="e-content entry-content">
 {{ .Content }}

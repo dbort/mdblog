@@ -1,5 +1,9 @@
-<p class="entry-meta">{{ partial "entry-status.html" . }}
-<a class="u-url" href="{{ .Permalink }}">{{ partial "date.html" . }}</a>
-<span class="p-author h-card">{{ site.Params.author }}</span>
-{{ partial "tags.html" . }}
+{{- /* Context: page, the entry; listed, true on a list item. Sites have one
+author, so a list item hides the name but keeps its h-card, which h-entry
+consumers read. */ -}}
+{{- $page := .page -}}
+<p class="entry-meta">
+<a class="u-url" href="{{ $page.Permalink }}">{{ partial "date.html" (dict "page" $page "published" true) }}</a>
+<span class="p-author h-card"{{ if .listed }} hidden{{ end }}>{{ site.Params.author }}</span>
+{{ partial "tags.html" $page }}
 </p>

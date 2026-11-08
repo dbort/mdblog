@@ -1,3 +1,5 @@
-{{- /* Format keeps the date's own offset, so the day shown is the day the author wrote. */ -}}
-<time class="dt-published" datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Date.Format "January 2, 2006" }}</time>
+{{- /* Context: page, the entry; published, true where the date is the h-entry's
+       dt-published. Format keeps the date's own offset, so the day shown is the day
+       the author wrote. */ -}}
+<time{{ if .published }} class="dt-published"{{ end }} datetime="{{ .page.Date.Format "2006-01-02T15:04:05Z07:00" }}">{{ .page.Date.Format "Jan 2, 2006" }}</time>
 {{- /**/ -}}

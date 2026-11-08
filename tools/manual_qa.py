@@ -6,6 +6,8 @@ the author hands back to the agent running `/work`.
 """
 
 import argparse
+import os
+import shlex
 import shutil
 import socket
 import subprocess
@@ -60,6 +62,15 @@ class Check:
     files: tuple[tuple[str, str], ...] = ()
 
 
+# A plain build would fail on this note, so only the vaults of checks that serve
+# drafts hold it.
+INVALID_NOTE = (
+    "projects/invalid-note.md",
+    "---\npublish: true\ntitle: An invalid note\ndate: next week\n"
+    "tags: [project/alpha]\n---\n"
+    "A published note with an invalid date and no slug, linking to [[nowhere]].\n",
+)
+
 CHECKS = (
     Check(
         name="serve: live reload",
@@ -72,40 +83,43 @@ CHECKS = (
         ),
     ),
     Check(
-        name="design: phone and desktop, light and dark",
-        command=("mdblog", "serve", "{vault}", "--port", "{port}"),
+        name="design: restyle with sidebar, phone and desktop, light and dark",
+        command=("mdblog", "serve", "{vault}", "--drafts", "--port", "{port}"),
         url="{site}",
+        files=(INVALID_NOTE,),
         steps=(
-            "With the system in light mode, open {site} in a desktop-width window.",
-            "Visit the home page, Archive, Tags, {site}tags/node.js/, "
+            "With the system in light mode, open {site} in a desktop-width window. "
+            "The Draft preview banner is expected: this check serves drafts.",
+            "Visit the home page, All posts, All tags, {site}tags/project/alpha/, "
             "{site}posts/syntax/ and {site}404.html.",
-            "Repeat at phone width: the browser's device toolbar set to 375px wide.",
-            "Switch the system to dark mode and repeat both widths.",
+            "Compare each with the decisions in "
+            "tasks/active/task-012-restyle-default-theme.md, section Advice: serif "
+            "text on ivory with red links, a right-hand sidebar of dashed boxes with "
+            "red ring markers, no bio above the home page's entries, and a muted "
+            "« before the site title on every page but home.",
+            "Repeat at phone width: the browser's device toolbar set to 375px wide. "
+            "The sidebar sits after the content and before the footer, and the "
+            "header shows the All posts and All tags links, and the footer an RSS link.",
+            "Switch the system to dark mode and repeat both widths: blue links and "
+            "markers, solid sidebar borders.",
             "On posts/syntax/, open and close each callout and scroll the code block "
-            "and the table sideways.",
-            "Pass if every page reads well and looks right in both modes at both "
-            "widths, and no page scrolls sideways as a whole. Note anything to change.",
+            "and the table sideways. On the home page and All posts, find the Draft "
+            "label on marked-false and the Invalid label on An invalid note.",
+            "Pass if every page matches those decisions and reads well in both modes "
+            "at both widths, and no page scrolls sideways as a whole. Note anything "
+            "to change.",
         ),
     ),
     Check(
         name="drafts: labels and banner",
         command=("mdblog", "serve", "{vault}", "--drafts", "--port", "{port}"),
         url="{site}",
-        # A plain build would fail on this note, so only this check's vault holds it.
-        files=(
-            (
-                "projects/invalid-note.md",
-                "---\npublish: true\ntitle: An invalid note\ndate: next week\n"
-                "tags: [project/alpha]\n---\n"
-                "A published note with an invalid date and no slug, linking to "
-                "[[nowhere]].\n",
-            ),
-        ),
+        files=(INVALID_NOTE,),
         steps=(
             "With the system in light mode, open {site} in a desktop-width window.",
             "On the home page, find marked-false labeled Draft and An invalid note "
             "labeled Invalid, beside entries with no label, and the banner at the top.",
-            "Visit Archive, {site}tags/project/alpha/, {site}posts/marked-false/, "
+            "Visit All posts, {site}tags/project/alpha/, {site}posts/marked-false/, "
             "{site}posts/invalid-note/ and {site}posts/first-note/.",
             "Repeat at phone width: the browser's device toolbar set to 375px wide.",
             "Switch the system to dark mode and repeat both widths.",
@@ -214,12 +228,45 @@ def _ask_verdict(ask: Callable[[str], str]) -> Verdict:
             return verdict
 
 
-def _ask_notes(ask: Callable[[str], str]) -> str:
+def _type_notes(ask: Callable[[str], str]) -> str:
     print("Notes, ending with an empty line:")
     lines: list[str] = []
     while line := ask("> "):
         lines.append(line)
     return "\n".join(lines)
+
+
+def editor_command() -> list[str]:
+    """`$VISUAL`, else `$EDITOR`, else `vi`, split into words as a shell would."""
+    return shlex.split(os.environ.get("VISUAL") or os.environ.get("EDITOR") or "vi")
+
+
+def _edit(path: Path) -> None:
+    subprocess.run([*editor_command(), str(path)], check=False)
+
+
+def ask_notes(
+    ask: Callable[[str], str], edit: Callable[[Path], None], path: Path
+) -> str:
+    """The author's notes, stripped, or "" when they decline to add any.
+
+    The question repeats until the answer is yes or no. On yes, `path` is emptied and
+    `edit` opens it for the notes; when the editor cannot start, the notes are typed
+    line by line instead.
+    """
+    while True:
+        answer = ask("Add notes? [y/N]: ").strip().lower()
+        if answer in ("", "n", "no"):
+            return ""
+        if answer in ("y", "yes"):
+            break
+    path.write_text("", encoding="utf-8")
+    try:
+        edit(path)
+    except OSError as error:
+        print(f"  (could not start the editor: {error})")
+        return _type_notes(ask).strip()
+    return path.read_text(encoding="utf-8").strip()
 
 
 def _tail(path: Path) -> str:
@@ -228,11 +275,16 @@ def _tail(path: Path) -> str:
 
 
 def run_check(
-    check: Check, places: Places, work: Path, ask: Callable[[str], str]
+    check: Check,
+    places: Places,
+    work: Path,
+    ask: Callable[[str], str],
+    edit: Callable[[Path], None],
 ) -> Result:
-    """Runs `check` with `places`, writing its command output under `work`."""
+    """Runs `check` with `places`, writing its command output and notes under `work`."""
     command = tuple(places.fill(part) for part in check.command)
-    output = work / f"{check.name.replace(':', '').replace(' ', '-')}.log"
+    stem = check.name.replace(":", "").replace(" ", "-")
+    output = work / f"{stem}.log"
     print(f"\n== {check.name}\n$ {' '.join(command)}\n  (output: {output})")
     print(f"  (scratch vault: {places.vault})")
     with output.open("wb") as sink:
@@ -242,7 +294,7 @@ def run_check(
         for number, step in enumerate(check.steps, start=1):
             print(f"{number}. {places.fill(step)}")
         verdict = _ask_verdict(ask)
-        notes = _ask_notes(ask)
+        notes = ask_notes(ask, edit, work / f"{stem}-notes.md")
         early_exit = process.poll()
     finally:
         if process.poll() is None:
@@ -275,7 +327,10 @@ def _commit() -> str:
         ).stdout.strip()
 
     dirty = " (uncommitted changes)" if git("status", "--porcelain") else ""
-    return f"{git('rev-parse', '--short', 'HEAD')} on {git('branch', '--show-current')}{dirty}"
+    # The author runs QA on a detached HEAD, where there is no branch to name.
+    branch = git("branch", "--show-current")
+    on_branch = f" on {branch}" if branch else ""
+    return f"{git('rev-parse', '--short', 'HEAD')}{on_branch}{dirty}"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -310,7 +365,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             for number, check in enumerate(checks, start=1):
                 vault = scratch_vault(work / f"vault-{number}", check)
                 places = Places(vault=vault, port=port)
-                results.append(run_check(check, places, work, input))
+                results.append(run_check(check, places, work, input, _edit))
         except KeyboardInterrupt, EOFError:
             print("\nStopped; the log holds the checks finished so far.")
         finally:

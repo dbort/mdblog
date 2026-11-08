@@ -1,14 +1,13 @@
 <header class="site-header">
-<a class="site-title" href="{{ site.Home.RelPermalink }}">{{ site.Title }}</a>
+<a class="site-title" href="{{ site.Home.RelPermalink }}">{{ if not .IsHome }}<span class="site-title-back">«</span> {{ end }}{{ site.Title }}</a>
+{{- /* The stylesheet hides this nav on wide screens, where the sidebar's All posts
+       and All tags links and the home page's button cover it. */}}
 <nav class="site-nav">
 {{- with site.GetPage "/posts" }}
-<a href="{{ .RelPermalink }}">Archive</a>
+<a href="{{ .RelPermalink }}">All posts</a>
 {{- end }}
 {{- with site.GetPage "/tags" }}
-<a href="{{ .RelPermalink }}">Tags</a>
-{{- end }}
-{{- with site.Home.OutputFormats.Get "rss" }}
-<a href="{{ .RelPermalink }}">RSS</a>
+<a href="{{ .RelPermalink }}">All tags</a>
 {{- end }}
 </nav>
 </header>

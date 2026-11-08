@@ -229,8 +229,12 @@ def test_serve_drafts_labels_entries_and_shows_the_banner(tmp_path: Path) -> Non
     for name in ("", "posts/", "tags/shared/"):
         assert pages[name].count(DRAFT_LABEL) == 1, name
         assert pages[name].count(INVALID_LABEL) == 1, name
+    for name in ("", "tags/shared/"):
+        assert f"</a> {DRAFT_LABEL}</h2>" in pages[name], name
+        assert f"</a> {INVALID_LABEL}</h2>" in pages[name], name
     draft = pages["posts/my-draft/"]
     assert draft.count(DRAFT_LABEL) == 1
+    assert f"</a> {DRAFT_LABEL}</h1>" in draft
     assert INVALID_LABEL not in draft
     assert "DRAFT-BODY [[nowhere]]" in draft
     broken = pages["posts/broken/"]

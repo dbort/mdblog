@@ -8,6 +8,9 @@
 {{- $title := site.Title }}
 {{- if eq .Kind "term" }}
 {{- $title = printf "%s | %s" (lower .Data.Term) site.Title }}
+{{- else if eq .Kind "section" }}
+{{- /* Posts is the only section; Hugo would title it after its directory. */}}
+{{- $title = printf "All posts | %s" site.Title }}
 {{- else if not .IsHome }}
 {{- $title = printf "%s | %s" .Title site.Title }}
 {{- end }}

@@ -105,14 +105,16 @@ The `_site/` folder at the vault's root holds the site's own files. Its notes ar
 | Path | Required | Meaning |
 |---|---|---|
 | `_site/mdblog.toml` | yes | The site's `base_url`, `title` and `author`. `base_url` may hold a path, such as `https://example.test/blog/`, and every page, link and feed then lives under `/blog/`. A trailing slash makes no difference. |
-| `_site/bio.md` | no | The author's bio, rendered on the home page above the latest entries. Without it the home page has no bio. Its front matter has no effect, including `publish: false`. Its wikilinks and embeds convert as a note's do and fail the build the same way, with failures naming `_site/bio.md`. An image it embeds is served at the home page's URL. Because no link may target `_site/`, keep the bio's images elsewhere in the vault. A symbolic link at this path fails the build. |
+| `_site/bio.md` | no | The author's bio, rendered in the sidebar's About box on every page. Without it the sidebar has no About box. Its front matter has no effect, including `publish: false`. Its wikilinks and embeds convert as a note's do and fail the build the same way, with failures naming `_site/bio.md`. An image it embeds is served at the home page's URL. Because no link may target `_site/`, keep the bio's images elsewhere in the vault. A symbolic link at this path fails the build. |
 | `_site/layouts/` | no | Hugo layouts that replace the packaged ones with the same name, such as `page.html`, `_partials/footer.html` or `_markup/render-image.html`. |
 | `_site/assets/` | no | Files for Hugo's asset pipeline, replacing packaged assets with the same path. `_site/assets/css/main.css` replaces the packaged stylesheet, which every page links. |
 | `_site/static/` | no | Files copied to the site's root as they are, so `_site/static/favicon.ico` is served at `/favicon.ico`. |
 
 ## Pages and feeds
 
-The packaged layouts build the home page with the latest 15 entries, an archive of every entry by year at `/posts/`, a page per tag listing its entries, an index of tags at `/tags/`, and a page per entry. No list is paginated.
+The packaged layouts build the home page with the latest 15 entries, a list of all posts by year at `/posts/`, a page per tag listing its entries, an index of tags at `/tags/`, and a page per entry. No list is paginated.
+
+Every page has a sidebar, to the right on wide screens and after the content on narrow ones. It holds an About box with the bio, a Recent posts box with the five newest other entries and a link to `/posts/`, and a Tags box with the ten most used tags and a link to `/tags/`. A box with nothing to show is left out. The footer links the site's RSS feed.
 
 Each feed is RSS holding the full text of its latest 50 entries: `/index.xml` for the whole site and `/tags/<tag>/index.xml` for each tag.
 
@@ -136,7 +138,7 @@ A link or embed that would fail the build stays on the page exactly as written, 
 
 Pages show what each entry is:
 
-- A draft carries a "Draft" label on its page and in every list that shows it: the home page, the archive and the tag pages.
+- A draft carries a "Draft" label on its page and in the home page, All posts and tag page lists. The sidebar's Recent posts box lists it without a label.
 - A published note that fails in any way carries an "Invalid" label in the same places.
 - Every page carries a banner at the top saying it is a draft preview and not the live site.
 

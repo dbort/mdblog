@@ -5,23 +5,31 @@
 
 :root {
   color-scheme: light dark;
-  --bg: #fdfdfc;
-  --text: #1f2328;
-  --muted: #59636e;
-  --link: #0b5cad;
-  --border: #d1d9e0;
-  /* Matches the Chroma background below, so plain and highlighted code look alike. */
-  --code-bg: #f7f7f7;
-  --mark-bg: #fff1a8;
+  --bg: #efe7dc;
+  --text: #231b10;
+  --muted: #6b5a45;
+  --link: #b00000;
+  /* Decoration only: #dd0000 on the background is 4.2:1, below AA for text. */
+  --accent: #dd0000;
+  --border: #d6c2a8;
+  --border-style: dashed;
+  --surface: #e7dbcb;
+  --chip-bg: var(--surface);
+  --chip-border: var(--border);
+  /* The GitHub light code colors meet AA on this and not on the surface, so code
+     gets its own background. It matches the Chroma background below. */
+  --code-bg: #f7f2ea;
+  --mark-bg: #f3d36b;
   --callout-note: #0550ae;
-  --callout-abstract: #0a6f8c;
+  --callout-abstract: #096883;
   --callout-tip: #116329;
   --callout-question: #7d4e00;
   --callout-warning: #953800;
   --callout-danger: #a40e26;
   --callout-example: #6639ba;
-  --callout-quote: #59636e;
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+  --callout-quote: #6b5a45;
+  --font-body: Charter, "Bitstream Charter", "Sitka Text", Cambria, serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     sans-serif;
   --font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
     monospace;
@@ -29,21 +37,29 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #16181d;
-    --text: #e6e8eb;
-    --muted: #9ba3ad;
-    --link: #79b8ff;
-    --border: #343a43;
-    --code-bg: #0d1117;
-    --mark-bg: #4d4000;
-    --callout-note: #4493f8;
+    --bg: #212529;
+    --text: #e9ecef;
+    --muted: #b1b6bb;
+    --link: #70b3ff;
+    --accent: #70b3ff;
+    --border: #353535;
+    /* A dashed #353535 on the background is too faint to see. */
+    --border-style: solid;
+    --surface: #2b2b2b;
+    /* Lighter than the surface, which is too close to the background to set a
+       chip apart. */
+    --chip-bg: #3a3f45;
+    --chip-border: #4a5057;
+    --code-bg: #2b2b2b;
+    --mark-bg: #5c4a00;
+    --callout-note: #4b97f8;
     --callout-abstract: #39c5cf;
     --callout-tip: #3fb950;
     --callout-question: #d29922;
-    --callout-warning: #db6d28;
-    --callout-danger: #f85149;
-    --callout-example: #a371f7;
-    --callout-quote: #9ba3ad;
+    --callout-warning: #de7b3c;
+    --callout-danger: #f96963;
+    --callout-example: #ab7ef8;
+    --callout-quote: #b1b6bb;
   }
 }
 
@@ -59,21 +75,30 @@ html {
 }
 
 body {
-  max-width: calc(65ch + 2rem);
+  max-width: 64rem;
   margin: 0 auto;
   padding: 0 1rem;
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-body);
-  font-size: 1.0625rem;
-  line-height: 1.6;
+  font-family: var(--font-ui);
+  line-height: 1.5;
   /* A long URL or word breaks rather than widening the page on a phone. */
   overflow-wrap: break-word;
 }
 
 a {
   color: var(--link);
-  text-underline-offset: 0.15em;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+a,
+a:hover {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
 }
 
 a:focus-visible,
@@ -89,6 +114,8 @@ h3,
 h4,
 h5,
 h6 {
+  font-family: var(--font-ui);
+  font-weight: 500;
   line-height: 1.25;
   margin: 1.6em 0 0.5em;
 }
@@ -147,30 +174,78 @@ mark {
   align-items: baseline;
   justify-content: space-between;
   gap: 0.25rem 1rem;
-  padding: 1.5rem 0 1rem;
-  border-bottom: 1px solid var(--border);
+  padding: 1.25rem 0 0.75rem;
 }
 
 .site-title {
   color: var(--text);
-  font-weight: 700;
-  font-size: 1.2rem;
-  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.site-title-back {
+  color: var(--muted);
+  font-weight: 400;
 }
 
 .site-nav {
   display: flex;
   flex-wrap: wrap;
   gap: 0 1rem;
+  font-size: 0.95rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2.5rem;
+}
+
+/* The sidebar's All posts and All tags links stand in for the header nav on wide
+   screens. */
+@media (min-width: 60rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 16.5rem;
+    gap: 3.5rem;
+  }
+
+  .site-nav {
+    display: none;
+  }
 }
 
 main {
-  padding: 1rem 0 2rem;
+  min-width: 0;
+  max-width: 66ch;
+  padding-top: 0.5rem;
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+/* The page's own heading, wherever its layout puts it. A heading inside an entry's
+   text is part of the text. */
+main h1 {
+  margin: 0.5rem 0 0.75rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 2px solid var(--border);
+}
+
+.entry-content h1,
+.entry-summary h1 {
+  margin: 1.6em 0 0.5em;
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .site-footer {
-  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin-top: 3rem;
   padding: 1rem 0 2rem;
+  border-top: 1px solid var(--border);
   color: var(--muted);
   font-size: 0.9rem;
 }
@@ -179,40 +254,138 @@ main {
   margin: 0;
 }
 
-/* Entries and lists */
+/* Sidebar */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  padding-top: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.sidebar-section {
+  padding: 1rem 1.1rem;
+  border: 1px var(--border-style) var(--border);
+  border-radius: 10px;
+}
+
+.sidebar-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.8rem;
+  color: var(--muted);
+  font: 700 0.72rem/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sidebar-label::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 2.5px solid var(--accent);
+  border-radius: 50%;
+}
+
+.sidebar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
 
 .bio {
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 1.5rem;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.55;
 }
 
-.entry-header h1,
-.entry-header h2 {
-  margin: 0 0 0.25rem;
+.bio p {
+  margin: 0 0 0.5rem;
 }
 
-.entry-header h1 a,
-.entry-header h2 a {
-  color: inherit;
+.bio > :last-child {
+  margin-bottom: 0;
+}
+
+.sidebar-recent-list li + li {
+  border-top: 1px var(--border-style) var(--border);
+}
+
+.sidebar-recent-list a {
+  display: block;
+  padding: 0.55rem 0;
+  color: var(--text);
+}
+
+.sidebar-recent-list li:first-child a {
+  padding-top: 0;
+}
+
+.sidebar-recent-list a:hover {
   text-decoration: none;
 }
 
-.entry-header h1 a:hover,
-.entry-header h2 a:hover {
+.sidebar-recent-title {
+  display: block;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.sidebar-recent-list a:hover .sidebar-recent-title {
+  color: var(--link);
   text-decoration: underline;
 }
 
+.sidebar-recent-list time {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.sidebar-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sidebar-more {
+  margin: 0.7rem 0 0;
+  font-size: 0.9rem;
+}
+
+/* Entries and lists */
+
+.entry-header h1,
 .entry-header h2 {
-  font-size: 1.3rem;
+  margin-top: 0;
+}
+
+.entry-header h1 a {
+  color: inherit;
+}
+
+.entry-header h2 {
+  margin-bottom: 0.25rem;
+  font-size: 1.5rem;
+}
+
+/* The link color tells a list's titles from its summaries, which share a color
+   with them otherwise. */
+.entry-item .entry-header h2 a {
+  color: var(--link);
 }
 
 .entry-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 0.75rem;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
   margin: 0 0 1rem;
   color: var(--muted);
+  font-family: var(--font-ui);
   font-size: 0.9rem;
 }
 
@@ -220,26 +393,85 @@ main {
   color: inherit;
 }
 
+.entry-meta a:hover {
+  color: var(--link);
+}
+
 .tags {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 0 0.5rem;
+  gap: 0.35rem;
 }
 
-.entry-list > h1 {
-  margin-top: 1rem;
+/* Tag chips. Rounded rectangles, so they never read as the Draft and Invalid pills. */
+a.tag {
+  display: inline-block;
+  padding: 0 0.45em;
+  border: 1px solid var(--chip-border);
+  border-radius: 4px;
+  background: var(--chip-bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+a.tag:hover {
+  color: var(--link);
+  text-decoration: none;
+}
+
+.tag .tag-count {
+  margin-left: 0.15em;
+  color: var(--muted);
+  font-size: inherit;
 }
 
 .entry-item {
   margin: 0 0 2rem;
 }
 
+/* The indent sets a summary's text apart from the titles between entries. */
+.entry-summary {
+  padding-left: 1.25rem;
+}
+
 .entry-summary > :last-child {
   margin-bottom: 0;
 }
 
+/* A summary's headings are part of its text and never outrank the entry's title. */
+.entry-summary :is(h1, h2, h3, h4, h5, h6) {
+  margin: 0 0 0.5rem;
+  font-size: 1em;
+  font-weight: 700;
+}
+
 .more {
+  margin-top: 2.5rem;
+}
+
+.button {
+  display: inline-block;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--link);
+  border-radius: 6px;
+  font-family: var(--font-ui);
+  font-size: 1rem;
   font-weight: 600;
+}
+
+.button:hover {
+  background: color-mix(in srgb, var(--link) 10%, var(--bg));
+  text-decoration: none;
+}
+
+/* Prose links carry a thin underline; every other link shows one on hover only. */
+.entry-content a,
+.entry-summary a,
+.bio a {
+  text-decoration: underline;
 }
 
 .archive-year h2 {
@@ -254,6 +486,16 @@ main {
   padding: 0;
 }
 
+.archive-list a {
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-weight: 600;
+}
+
+.archive-list a:hover {
+  color: var(--link);
+}
+
 .archive-list li {
   display: flex;
   flex-wrap: wrap;
@@ -264,23 +506,19 @@ main {
 
 .archive-list time {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
   white-space: nowrap;
 }
 
 .tag-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-}
-
-.tag-count {
-  color: var(--muted);
-  font-size: 0.9rem;
+  gap: 0.5rem;
 }
 
 .not-found {
-  padding: 2rem 0;
+  padding: 0 0 2rem;
 }
 
 /* Draft preview. Only `mdblog serve --drafts` renders these, so the live site never
@@ -302,17 +540,20 @@ main {
 
 .entry-status {
   --status: var(--callout-question);
-  /* In the flex rows of the archive and entry meta, the default stretch would make
-     the box as tall as the title's line and leave the text at its top. */
+  /* In the archive's flex rows, the default stretch would make the box as tall as
+     the title's line and leave the text at its top. */
   align-self: center;
-  padding: 0 0.4em;
+  vertical-align: 0.2em;
+  padding: 0 0.45em;
   border: 1px solid var(--status);
-  border-radius: 3px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--status) 10%, var(--bg));
   color: var(--status);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -336,7 +577,7 @@ blockquote {
   margin-left: 0;
   margin-right: 0;
   padding: 0 1rem;
-  border-left: 3px solid var(--border);
+  border-left: 4px solid var(--border);
   color: var(--muted);
 }
 
@@ -345,7 +586,7 @@ kbd,
 samp,
 pre {
   font-family: var(--font-code);
-  font-size: 0.9em;
+  font-size: 0.85em;
 }
 
 :not(pre) > code {
@@ -360,9 +601,9 @@ pre {
   overflow-wrap: normal;
   padding: 0.75rem 1rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--code-bg);
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 pre code {
@@ -383,6 +624,7 @@ table {
   max-width: 100%;
   overflow-x: auto;
   border-collapse: collapse;
+  font-size: 0.95em;
 }
 
 th,
@@ -394,7 +636,9 @@ td {
 }
 
 th {
-  background: var(--code-bg);
+  background: var(--surface);
+  font-family: var(--font-ui);
+  font-weight: 600;
 }
 
 .footnotes {
@@ -461,6 +705,8 @@ th {
 .callout-title {
   margin: 0;
   color: var(--callout);
+  font-family: var(--font-ui);
+  font-size: 1rem;
   font-weight: 600;
 }
 
@@ -479,19 +725,23 @@ summary.callout-title {
 /*
  * Syntax highlighting. Each palette is the output of the command on its first line,
  * with the page-background `.bg` rule dropped and these colors changed to reach WCAG
- * AA: light line numbers #7f7f7f to #656d76, NameBuiltinPseudo #6a737d to #59636e,
- * TextWhitespace #fff to inherit and the LineHighlight background #dedede to #eceff2;
- * dark line numbers and TextWhitespace to #8b949e and the LineHighlight background
- * #6e7681 to #21262d. Every token color meets AA on a highlighted line too.
+ * AA and match the page: light PreWrapper background #f7f7f7 to #f7f2ea, line
+ * numbers #7f7f7f to #656d76, NameBuiltinPseudo #6a737d to #59636e, TextWhitespace
+ * #fff to inherit and the LineHighlight background #dedede to #fffcf7; dark
+ * PreWrapper background #0d1117 to #2b2b2b, line numbers and TextWhitespace to
+ * #8b949e, Error #f85149 to #f96963 and the LineHighlight background #6e7681 to
+ * #222222. A highlighted line is lighter than the code background in light mode and
+ * darker in dark mode, because the other direction drops keywords and line numbers
+ * below AA. Every token color meets AA on a highlighted line too.
  */
 
 /* Generated using: hugo gen chromastyles --style=github */
-/* PreWrapper */ .chroma { background-color:#f7f7f7;-webkit-text-size-adjust:none; }
+/* PreWrapper */ .chroma { background-color:#f7f2ea;-webkit-text-size-adjust:none; }
 /* Error */ .chroma .err { color:#f6f8fa;background-color:#82071e }
 /* LineLink */ .chroma .lnlinks { outline:none;text-decoration:none;color:inherit }
 /* LineTableTD */ .chroma .lntd { vertical-align:top;padding:0;margin:0;border:0; }
 /* LineTable */ .chroma .lntable { border-spacing:0;padding:0;margin:0;border:0; }
-/* LineHighlight */ .chroma .hl { background-color:#eceff2 }
+/* LineHighlight */ .chroma .hl { background-color:#fffcf7 }
 /* LineNumbersTable */ .chroma .lnt { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#656d76 }
 /* LineNumbers */ .chroma .ln { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#656d76 }
 /* Line */ .chroma .line { display:flex; }
@@ -561,12 +811,12 @@ summary.callout-title {
 
 @media (prefers-color-scheme: dark) {
   /* Generated using: hugo gen chromastyles --style=github-dark */
-  /* PreWrapper */ .chroma { color:#e6edf3;background-color:#0d1117;-webkit-text-size-adjust:none; }
-  /* Error */ .chroma .err { color:#f85149 }
+  /* PreWrapper */ .chroma { color:#e6edf3;background-color:#2b2b2b;-webkit-text-size-adjust:none; }
+  /* Error */ .chroma .err { color:#f96963 }
   /* LineLink */ .chroma .lnlinks { outline:none;text-decoration:none;color:inherit }
   /* LineTableTD */ .chroma .lntd { vertical-align:top;padding:0;margin:0;border:0; }
   /* LineTable */ .chroma .lntable { border-spacing:0;padding:0;margin:0;border:0; }
-  /* LineHighlight */ .chroma .hl { background-color:#21262d }
+  /* LineHighlight */ .chroma .hl { background-color:#222222 }
   /* LineNumbersTable */ .chroma .lnt { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#8b949e }
   /* LineNumbers */ .chroma .ln { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#8b949e }
   /* Line */ .chroma .line { display:flex; }

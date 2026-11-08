@@ -6,7 +6,7 @@
 {{- end }}
 <ul class="tag-list">
 {{- range sort $terms "name" }}
-<li><a href="{{ .page.RelPermalink }}">{{ .name }}</a> <span class="tag-count">({{ .count }})</span></li>
+<li><a class="tag" href="{{ .page.RelPermalink }}">{{ .name }} <span class="tag-count">{{ .count }}</span></a></li>
 {{- end }}
 </ul>
 {{ end }}
