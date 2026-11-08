@@ -1,3 +1,6 @@
 <footer class="site-footer">
 <p>© {{ site.Params.author }}</p>
+{{- with site.Home.OutputFormats.Get "rss" }}
+<p><a href="{{ .RelPermalink }}">RSS</a></p>
+{{- end }}
 </footer>

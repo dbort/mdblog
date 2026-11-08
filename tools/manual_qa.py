@@ -99,7 +99,7 @@ CHECKS = (
             "« before the site title on every page but home.",
             "Repeat at phone width: the browser's device toolbar set to 375px wide. "
             "The sidebar sits after the content and before the footer, and the "
-            "header shows the All posts, Tags and RSS links.",
+            "header shows the All posts and All tags links, and the footer an RSS link.",
             "Switch the system to dark mode and repeat both widths: blue links and "
             "markers, solid sidebar borders.",
             "On posts/syntax/, open and close each callout and scroll the code block "

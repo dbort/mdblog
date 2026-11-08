@@ -195,7 +195,8 @@ mark {
   gap: 2.5rem;
 }
 
-/* The sidebar's site links stand in for the header nav on wide screens. */
+/* The sidebar's All posts and All tags links stand in for the header nav on wide
+   screens. */
 @media (min-width: 60rem) {
   .layout {
     grid-template-columns: minmax(0, 1fr) 16.5rem;
@@ -232,6 +233,10 @@ main h1 {
 }
 
 .site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
   margin-top: 3rem;
   padding: 1rem 0 2rem;
   border-top: 1px solid var(--border);
@@ -338,12 +343,6 @@ main h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
-}
-
-.sidebar-link-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
 }
 
 .sidebar-more {

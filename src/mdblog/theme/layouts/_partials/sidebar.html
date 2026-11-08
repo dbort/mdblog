@@ -40,18 +40,4 @@
 {{- end }}
 </section>
 {{- end }}
-<section class="sidebar-section sidebar-links">
-<h2 class="sidebar-label">Site</h2>
-<ul class="sidebar-link-list">
-{{- with site.GetPage "/posts" }}
-<li><a href="{{ .RelPermalink }}">All posts</a></li>
-{{- end }}
-{{- with site.GetPage "/tags" }}
-<li><a href="{{ .RelPermalink }}">Tags</a></li>
-{{- end }}
-{{- with site.Home.OutputFormats.Get "rss" }}
-<li><a href="{{ .RelPermalink }}">RSS feed</a></li>
-{{- end }}
-</ul>
-</section>
 </aside>

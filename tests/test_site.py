@@ -264,7 +264,6 @@ def _sidebar_sections(page: Element) -> list[tuple[str, list[str]]]:
     ]
 
 
-SITE_LINKS = ("Site", ["/posts/", "/tags/", "/index.xml"])
 TAG_LINKS = ("Tags", ["/tags/node.js/", "/tags/project/alpha/", "/tags/"])
 
 
@@ -275,11 +274,11 @@ def test_every_page_ends_main_with_the_sidebar_in_section_order(site: Site) -> N
         tags = [child.tag for child in layout if isinstance(child, Element)]
         assert tags == ["main", "aside"], name
         labels = [label for label, _ in _sidebar_sections(page)]
-        expected = ["About", "Tags", "Site"]
+        expected = ["About", "Tags"]
         if name != "index.html":
             expected.insert(1, "Recent posts")
         assert labels == expected, name
-        assert _sidebar_sections(page)[-2:] == [TAG_LINKS, SITE_LINKS], name
+        assert _sidebar_sections(page)[-1] == TAG_LINKS, name
     assert "404.html" in site.html_pages()
 
 
@@ -332,13 +331,10 @@ def test_a_lone_untagged_entry_without_a_bio_gets_only_site_links(
 
     built = _build(vault, tmp_path / "output")
 
-    assert _sidebar_sections(built.page("posts/lone/index.html")) == [SITE_LINKS]
+    assert _sidebar_sections(built.page("posts/lone/index.html")) == []
     assert [
         label for label, _ in _sidebar_sections(built.page("posts/index.html"))
-    ] == [
-        "Recent posts",
-        "Site",
-    ]
+    ] == ["Recent posts"]
 
 
 def test_sidebar_tags_are_the_ten_most_used_then_by_name(tmp_path: Path) -> None:
@@ -539,10 +535,11 @@ def test_every_page_has_the_header_and_footer(site: Site) -> None:
         assert links == [
             (brand, "/"),
             ("All posts", "/posts/"),
-            ("Tags", "/tags/"),
-            ("RSS", "/index.xml"),
+            ("All tags", "/tags/"),
         ], name
-        assert page.one("footer").text == f"© {AUTHOR}", name
+        footer = page.one("footer")
+        assert [p.text for p in footer.all("p")] == [f"© {AUTHOR}", "RSS"], name
+        assert footer.hrefs() == ["/index.xml"], name
 
 
 def _meta(head: Element, key: str, value: str) -> list[str]:
