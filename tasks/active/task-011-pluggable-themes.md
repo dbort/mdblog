@@ -1,7 +1,7 @@
 ---
 id: task-011
 title: "Let a vault use any Hugo theme"
-blocked_by: [task-009]
+blocked_by: [task-009, task-015]
 ---
 
 # task-011: Let a vault use any Hugo theme
@@ -15,13 +15,13 @@ mdblog's look is already a Hugo theme, but the theme also holds the callout and 
 - [ ] `load_config` raises `ConfigError` naming `mdblog.toml` and the resolved path when `theme` is not a string, the path does not exist, the path is not a directory, or the directory has no `layouts/` subdirectory.
 - [ ] Under a theme with no render hooks, a `> [!tip]- Title` callout renders with the core layer's `callout callout-tip` `<details>` markup, and `![[image.svg|300]]` renders an `<img>` with `width="300"` and no `mdblog-width` in its `src`.
 - [ ] A theme's own `_markup/render-image.html` wins over the core layer's: a build with a fixture theme that has one shows that theme's image markup.
-- [ ] The packaged core layer holds only `layouts/_markup/render-blockquote.html` and `layouts/_markup/render-image.html`. Feeds, page layouts and CSS stay in the default theme, so under another theme that theme (or Hugo's embedded template) renders the feeds.
+- [ ] The packaged core layer holds only `layouts/_markup/render-blockquote.html`, `layouts/_markup/render-image.html` and task-015's `recent.json` layout, and a build under a third-party theme still writes task-015's `recent.json`. Feeds, page layouts and CSS stay in the default theme, so under another theme that theme (or Hugo's embedded template) renders the feeds.
 - [ ] A param set in `_site/hugo.toml` (for example `[params] greeting = "hi"`) reaches templates as `site.Params.greeting`, under the default theme and under a third-party theme, and `params.author` from `mdblog.toml` survives alongside it.
 - [ ] Every key mdblog generates wins over `_site/hugo.toml`. A test sets `baseURL`, `title`, `params.author`, `outputs` and `markup.goldmark.renderer.unsafe = true` in the overlay and finds the generated values in the output: the configured base URL in absolute links, the configured title, only mdblog's outputs, and a raw `<b>` in a note not passed through as HTML.
 - [ ] A `_site/hugo.toml` that is a symbolic link fails the build with an error naming it.
 - [ ] Symbolic links and any `.git` entry inside the theme directory are not copied into the Hugo source.
 - [ ] `mdblog serve` on a vault whose `theme` path lies outside the vault rebuilds after a file under that theme changes, shown with a fake watcher. A theme inside the vault reloads through the existing vault watch.
-- [ ] `docs/vault-format.md` documents the `theme` key, `_site/hugo.toml` and which of its keys mdblog overrides, the core hooks that apply under every theme, and that the feed contract, the 404 page and task-009's draft labels hold only for the default theme. `CLAUDE.md` § Sites lists `_site/hugo.toml` and the `theme` key.
+- [ ] `docs/vault-format.md` documents the `theme` key, `_site/hugo.toml` and which of its keys mdblog overrides, the core hooks that apply under every theme, and that the feed contract, the 404 page (with the marker `mdblog verify` looks for, if task-017 has shipped) and task-009's draft labels hold only for the default theme. `CLAUDE.md` § Sites lists `_site/hugo.toml` and the `theme` key.
 - [ ] `tools/check` exits 0 on the finished branch.
 
 ## Advice
@@ -35,6 +35,7 @@ mdblog's look is already a Hugo theme, but the theme also holds the callout and 
 - Serve watches the theme directory configured when it started, ignoring hidden paths inside it as it does in the vault. A change to the `theme` key itself takes effect after restarting serve; say so in the docs.
 - Keep `_site/layouts/`, `_site/assets/` and `_site/static/` working under every theme: they are project directories and outrank any theme.
 - Standing obligation, strict static checks: the new `SiteConfig.theme` field is `Path | None`, resolved in `load_config`. Keep all new code fully typed under pyrefly strict.
+- `recent.json` (task-015) is a contract for pages outside the blog, so it holds under every theme, like the render hooks. Its output format is generated config, which already applies under any theme. Only its layout moves to the core layer.
 - Standing obligation, scripts stay simple: no new scripts.
 - Standing obligation, test where the risk is: theme stacking order, overlay precedence and the `layouts/` requirement each fail silently, so each gets a real-Hugo test with a minimal fixture theme under `tests/fixtures/themes/`, outside the fixture vault so the absolute-path case is covered too. Config errors and path resolution are unit tests. Serve's extra watch path uses the existing fake-watcher style in `tests/test_serve.py`. No test of a real third-party theme from the internet, and no manual QA: every Must Have is machine-checked.
 
