@@ -24,6 +24,7 @@ in `.claude/docs/`, even when a human also reads them.
 - **Language:** Python 3.14. Static checker: pyrefly at `preset = "strict"`.
 - **Toolchain:** pixi with conda-forge provides Python, Hugo and the dev tools. `pixi.lock` covers `linux-64`, `linux-aarch64` and `osx-arm64`.
 - **Site:** Hugo builds the site, and a Cloudflare Worker serves the output as static assets with no custom Worker code. The task that adds deployment also adds Node and wrangler to the pixi environment.
+- **Vault format and Hugo:** `docs/vault-format.md` is the user-facing contract between a vault and mdblog, written with no Hugo terms so it could describe another generator. `.claude/docs/hugo-site.md` holds how that contract maps onto Hugo and the packaged theme: generated front matter, Hugo collisions, the reasons behind rules, theme pages and feeds. Keep Hugo mechanics and theme behavior out of the user doc and update the agent doc with them.
 - **Gate:** `tools/check` runs `ruff format --check`, `ruff check`, pyrefly and pytest. `--smoke` and `--offline` run the same steps.
 - **Platforms:** the repo runs on Linux and macOS.
 - **Vault:** the Obsidian vault is never part of this repo. Tools point at a parallel checkout of it.
