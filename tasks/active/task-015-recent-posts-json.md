@@ -34,3 +34,8 @@ The build writes `recent.json` at the site's root, listing the five newest entri
 - [x] **Step 4** (`.claude/docs/hugo-site.md`): document the contract.
 
 ## Review log
+
+### Round 1: APPROVED
+- **N1: Must Have 1's wording doesn't match the output layout** (`tasks/active/task-015-recent-posts-json.md:12`): non-blocking. Hugo writes `recent.json` at the output's root under a `/blog/` `base_url`, served at `/blog/recent.json` like `index.xml`; the sub-path test confirms it is the only `recent.json`. "`blog/recent.json` in the output" is a planning slip.
+- **N2: Roadmap bullet still reads as a recommendation** (`docs/roadmap.md:32`): non-blocking. It goes away when M4's section is deleted at ship time.
+- **N3: The test helper hard-codes the limit** (`tests/test_site.py:130`): non-blocking. `Site.recent()` checks `len(items) <= 5` instead of `RECENT_LIMIT`; the main test already exercises the limit with six fixture entries.
