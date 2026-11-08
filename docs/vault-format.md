@@ -1,10 +1,12 @@
 # Vault format
 
-How `mdblog build` reads a vault's notes. A note reaches the site only when its front matter holds the boolean `publish: true`. The other rules on this page apply only to those notes, so a draft can hold any properties, as long as its front matter parses. Every selected note fails the build on invalid YAML, including an impossible date like `2026-13-45`, a duplicate key, a block that is not a mapping or text that is not UTF-8.
+How mdblog reads an Obsidian vault: which notes it publishes, the properties it reads, the Obsidian syntax it converts and the site files the vault holds.
+
+A note is published only when its front matter holds the boolean `publish: true`. The other rules on this page apply only to those notes, so a draft can hold any properties, as long as its front matter parses. mdblog reads every `.md` file in the vault outside `_site/`, skipping symbolic links and any path with a part starting with `.`; these are the selected notes. Every selected note fails the build on invalid YAML, including an impossible date like `2026-13-45`, a duplicate key, a block that is not a mapping or text that is not UTF-8.
 
 ## Properties
 
-The build reads these properties and ignores every other one. An empty property in Obsidian is null, and null counts as missing, except on `publish`, where it fails the build.
+mdblog reads these properties and ignores every other one. An empty property in Obsidian is null, and null counts as missing, except on `publish`, where it fails the build.
 
 | Property | Required | Meaning | Validation |
 |---|---|---|---|
@@ -12,60 +14,37 @@ The build reads these properties and ignores every other one. An empty property 
 | `title` | no | The page title. | A string. When missing, the title is the file name without `.md`. |
 | `date` | yes | The publish date. | A YAML date or datetime, not a quoted string. A date after the local date or a datetime after the current time fails. A datetime with no offset means the local time of the machine running the build, and is published with that offset. |
 | `slug` | yes | Sets the page's URL, `/posts/<slug>/`. | Lowercase ASCII letters and digits joined by single hyphens, such as `first-note`. Two notes with one slug fail, and the message names both. |
-| `tags` | no | Site tags. `project/alpha` builds a tag page at `/tags/project/alpha/`. | One string or a list of strings. Each `/`-separated part may use only letters, combining marks, digits, `-`, `_`, `+` and `.`, must hold a letter or digit, and when it holds a `.` must hold an ASCII letter or digit. Anything else fails, including spaces, because Hugo removes some characters from a tag's path, and what remains could write outside `/tags/`. |
+| `tags` | no | Site tags. `project/alpha` has its page at `/tags/project/alpha/`. | One string or a list of strings. Each `/`-separated part may use only letters, combining marks, digits, `-`, `_`, `+` and `.`, must hold a letter or digit, and when it holds a `.` must hold an ASCII letter or digit. Anything else fails, including spaces, because each part becomes part of a URL. |
 
 A note's vault folder and file name have no effect on its URL, so moving or renaming a note never moves its page.
 
-Hugo lowercases tag paths, so `Project/Alpha` builds at `/tags/project/alpha/` and shares a page with `project/alpha`. Tag text also displays in lowercase, so `Node.JS` shows as `node.js`. A nested tag builds a page only for itself: a note tagged only `project/alpha` builds no page at `/tags/project/`. A tag holding `page/<number>`, such as `a/page/2`, can replace a page of tag `a`'s listing if a site's layouts paginate tag pages. The packaged layouts do not.
+Tags ignore case. `Project/Alpha` and `project/alpha` are one tag, and tags display in lowercase, so `Node.JS` shows as `node.js`. A nested tag stands alone: a note tagged only `project/alpha` creates no `project` tag.
 
-A future date fails the build because nothing rebuilds the site when that date arrives. Hugo compares a date-only value as UTC midnight and would hide a note dated today at some local times, so the build runs Hugo with `--buildFuture` and applies the rule itself.
+A future date fails the build, because nothing rebuilds the site when that date arrives.
 
-## Generated front matter
-
-Each page's Hugo front matter is written from scratch, holding only `title`, `date` and, when there are any, `tags`. Under [draft preview](#draft-preview) only, a draft also gets Hugo's `draft: true` and an invalid published note gets the page param `mdblog_invalid`. The note's body after its front matter reaches Hugo byte for byte, apart from the conversions under [Obsidian syntax](#obsidian-syntax).
-
-## Hugo collisions
-
-A vault property that shares a name with a Hugo front matter key would change the site by accident, so none is passed through. A test builds a note carrying each of these and asserts the output matches the same note without them.
-
-| Property | What Hugo would do with it |
-|---|---|
-| `aliases` | Generates redirect pages. |
-| `url` | Moves the page. |
-| `weight` | Reorders the feed. |
-| `published` | Sets the publish date, which can hide the page or fail the build. |
-| `expiryDate` | Can hide the page or fail the build. |
-| `headless` | Publishes no page for the note. |
-| `build` | Can stop the page rendering or listing. |
-| `layout` | Selects a different layout. |
-| `type` | Selects a different layout type. |
-| `draft` | Hides the page. |
-| `cascade` | Applies front matter to other pages. |
-| `outputs` | Changes which formats the page renders to. |
-
-A Hugo feature wanted later, such as a redirect after a rename, gets its own property and is never passed through by name.
+Properties that site generators often read, such as `aliases`, `url`, `draft`, `weight` or `layout`, have no effect, like any other property not listed above.
 
 ## Obsidian syntax
 
-The build converts the Obsidian syntax below in each published note. Any other syntax reaches Hugo as written. None of it applies inside fenced code, indented code or inline code, which stay byte for byte, and none of it applies to unpublished notes.
+mdblog converts the Obsidian syntax below in each published note, and publishes any other Markdown as written. None of it applies inside fenced code, indented code or inline code, which stay byte for byte, and none of it applies to unpublished notes.
 
 | Syntax | Result |
 |---|---|
 | `[[note]]`, `[[note\|alias]]` | A link to the note's page. The link text is the alias, or otherwise the target as written. Inside a table, write the alias as `[[note\\|alias]]`. |
 | `[[note#heading]]`, `[[#heading]]` | A link to that heading of the note, or of the current note. `[[note#a#b]]` targets heading `b`. |
-| `[[note#^id]]`, `[[#^id]]` | A link to the top of the note, because Hugo gives a block nothing to link to. The block ID must exist. |
+| `[[note#^id]]`, `[[#^id]]` | A link to the top of the note, because a block has no anchor on the site. The block ID must exist. |
 | `![[note]]` | The same link as `[[note]]`. Notes are never transcluded. |
 | `![[image.png]]` | The image. `![[image.png\|300]]` sets its width, `![[image.png\|300x200]]` its width and height, and any other alias its alt text, which is otherwise the file name. |
 | `[[image.png]]` | A link to the image file. |
 | `%%comment%%` | Removed, inline or across lines, along with any links inside it. A `%%` with no closing `%%` removes the rest of the note, because leaking a private aside is worse than losing text. A comment hides text only on the site, since the vault itself is not secret. |
 | `^block-id` | Removed when it ends a line or stands alone on one. |
-| `> [!type] Title` | A callout with the type as its class and the title, or the capitalized type, as its heading. `[!type]-` renders a closed `<details>` and `[!type]+` an open one. A plain quote stays a `<blockquote>`. |
-| `==text==` | `<mark>text</mark>`. |
+| `> [!type] Title` | A callout headed by its title, or by its type capitalized. `[!type]-` makes it collapsible and closed, and `[!type]+` collapsible and open. A plain quote stays a quote. |
+| `==text==` | Highlighted text. |
 | `#tag` in the body | Literal text. Only the `tags` property creates site tags. |
 
-Every URL the build writes is root-relative and starts with the path of `base_url`, so with `base_url = "https://example.test/blog/"` a link reads `/blog/posts/<slug>/`. An image is copied next to the page of each note that uses it and served at `/blog/posts/<slug>/<file name>`. An image no published note uses is never copied.
+An image is published with each note that uses it. An image no published note or the bio uses is never published.
 
-A site can replace the default image and callout rendering with its own `_site/layouts/_markup/render-image.html` or `render-blockquote.html`. The default image layout reads an embed's size from `mdblog-width` and `mdblog-height` query parameters on the image's destination.
+Raw HTML in a note renders as nothing, so an `<img>` or `<a>` written in a note cannot bypass these rules.
 
 ### Finding a link's target
 
@@ -90,13 +69,11 @@ A published note fails the build when it holds any of these, and the message nam
 
 One build reports every failure in every note, together with the property failures above, and leaves the output directory unchanged. A note goes live only when everything it links to is published.
 
-Raw HTML in a note renders as nothing, so an `<img>` or `<a>` written in a note cannot bypass these rules.
-
 ### Known limits
 
 - Math, note transclusion and audio, video and PDF players are unsupported.
 - A callout type holding a hyphen, such as `[!custom-thing]`, renders as a plain quote with its marker as literal text.
-- Heading links follow Hugo's heading IDs, which the build computes on its own. A heading whose ID Hugo builds from a numeric character reference, such as `&#42;`, can get a different ID than the build expects, and its link then fails silently.
+- A link to a heading holding a numeric character reference, such as `&#42;`, can miss the heading without failing the build.
 
 ## Site folder
 
@@ -105,22 +82,13 @@ The `_site/` folder at the vault's root holds the site's own files. Its notes ar
 | Path | Required | Meaning |
 |---|---|---|
 | `_site/mdblog.toml` | yes | The site's `base_url`, `title` and `author`. `base_url` may hold a path, such as `https://example.test/blog/`, and every page, link and feed then lives under `/blog/`. A trailing slash makes no difference. |
-| `_site/bio.md` | no | The author's bio, rendered in the sidebar's About box on every page. Without it the sidebar has no About box. Its front matter has no effect, including `publish: false`. Its wikilinks and embeds convert as a note's do and fail the build the same way, with failures naming `_site/bio.md`. An image it embeds is served at the home page's URL. Because no link may target `_site/`, keep the bio's images elsewhere in the vault. A symbolic link at this path fails the build. |
-| `_site/layouts/` | no | Hugo layouts that replace the packaged ones with the same name, such as `page.html`, `_partials/footer.html` or `_markup/render-image.html`. |
-| `_site/assets/` | no | Files for Hugo's asset pipeline, replacing packaged assets with the same path. `_site/assets/css/main.css` replaces the packaged stylesheet, which every page links. |
-| `_site/static/` | no | Files copied to the site's root as they are, so `_site/static/favicon.ico` is served at `/favicon.ico`. |
-
-## Pages and feeds
-
-The packaged layouts build the home page with the latest 15 entries, a list of all posts by year at `/posts/`, a page per tag listing its entries, an index of tags at `/tags/`, and a page per entry. No list is paginated.
-
-Every page has a sidebar, to the right on wide screens and after the content on narrow ones. It holds an About box with the bio, a Recent posts box with the five newest other entries and a link to `/posts/`, and a Tags box with the ten most used tags and a link to `/tags/`. A box with nothing to show is left out. The footer links the site's RSS feed.
-
-Each feed is RSS holding the full text of its latest 50 entries: `/index.xml` for the whole site and `/tags/<tag>/index.xml` for each tag.
+| `_site/bio.md` | no | The author's bio, which the theme shows on the site. Its front matter has no effect, including `publish: false`. Its wikilinks and embeds convert as a note's do and fail the build the same way, with failures naming `_site/bio.md`. Because no link may target `_site/`, keep the bio's images elsewhere in the vault. A symbolic link at this path fails the build. |
+| `_site/layouts/`, `_site/assets/` | no | Theme overrides: each file replaces the packaged theme's layout or asset at the same path, so `_site/assets/css/main.css` replaces the stylesheet. |
+| `_site/static/` | no | Files published at the site's root as they are, so `_site/static/favicon.ico` is served at `/favicon.ico`. |
 
 ## Draft preview
 
-`mdblog serve --drafts` previews the site with the notes still being written. `mdblog build` has no such option, so a built site never holds a draft, a label or the banner.
+`mdblog serve --drafts` previews the site with the notes still being written. `mdblog build` has no such option, so a built site never holds a draft.
 
 The preview holds every note `mdblog build` would publish, and every draft: a note whose front matter holds the boolean `publish: false`. A note with no `publish` property stays off the preview, whatever its other properties, so journals and reference notes never appear. A note whose front matter does not parse, whose `publish` is not a boolean, or whose text is not UTF-8 is left out with a warning.
 
@@ -136,14 +104,6 @@ Every slug stays unique. A note's own valid slug wins over a generated one, a pu
 
 A link or embed that would fail the build stays on the page exactly as written, which shows where it is, and prints a warning. This applies to the bio too. A link to a draft goes to the draft's page.
 
-Pages show what each entry is:
-
-- A draft carries a "Draft" label on its page and in the home page, All posts and tag page lists. The sidebar's Recent posts box lists it without a label.
-- A published note that fails in any way carries an "Invalid" label in the same places.
-- Every page carries a banner at the top saying it is a draft preview and not the live site.
-
-The feeds include drafts, but the preview's feeds are never published.
+The preview labels each draft "Draft" and each published note that fails "Invalid", and every page carries a banner saying it is a draft preview and not the live site. The preview's feeds include drafts but are never published.
 
 After each rebuild, `serve --drafts` prints the current warnings to stderr as `path: reason` lines, in the format of `mdblog build`'s failures, under a heading that says they are warnings. A failing note never stops or delays the preview. An unusable `_site/mdblog.toml` still stops it until a change fixes the file, as with plain `serve`.
-
-The packaged partials `entry-status.html` and `preview-banner.html` draw the labels and the banner, and a site's `_site/layouts/` can replace them. They read Hugo's `.Draft` for the Draft label, the page param `mdblog_invalid` for the Invalid label, and the site param `mdblog_preview` for the banner.
