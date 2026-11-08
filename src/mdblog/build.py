@@ -166,8 +166,12 @@ def format_failures(heading: str, failures: Iterable[NoteFailure]) -> str:
     return f"{heading}:{details}"
 
 
-def convert_vault(vault: Path, now: datetime, drafts: bool = False) -> Site:
+def convert_vault(
+    vault: Path, now: datetime, drafts: bool = False, config: SiteConfig | None = None
+) -> Site:
     """The validated pages, bio and settings of `vault`, with dates compared to `now`.
+
+    Uses `config` in place of the vault's settings when given.
 
     Raises `ConfigError` for unusable settings, and otherwise a `BuildError` listing
     every bad note with each of its reasons, including every failed link, and the bio's
@@ -175,7 +179,7 @@ def convert_vault(vault: Path, now: datetime, drafts: bool = False) -> Site:
     note and bio failures are its `warnings` instead, and only `ConfigError` is raised.
     Writes nothing.
     """
-    config = load_config(vault)
+    config = config or load_config(vault)
     selection = select_notes(vault, now, drafts)
     bio = read_bio(vault)
     bio_failures = [bio] if isinstance(bio, NoteFailure) else []
@@ -299,6 +303,7 @@ def build_site(
     hugo: Sequence[str] = ("hugo",),
     now: datetime | None = None,
     quiet: bool = False,
+    config: SiteConfig | None = None,
 ) -> int:
     """Replaces `output` with the site built from `vault`, running Hugo as `hugo`.
 
@@ -309,7 +314,7 @@ def build_site(
     every one with each of its reasons, including every failed link, and lists the bio's
     failures in the same message. Writes nothing under `vault`. `now` is the
     timezone-aware time that decides which dates are in the future, by default the
-    current local time.
+    current local time. `config` replaces the vault's settings when given.
     """
     vault = vault.resolve()
     output = output.resolve()
@@ -317,7 +322,7 @@ def build_site(
         raise BuildError(f"vault {vault} is not a directory")
     try:
         check_output(vault, output)
-        site = convert_vault(vault, now or datetime.now().astimezone())
+        site = convert_vault(vault, now or datetime.now().astimezone(), config=config)
         # Hugo writes .hugo_build.lock and resources/ into its source, so the source is
         # a temporary directory that keeps them out of the vault and the repo.
         with tempfile.TemporaryDirectory(prefix="mdblog-") as source_name:
