@@ -13,3 +13,6 @@ build/
 public/
 resources/
 .hugo_build.lock
+
+# npm; package-lock.json pins what tools/check installs here.
+node_modules/
