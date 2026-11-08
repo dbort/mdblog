@@ -40,9 +40,9 @@ title: "Add mdblog check and a post template"
 - No manual QA. Obsidian's fill-in of `{{date:...}}` is outside mdblog, and the author sees the result the first time they use the template.
 
 ## Plan
-- [ ] **Step 1** (`src/mdblog/cli.py`, `src/mdblog/build.py` if a count needs exposing): add `check VAULT`. It runs `build_site` into a temporary directory, prints the published-note count on success and maps errors exactly as `build` does.
-- [ ] **Step 2** (`tests/test_cli.py`): cover success, note failure, config failure and Hugo failure. Check that no files remain in the vault, the current directory or the temp directory.
-- [ ] **Step 3** (`templates/Post Template.md`, the draft-properties test module): add the template and its parse test.
-- [ ] **Step 4** (`README.md`, `docs/vault-format.md`): document `check` and the template setup.
+- [x] **Step 1** (`src/mdblog/cli.py`, `src/mdblog/build.py` if a count needs exposing): add `check VAULT`. It runs `build_site` into a temporary directory, prints the published-note count on success and maps errors exactly as `build` does.
+- [x] **Step 2** (`tests/test_cli.py`): cover success, note failure, config failure and Hugo failure. Check that no files remain in the vault, the current directory or the temp directory.
+- [x] **Step 3** (`templates/Post Template.md`, the draft-properties test module): add the template and its parse test.
+- [x] **Step 4** (`README.md`, `docs/vault-format.md`): document `check` and the template setup.
 
 ## Review log

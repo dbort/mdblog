@@ -20,6 +20,14 @@ mdblog build VAULT --output DIR
 
 `build` renders the site into `DIR`, replacing what is there. It refuses a `DIR` that is inside the vault, contains the vault, or is a non-empty directory without the `.mdblog-output` marker file that mdblog writes into its output. If any published note fails validation, the build lists every failure and leaves `DIR` unchanged.
 
+## Check the site
+
+```sh
+mdblog check VAULT
+```
+
+`check` runs the same build as `build`, Hugo included, into a temporary directory that it deletes afterward, so there is no output directory to choose. On success it prints how many notes would publish, such as `6 notes would publish`, and exits 0. When `build` would fail, `check` prints the same failures and exits 1. It writes nothing into the vault or the current directory.
+
 ## Preview while writing
 
 ```sh

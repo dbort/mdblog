@@ -1,5 +1,9 @@
+import os
 import shutil
 import socket
+import sys
+import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -18,6 +22,17 @@ FIXTURE_VAULT = REPO_ROOT / "tests" / "fixtures" / "vault"
         pytest.param(["build", "--output", "out"], "VAULT", id="no-vault"),
         pytest.param(["build", "vault"], "--output", id="no-output"),
         pytest.param(["serve"], "VAULT", id="serve-no-vault"),
+        pytest.param(["check"], "VAULT", id="check-no-vault"),
+        pytest.param(
+            ["check", "v", "--output", "o"],
+            "unrecognized arguments: --output",
+            id="check-output",
+        ),
+        pytest.param(
+            ["check", "v", "--drafts"],
+            "unrecognized arguments: --drafts",
+            id="check-drafts",
+        ),
         pytest.param(
             ["build", "v", "--output", "o", "--drafts"],
             "unrecognized arguments: --drafts",
@@ -93,3 +108,152 @@ def test_serve_on_a_busy_port_exits_nonzero_naming_it(
 
     assert status == 1
     assert f"mdblog: cannot listen on 127.0.0.1 port {port}:" in capsys.readouterr().err
+
+
+# Stands in for Hugo on PATH. It prints to both streams, as Hugo does, and exits with
+# MDBLOG_FAKE_HUGO_STATUS, or 0 after writing a page.
+FAKE_HUGO = f"""#!{sys.executable}
+import os, pathlib, sys
+argv = sys.argv[1:]
+print("FAKE-HUGO-STDOUT")
+print("FAKE-HUGO-STDERR", file=sys.stderr)
+status = int(os.environ.get("MDBLOG_FAKE_HUGO_STATUS", "0"))
+if status == 0:
+    destination = pathlib.Path(argv[argv.index("--destination") + 1])
+    (destination / "index.html").write_text("page")
+sys.exit(status)
+"""
+
+
+@dataclass(frozen=True)
+class Isolated:
+    """Where a check could leave files, with a fake `hugo` first on PATH."""
+
+    # A copy of the fixture vault.
+    vault: Path
+    # The current directory.
+    cwd: Path
+    # The directory `tempfile` creates in.
+    temp: Path
+
+
+@pytest.fixture
+def isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Isolated:
+    vault = tmp_path / "vault"
+    shutil.copytree(FIXTURE_VAULT, vault)
+    cwd = tmp_path / "cwd"
+    temp = tmp_path / "temp"
+    bin_dir = tmp_path / "bin"
+    for directory in (cwd, temp, bin_dir):
+        directory.mkdir()
+    hugo = bin_dir / "hugo"
+    hugo.write_text(FAKE_HUGO, encoding="utf-8")
+    hugo.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.delenv("MDBLOG_FAKE_HUGO_STATUS", raising=False)
+    monkeypatch.chdir(cwd)
+    monkeypatch.setattr(tempfile, "tempdir", str(temp))
+    return Isolated(vault, cwd, temp)
+
+
+def _tree(root: Path) -> dict[str, bytes | None]:
+    """Every path under `root`, mapped to its bytes, or None for a directory or link."""
+    return {
+        path.relative_to(root).as_posix(): (
+            path.read_bytes() if path.is_file(follow_symlinks=False) else None
+        )
+        for path in sorted(root.rglob("*"))
+    }
+
+
+def _check_leaves_nothing(
+    place: Isolated, capfd: pytest.CaptureFixture[str]
+) -> tuple[int, str, str]:
+    """The exit status, stdout and stderr of `mdblog check`, after asserting it wrote
+    nothing under the vault, the current directory or the temporary directory."""
+    before = _tree(place.vault)
+    capfd.readouterr()
+
+    status = main(["check", str(place.vault)])
+
+    out, err = capfd.readouterr()
+    assert _tree(place.vault) == before
+    assert list(place.cwd.iterdir()) == []
+    assert list(place.temp.iterdir()) == []
+    return status, out, err
+
+
+def _build_stderr(
+    place: Isolated, tmp_path: Path, capfd: pytest.CaptureFixture[str]
+) -> str:
+    capfd.readouterr()
+    status = main(["build", str(place.vault), "--output", str(tmp_path / "out")])
+    assert status == 1
+    return capfd.readouterr().err
+
+
+def test_check_counts_the_notes_that_would_publish(
+    isolated: Isolated, capfd: pytest.CaptureFixture[str]
+) -> None:
+    status, out, err = _check_leaves_nothing(isolated, capfd)
+
+    assert status == 0
+    assert out == "6 notes would publish\n"
+    assert err == "FAKE-HUGO-STDERR\n"
+
+
+def test_check_says_note_for_a_single_one(
+    isolated: Isolated, capfd: pytest.CaptureFixture[str]
+) -> None:
+    for note in isolated.vault.rglob("*.md"):
+        if note.name != "first-note.md" and not note.is_relative_to(
+            isolated.vault / "_site"
+        ):
+            note.unlink()
+
+    status, out, _ = _check_leaves_nothing(isolated, capfd)
+
+    assert (status, out) == (0, "1 note would publish\n")
+
+
+def test_check_reports_failing_notes_as_build_does(
+    isolated: Isolated, tmp_path: Path, capfd: pytest.CaptureFixture[str]
+) -> None:
+    (isolated.vault / "typo.md").write_text(
+        "---\npublish: yes\n---\n", encoding="utf-8"
+    )
+
+    status, out, err = _check_leaves_nothing(isolated, capfd)
+
+    assert (status, out) == (1, "")
+    assert "typo.md: publish must be" in err
+    assert err == _build_stderr(isolated, tmp_path, capfd)
+
+
+def test_check_reports_unusable_settings_as_build_does(
+    isolated: Isolated, tmp_path: Path, capfd: pytest.CaptureFixture[str]
+) -> None:
+    (isolated.vault / "_site" / "mdblog.toml").write_text(
+        "title = \n", encoding="utf-8"
+    )
+
+    status, out, err = _check_leaves_nothing(isolated, capfd)
+
+    assert (status, out) == (1, "")
+    assert "mdblog.toml" in err
+    assert err == _build_stderr(isolated, tmp_path, capfd)
+
+
+def test_check_reports_a_hugo_failure_as_build_does(
+    isolated: Isolated,
+    tmp_path: Path,
+    capfd: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MDBLOG_FAKE_HUGO_STATUS", "3")
+
+    status, out, err = _check_leaves_nothing(isolated, capfd)
+
+    assert (status, out) == (1, "")
+    assert err == "FAKE-HUGO-STDERR\nmdblog: hugo exited with status 3\n"
+    assert err == _build_stderr(isolated, tmp_path, capfd)
