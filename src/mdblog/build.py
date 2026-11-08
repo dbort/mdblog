@@ -95,9 +95,10 @@ def _toml_string(value: str) -> str:
 def hugo_config(config: SiteConfig, drafts: bool = False) -> str:
     """The text of a `hugo.toml` that applies `config` and the packaged theme.
 
-    The site renders a feed at `/index.xml` and one per tag, and no other feed, plus
-    `/recent.json` from the home page. The site param `RECENT_PARAM` is `RECENT_LIMIT`.
-    With `drafts`, the site param `PREVIEW_PARAM` is true, and otherwise it is absent.
+    The site renders a feed at `/index.xml` and one per tag, and no other feed. The
+    home page also renders `/recent.json`. The site param `RECENT_PARAM` is
+    `RECENT_LIMIT`. With `drafts`, the site param `PREVIEW_PARAM` is true, and otherwise
+    it is absent.
     """
     preview = f"{PREVIEW_PARAM} = true\n" if drafts else ""
     return (
