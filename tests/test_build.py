@@ -187,6 +187,7 @@ def test_build_supplies_the_packaged_theme(tmp_path: Path) -> None:
         "_partials",
         "baseof.html",
         "home.html",
+        "home.recent.json",
         "home.rss.xml",
         "page.html",
         "section.html",
@@ -605,7 +606,7 @@ def test_hugo_config_round_trips_any_string(value: str) -> None:
     assert table["baseURL"] == value
     assert table["title"] == value
     assert table["theme"] == "mdblog"
-    assert table["params"] == {"author": value}
+    assert table["params"]["author"] == value
 
 
 def test_hugo_config_turns_on_the_preview_banner_only_for_drafts() -> None:
@@ -613,7 +614,8 @@ def test_hugo_config_turns_on_the_preview_banner_only_for_drafts() -> None:
 
     table = tomllib.loads(hugo_config(config, drafts=True))
 
-    assert table["params"] == {"author": "A", "mdblog_preview": True}
+    assert table["params"]["mdblog_preview"] is True
+    assert "mdblog_preview" not in tomllib.loads(hugo_config(config))["params"]
     assert hugo_config(config, drafts=False) == hugo_config(config)
 
 

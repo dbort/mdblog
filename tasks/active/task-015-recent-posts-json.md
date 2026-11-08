@@ -9,14 +9,14 @@ title: "Publish a recent-posts JSON file"
 The build writes `recent.json` at the site's root, listing the five newest entries. A page elsewhere on the same domain, such as a home page at `/` served by another Worker, can then fetch it and show the blog's latest posts the way the sidebar does, staying current without being redeployed when a post goes live.
 
 ## Must Have
-- [ ] A build of the fixture vault writes `recent.json` at the site's root. Under a `base_url` with a path, such as `https://example.test/blog/`, it is at `blog/recent.json` in the output and nowhere else.
-- [ ] Its content is a JSON object with one key, `items`: an array of at most 5 objects, newest first, each with exactly the string keys `title`, `url` and `date`.
-- [ ] `title` is the entry's page title. `url` is the entry's absolute URL, equal to the `<link>` of the same entry in `/index.xml`. `date` is ISO 8601 with a UTC offset and is the same instant as that entry's `<pubDate>` in `/index.xml`.
-- [ ] The entries and their order match the first five links in the sidebar's Recent posts list on a page that isn't one of them.
-- [ ] A title holding `"`, `\`, `<` and a non-ASCII character comes back unchanged from `json.loads`.
-- [ ] A site with no published notes writes `{"items": []}`.
-- [ ] `.claude/docs/hugo-site.md` § Packaged theme documents the file's location, fields and limit as a contract for pages outside the blog.
-- [ ] `tools/check` exits 0 on the finished branch.
+- [x] A build of the fixture vault writes `recent.json` at the site's root. Under a `base_url` with a path, such as `https://example.test/blog/`, it is at `blog/recent.json` in the output and nowhere else.
+- [x] Its content is a JSON object with one key, `items`: an array of at most 5 objects, newest first, each with exactly the string keys `title`, `url` and `date`.
+- [x] `title` is the entry's page title. `url` is the entry's absolute URL, equal to the `<link>` of the same entry in `/index.xml`. `date` is ISO 8601 with a UTC offset and is the same instant as that entry's `<pubDate>` in `/index.xml`.
+- [x] The entries and their order match the first five links in the sidebar's Recent posts list on a page that isn't one of them.
+- [x] A title holding `"`, `\`, `<` and a non-ASCII character comes back unchanged from `json.loads`.
+- [x] A site with no published notes writes `{"items": []}`.
+- [x] `.claude/docs/hugo-site.md` § Packaged theme documents the file's location, fields and limit as a contract for pages outside the blog.
+- [x] `tools/check` exits 0 on the finished branch.
 
 ## Advice
 - The shape is mdblog's own, not JSON Feed 1.1. JSON Feed requires content on every item, which would bring back the weight of the full-text RSS feed, and the point of this file is to be small.
@@ -28,9 +28,9 @@ The build writes `recent.json` at the site's root, listing the five newest entri
 - Standing obligations: strict static checks apply. No scripts. Tests: real-Hugo assertions go in `tests/test_site.py` beside the feed tests, reusing its built fixture, plus one build with a path `base_url` and one with no published notes. No test restates the generated `hugo.toml`.
 
 ## Plan
-- [ ] **Step 1** (`src/mdblog/build.py`): add the output format, the home output and the shared limit param to `hugo_config`.
-- [ ] **Step 2** (`src/mdblog/theme/layouts/home.recent.json` or Hugo's name for it, `src/mdblog/theme/layouts/_partials/sidebar.html`): render `recent.json`, and make the sidebar read the shared limit.
-- [ ] **Step 3** (`tests/test_site.py`, `tests/test_build.py`): cover each Must Have.
-- [ ] **Step 4** (`.claude/docs/hugo-site.md`): document the contract.
+- [x] **Step 1** (`src/mdblog/build.py`): add the output format, the home output and the shared limit param to `hugo_config`.
+- [x] **Step 2** (`src/mdblog/theme/layouts/home.recent.json` or Hugo's name for it, `src/mdblog/theme/layouts/_partials/sidebar.html`): render `recent.json`, and make the sidebar read the shared limit.
+- [x] **Step 3** (`tests/test_site.py`, `tests/test_build.py`): cover each Must Have.
+- [x] **Step 4** (`.claude/docs/hugo-site.md`): document the contract.
 
 ## Review log

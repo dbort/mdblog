@@ -1,14 +1,16 @@
 """The packaged layouts' pages and feeds, built from vaults with real Hugo."""
 
 import datetime as dt
+import json
 import re
 import shutil
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
+from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import override
+from typing import Any, override
 from urllib.parse import unquote, urlsplit
 
 import pytest
@@ -118,6 +120,21 @@ class Site:
         channel = ET.fromstring(self.raw(name)).find("channel")
         assert channel is not None
         return channel
+
+    def recent(self) -> list[dict[str, str]]:
+        """`recent.json`'s items, after asserting the file's documented shape."""
+        # json.loads returns Any; the assertions below narrow it to the contract.
+        data: Any = json.loads(self.raw("recent.json"))
+        assert isinstance(data, dict) and list(data) == ["items"], data
+        items: Any = data["items"]
+        assert isinstance(items, list) and len(items) <= 5, items
+        recent: list[dict[str, str]] = []
+        for item in items:
+            assert isinstance(item, dict), item
+            assert sorted(item) == ["date", "title", "url"], item
+            assert all(isinstance(value, str) for value in item.values()), item
+            recent.append({key: str(value) for key, value in item.items()})
+        return recent
 
     def html_pages(self) -> list[str]:
         return sorted(
@@ -743,6 +760,60 @@ def test_feed_items_start_with_the_entrys_own_content(site: Site) -> None:
             ), slug
 
 
+def test_recent_json_lists_the_sidebars_entries_as_the_feed_does(site: Site) -> None:
+    assert [name for name in site.files() if name.endswith("recent.json")] == [
+        "recent.json"
+    ]
+    recent = site.recent()
+    assert [item["url"] for item in recent] == _posts(*NEWEST_FIRST[:5])
+    # The 404 page is none of the entries, so its sidebar lists the newest five.
+    sidebar = _recent(site.page("404.html"))
+    assert [(item["url"], item["title"]) for item in recent] == [
+        (FIXTURE_URL + href.removeprefix("/"), title) for href, title, _ in sidebar
+    ]
+    feed = site.feed("index.xml")
+    for item in recent:
+        published = dt.datetime.fromisoformat(item["date"])
+        assert published.tzinfo is not None, item
+        assert re.fullmatch(
+            r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d", item["date"]
+        )
+        slug = urlsplit(item["url"]).path.split("/")[2]
+        pub_date = parsedate_to_datetime(_text(_item(feed, slug), "pubDate"))
+        assert published == pub_date, item
+    offset_time = recent[NEWEST_FIRST.index("offset-time")]
+    assert offset_time["date"] == "2026-01-02T23:30:00-07:00"
+    assert recent[0]["title"] == "Tips & Tricks"
+
+
+def test_recent_json_keeps_a_title_hugo_and_json_would_escape(tmp_path: Path) -> None:
+    title = 'Say "hi" \\ <b>café</b> 🙂'
+    vault = tmp_path / "vault"
+    (vault / "_site").mkdir(parents=True)
+    shutil.copy(FIXTURE_VAULT / "_site" / "mdblog.toml", vault / "_site")
+    yaml_title = title.replace("'", "''")
+    (vault / "odd.md").write_text(
+        published_text("odd", extra=f"title: '{yaml_title}'\n"), encoding="utf-8"
+    )
+
+    built = _build(vault, tmp_path / "output")
+
+    assert [item["title"] for item in built.recent()] == [title]
+
+
+def test_a_site_with_no_published_notes_writes_empty_recent_json(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / "_site").mkdir(parents=True)
+    shutil.copy(FIXTURE_VAULT / "_site" / "mdblog.toml", vault / "_site")
+    shutil.copy(FIXTURE_VAULT / "drafts" / "marked-false.md", vault)
+
+    built = _build(vault, tmp_path / "output")
+
+    assert json.loads(built.raw("recent.json")) == {"items": []}
+
+
 def test_static_files_reach_the_output(site: Site) -> None:
     assert site.path("favicon.ico").read_bytes() == b"FIXTURE-FAVICON"
 
@@ -787,6 +858,7 @@ def _internal_urls(site: Site, origin: str) -> list[str]:
                 urls.append(element.text)
             elif "href" in element.attrib:
                 urls.append(element.attrib["href"])
+    urls.extend(item["url"] for item in site.recent())
     return [url for url in urls if url.startswith(("/", origin))]
 
 
@@ -811,6 +883,11 @@ def test_a_site_under_a_sub_path_links_only_within_it(tmp_path: Path) -> None:
     not_found = built.page("404.html")
     assert _stylesheets(not_found.one("head"))[0].startswith("/blog/css/")
     assert not_found.one("main").hrefs() == ["/blog/"]
+    # The output's root is served at /blog/, so this is /blog/recent.json.
+    assert [name for name in built.files() if name.endswith("recent.json")] == [
+        "recent.json"
+    ]
+    assert built.recent()[0]["url"] == base_url + "posts/long-post/"
     assert {name: built.path(name).read_bytes() for name in built.files()} == {
         name: unslashed.path(name).read_bytes() for name in unslashed.files()
     }

@@ -1,0 +1,12 @@
+{{- /* Pages outside the blog read this file, so its shape is a contract: see
+       .claude/docs/hugo-site.md. It lists the entries the sidebar's Recent posts box
+       lists on a page that is none of them, in the same order. */ -}}
+{{- $items := slice -}}
+{{- range first site.Params.mdblog_recent_limit site.RegularPages -}}
+{{- $items = $items | append (dict
+  "title" .Title
+  "url" .Permalink
+  "date" (.Date.Format "2006-01-02T15:04:05-07:00")
+) -}}
+{{- end -}}
+{{- dict "items" $items | jsonify -}}

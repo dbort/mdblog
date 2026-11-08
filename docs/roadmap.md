@@ -36,7 +36,6 @@ Produce and check exactly what Cloudflare will serve, on a machine with no Cloud
 **Decisions:**
 - Where each site's Worker name and routes live. Recommended: in the vault's `_site/`, because this repo holds nothing site-specific.
 - Whether custom headers are needed at launch.
-- The shape of `recent.json` and how many entries it holds, including whether it follows [JSON Feed](https://www.jsonfeed.org/) or a smaller format of its own.
 
 ## M5: Deploy and launch
 
