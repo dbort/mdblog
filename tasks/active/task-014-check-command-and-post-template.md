@@ -46,3 +46,7 @@ title: "Add mdblog check and a post template"
 - [x] **Step 4** (`README.md`, `docs/vault-format.md`): document `check` and the template setup.
 
 ## Review log
+
+### Round 1: APPROVED
+- **N1: Docstring wraps short mid-sentence** (`src/mdblog/build.py:282`): the `build_site` docstring breaks a line early after "Raises `BuildError`", a leftover from inserting the new sentences. Cosmetic; reflow the paragraph.
+- **N2: A second fake Hugo** (`tests/test_cli.py:115`): the PATH fake sits beside the one in `tests/test_build.py`. Justified, since `check_vault` takes no `hugo` argument and the PATH fake with `capfd` proves `quiet` drops Hugo's stdout and keeps its stderr. No change needed.
