@@ -339,9 +339,11 @@ def test_serve_bundle_reports_wrangler_exiting_on_its_own(
     seen = tmp_path / "seen.json"
     wrangler = _fake_wrangler(
         tmp_path,
-        "import json, os, sys\n"
+        "import json, os, subprocess, sys\n"
+        # A grandchild that outlives the fake, as workerd can outlive wrangler.
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
         f"open({str(seen)!r}, 'w').write(json.dumps("
-        "{'env': dict(os.environ), 'cwd': os.getcwd()}))\n"
+        "{'env': dict(os.environ), 'cwd': os.getcwd(), 'child': child.pid}))\n"
         "sys.exit(3)\n",
     )
 
@@ -353,6 +355,7 @@ def test_serve_bundle_reports_wrangler_exiting_on_its_own(
     assert recorded["cwd"] == str(tmp_path)
     for name, value in WRANGLER_ENV.items():
         assert recorded["env"][name] == value
+    assert _exits(recorded["child"])
 
 
 def test_serve_bundle_stops_wrangler_on_sigint(
@@ -378,11 +381,17 @@ def test_serve_bundle_stops_wrangler_on_sigint(
     serve_bundle(tmp_path, PurePosixPath(), 9000, wrangler)
 
     assert "http://127.0.0.1:9000/\n" in capsys.readouterr().out
-    grandchild = int(started.read_text(encoding="utf-8"))
+    assert _exits(int(started.read_text(encoding="utf-8")))
+
+
+def _exits(pid: int) -> bool:
+    """Whether process `pid` is gone within 10 seconds."""
     deadline = time.monotonic() + 10
-    while _alive(grandchild) and time.monotonic() < deadline:
+    while _alive(pid):
+        if time.monotonic() > deadline:
+            return False
         time.sleep(0.05)
-    assert not _alive(grandchild)
+    return True
 
 
 def _alive(pid: int) -> bool:
