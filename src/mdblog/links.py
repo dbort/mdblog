@@ -253,7 +253,7 @@ class Page:
     """A published note ready to write into its page bundle."""
 
     note: PublishedNote
-    # The converted Markdown body, UTF-8, without any lede callout.
+    # The converted Markdown body, UTF-8, without its lede callout unless it fails.
     body: bytes
     # Vault-relative paths of the images to copy into the bundle.
     images: tuple[Path, ...]
@@ -312,9 +312,9 @@ def convert_notes(
     Comments are removed first, so a heading or block ID inside one is no link target,
     and block IDs next, so none stays in a heading's text. A summary callout that is
     then the note's first block (`find_lede`) leaves the body and becomes the page's
-    `lede`, and a lede that cannot be one fails. Then a standard Markdown
-    link or image to an internal destination fails, and wikilinks convert against
-    every file in the selection. Notes outside `selection.published`, which holds the
+    `lede`, and a lede that cannot be one fails. Then a standard Markdown link or image
+    to an internal destination fails, and wikilinks convert against every file in the
+    selection. Notes outside `selection.published`, which holds the
     drafts too when the selection was made with `drafts`, are never read. `bio` is the
     text of `BIO_PATH`, which renders on the home page and is no link target itself;
     its failures name `BIO_PATH`.

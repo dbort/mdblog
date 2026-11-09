@@ -1,4 +1,4 @@
-"""mdblog.markdown: finds code, comments, block IDs, headings, links and the summary callout in a note's Markdown.
+"""mdblog.markdown: finds code, comments, block IDs, headings, links and ledes in a note's Markdown.
 
 Every function that scans a note's text leaves code untouched: fenced and indented code
 blocks, including ones nested in quotes and lists, and inline code spans.
@@ -430,9 +430,9 @@ def find_lede(text: str) -> LedeCallout | None:
     anything else.
 
     The callout is a quote whose first paragraph's first line, after its quote marker,
-    starts with `LEDE_MARKER`. Its content is everything after that line, and is a usable lede only
-    when it holds paragraphs of inline Markdown with no image, embed, footnote
-    reference or link to a `#` destination.
+    starts with `LEDE_MARKER`. Its content is everything after that line, and is a
+    usable lede only when it holds paragraphs of inline Markdown with no image, embed,
+    footnote reference or link to a `#` destination.
     """
     tokens = _PARSER.parse(text)
     if len(tokens) < 2 or tokens[0].type != "blockquote_open":
