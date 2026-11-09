@@ -26,12 +26,16 @@ HOME_LIMIT = 15
 RECENT_LIMIT = 5
 # The sidebar's Tags box lists at most this many of the most used tags.
 TAG_LIMIT = 10
+# A post with no lede is summarized by its excerpt, cut at a word boundary to at most
+# this many characters before an ellipsis.
+EXCERPT_LENGTH = 160
 # The site params that pass each layout limit to the layouts, so a site's own layouts
 # can read them too.
 LIMIT_PARAMS = {
     "mdblog_home_limit": HOME_LIMIT,
     "mdblog_recent_limit": RECENT_LIMIT,
     "mdblog_tag_limit": TAG_LIMIT,
+    "mdblog_excerpt_length": EXCERPT_LENGTH,
 }
 # A vault's `_site/` directories that Hugo reads beside the packaged theme's.
 SITE_DIRECTORIES = ("layouts", "assets", "static")
@@ -224,7 +228,7 @@ def assemble_source(source: Path, vault: Path, site: Site) -> None:
         bundle = content / "posts" / page.note.page.slug
         bundle.mkdir(parents=True)
         (bundle / "index.md").write_bytes(
-            front_matter(page.note.page, page.note.status) + page.body
+            front_matter(page.note.page, page.note.status, page.lede) + page.body
         )
         # Hugo publishes a leaf bundle's files next to its page, so each note's images
         # get their own URLs and two notes never compete for one name.

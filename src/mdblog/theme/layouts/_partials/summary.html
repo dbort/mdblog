@@ -1,0 +1,21 @@
+{{- /* An entry's summary everywhere it is listed or described, so those places always
+       agree. Returns a dict: `html`, the entry's lede rendered as HTML or its excerpt as
+       escaped text, and `text`, the same as plain text with whitespace collapsed. The
+       excerpt is the plain text of Hugo's summary without footnotes, cut at a word
+       boundary to the site param mdblog_excerpt_length. Hugo's `summaryLength` keeps
+       whole paragraphs, so it cannot cut that short. */ -}}
+{{- $html := "" -}}
+{{- $text := "" -}}
+{{- with .Params.mdblog_lede -}}
+  {{- $html = $.RenderString (dict "display" "block") . -}}
+  {{- $text = $html | plainify | htmlUnescape | replaceRE `\s+` " " | strings.TrimSpace -}}
+{{- else -}}
+  {{- /* Goldmark's footnote markers and its closing footnotes section are not prose,
+         and plain text would glue each marker's number to its word. */ -}}
+  {{- $summary := .Summary | replaceRE `<sup id="fnref[^"]*">.*?</sup>` "" | replaceRE `(?s)<div class="footnotes" role="doc-endnotes">.*$` "" -}}
+  {{- $plain := $summary | plainify | htmlUnescape | replaceRE `\s+` " " | strings.TrimSpace -}}
+  {{- /* truncate escapes a plain string, so its result is safe as HTML. */ -}}
+  {{- $html = truncate site.Params.mdblog_excerpt_length "…" $plain -}}
+  {{- $text = $html | htmlUnescape -}}
+{{- end -}}
+{{- return dict "html" $html "text" $text -}}

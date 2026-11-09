@@ -21,7 +21,7 @@ TIMEOUT = 10.0
 # Names the client and nothing else; no contact address.
 USER_AGENT = "mdblog-verify"
 # The keys of each `recent.json` item; `home.recent.json` states the contract.
-RECENT_ITEM_KEYS = frozenset(("title", "url", "date"))
+RECENT_ITEM_KEYS = frozenset(("date", "summary", "title", "url"))
 # The missing path's name ends with a random suffix, so no site can hold it.
 MISSING_PREFIX = "mdblog-verify-missing-"
 
@@ -137,7 +137,8 @@ def recent_shape_problem(value: object) -> str | None:
         return "items is not an array"
     for index, item in enumerate(items):
         if not isinstance(item, dict) or set(item) != RECENT_ITEM_KEYS:
-            return f"item {index} does not have exactly the keys date, title and url"
+            keys = ", ".join(sorted(RECENT_ITEM_KEYS))
+            return f"item {index} does not have exactly the keys {keys}"
         if not all(isinstance(field, str) for field in item.values()):
             return f"item {index} has a value that is not a string"
     return None

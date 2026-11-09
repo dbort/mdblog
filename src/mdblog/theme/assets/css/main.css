@@ -511,6 +511,24 @@ a.tag:hover {
   white-space: nowrap;
 }
 
+/* Takes a row of its own under the title and date. */
+.archive-summary {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.archive-summary > :last-child {
+  margin-bottom: 0;
+}
+
+.archive-summary a {
+  color: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  text-decoration: underline;
+}
+
 .tag-list {
   display: flex;
   flex-wrap: wrap;

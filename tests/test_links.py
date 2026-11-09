@@ -491,3 +491,106 @@ def test_draft_mode_keeps_a_bio_with_failed_links(tmp_path: Path) -> None:
         f"{failure.path.as_posix()}: {failure.reason}"
         for failure in conversion.failures
     ] == [f"{BIO_PATH.as_posix()}: [[missing]]: matches no note or file"]
+
+
+LEDE_NOTE = "notes/lede.md"
+
+
+def _lede_vault(root: Path, body: str) -> Path:
+    vault = _vault(root, "")
+    _note(vault, LEDE_NOTE, body, slug="lede")
+    return vault
+
+
+def _failures_of(conversion: Conversion, path: str) -> list[str]:
+    return [
+        failure.reason
+        for failure in conversion.failures
+        if failure.path.as_posix() == path
+    ]
+
+
+def test_a_lede_leaves_the_body_with_its_links_converted(tmp_path: Path) -> None:
+    vault = _lede_vault(
+        tmp_path,
+        "%% private %%\n"
+        "> [!summary]- Title [[target]]\n"
+        "> The *lede* links [[target#Target Heading|here]] ^lede-block\n"
+        "> and [[a.png]].\n"
+        "\n"
+        "Body ![[a.png]].\n",
+    )
+
+    conversion = _convert(vault, "https://example.test/blog/")
+
+    page = _page(conversion, "lede")
+    assert page.lede == (
+        "The *lede* links [here](/blog/posts/target/#target-heading)\n"
+        "and [a\\.png](/blog/posts/lede/a.png)."
+    )
+    assert page.body == b"\n\nBody ![a\\.png](/blog/posts/lede/a.png).\n"
+    assert page.images == (Path("images/a.png"),)
+    assert _failures_of(conversion, LEDE_NOTE) == []
+
+
+def test_a_note_without_a_lede_callout_has_no_lede(tmp_path: Path) -> None:
+    body = "Intro.\n\n> [!summary]\n> A closing recap.\n"
+
+    conversion = _convert(_lede_vault(tmp_path, body))
+
+    assert _page(conversion, "lede").lede is None
+    assert _body(conversion, "lede") == body
+
+
+def test_an_empty_lede_callout_leaves_the_body_and_sets_no_lede(
+    tmp_path: Path,
+) -> None:
+    conversion = _convert(_lede_vault(tmp_path, "> [!summary]\n\nBody.\n"))
+
+    page = _page(conversion, "lede")
+    assert (page.lede, page.body) == (None, b"\nBody.\n")
+
+
+@pytest.mark.parametrize(
+    ("callout", "failure"),
+    [
+        (
+            "> [!summary]\n> - a list\n",
+            "summary callout holds a list; it may hold only paragraphs of text",
+        ),
+        ("> [!summary]\n> See [[missing]].\n", "[[missing]]: matches no note or file"),
+        (
+            "> [!summary]\n> See [x](top.md).\n",
+            "Markdown link to 'top.md' is internal; use a wikilink",
+        ),
+    ],
+)
+def test_a_lede_that_cannot_be_one_fails_the_note(
+    tmp_path: Path, callout: str, failure: str
+) -> None:
+    conversion = _convert(_lede_vault(tmp_path, callout + "\nBody.\n"))
+
+    assert _failures_of(conversion, LEDE_NOTE) == [failure]
+    assert "lede" not in [page.note.page.slug for page in conversion.pages]
+
+
+@pytest.mark.parametrize(
+    ("callout", "failure"),
+    [
+        (
+            "> [!summary]\n> A note[^1].\n",
+            "summary callout holds the footnote reference [^1]",
+        ),
+        ("> [!summary]\n> See [[missing]].\n", "[[missing]]: matches no note or file"),
+    ],
+)
+def test_draft_mode_keeps_a_failing_lede_as_a_callout_and_warns(
+    tmp_path: Path, callout: str, failure: str
+) -> None:
+    conversion = _preview(_lede_vault(tmp_path, callout + "\nBody.\n"))
+
+    page = _page(conversion, "lede")
+    assert page.lede is None
+    assert page.body.decode("utf-8") == callout + "\nBody.\n"
+    assert page.note.status is EntryStatus.INVALID
+    assert _failures_of(conversion, LEDE_NOTE) == [failure]

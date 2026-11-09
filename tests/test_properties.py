@@ -369,6 +369,24 @@ def test_front_matter_marks_drafts_and_invalid_entries(
     assert loaded == {"title": "File Name", "date": "2026-01-01", **added}
 
 
+def test_front_matter_carries_a_lede_beside_other_params() -> None:
+    lede = 'A *lede* with "quotes"\nand two lines.'
+
+    published: object = json.loads(front_matter(_page(), lede=lede))
+    invalid: object = json.loads(front_matter(_page(), EntryStatus.INVALID, lede))
+
+    assert published == {
+        "title": "File Name",
+        "date": "2026-01-01",
+        "params": {"mdblog_lede": lede},
+    }
+    assert invalid == {
+        "title": "File Name",
+        "date": "2026-01-01",
+        "params": {"mdblog_invalid": True, "mdblog_lede": lede},
+    }
+
+
 def _preview(
     draft: bool, **properties: object
 ) -> tuple[PreviewProperties, tuple[str, ...]]:

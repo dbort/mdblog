@@ -13,6 +13,7 @@ from mdblog.markdown import (
     WIKILINK,
     CodeMap,
     escape_text,
+    find_lede,
     heading_key,
     headings,
     internal_destinations,
@@ -252,10 +253,12 @@ class Page:
     """A published note ready to write into its page bundle."""
 
     note: PublishedNote
-    # The converted Markdown body, UTF-8.
+    # The converted Markdown body, UTF-8, without its lede callout unless it fails.
     body: bytes
     # Vault-relative paths of the images to copy into the bundle.
     images: tuple[Path, ...]
+    # The converted Markdown of the note's lede, or None when it has no usable one.
+    lede: str | None = None
 
 
 @dataclass(frozen=True)
@@ -307,16 +310,18 @@ def convert_notes(
     """Every published note in `selection`, and `bio`, with Obsidian syntax converted for Hugo.
 
     Comments are removed first, so a heading or block ID inside one is no link target,
-    and block IDs next, so none stays in a heading's text. Then a standard Markdown
-    link or image to an internal destination fails, and wikilinks convert against
-    every file in the selection. Notes outside `selection.published`, which holds the
+    and block IDs next, so none stays in a heading's text. A summary callout that is
+    then the note's first block (`find_lede`) leaves the body and becomes the page's
+    `lede`, and a lede that cannot be one fails. Then a standard Markdown link or image
+    to an internal destination fails, and wikilinks convert against every file in the
+    selection. Notes outside `selection.published`, which holds the
     drafts too when the selection was made with `drafts`, are never read. `bio` is the
     text of `BIO_PATH`, which renders on the home page and is no link target itself;
     its failures name `BIO_PATH`.
 
     With `drafts`, a page or bio with failures is kept with each failed link as
-    written, its failures are still returned, and a PUBLISHED note among them becomes
-    INVALID.
+    written and any failing lede callout in its body, its failures are still returned,
+    and a PUBLISHED note among them becomes INVALID.
     """
     prefix = base_path(base_url)
     texts: dict[Path, str] = {}
@@ -334,19 +339,31 @@ def convert_notes(
     pages: list[Page] = []
     failures: list[NoteFailure] = []
     for note in selection.published:
-        converted, reasons = _convert_body(
-            texts[note.path],
-            note.path,
-            f"{prefix}/posts/{note.page.slug}/",
-            index,
-            prefix,
-        )
+        text = texts[note.path]
+        page_url = f"{prefix}/posts/{note.page.slug}/"
+        # The callout converts with the rest of the text, so its links fail and its
+        # images publish as the body's do.
+        converted, reasons = _convert_body(text, note.path, page_url, index, prefix)
+        body, lede = converted.text, None
+        callout = find_lede(text)
+        if callout is not None:
+            reasons = [*callout.failures, *reasons]
+            # A lede that fails stays in the body as an ordinary callout. Its link
+            # failures are already among `reasons`.
+            usable = not callout.failures and (
+                callout.lede is None
+                or not _convert_body(callout.lede, note.path, page_url, index, prefix)[
+                    1
+                ]
+            )
+            if usable:
+                body, lede = callout.split(converted.text)
         failures.extend(NoteFailure(note.path, reason) for reason in reasons)
         if reasons and not drafts:
             continue
         if reasons and note.status is EntryStatus.PUBLISHED:
             note = replace(note, status=EntryStatus.INVALID)
-        pages.append(Page(note, converted.text.encode("utf-8"), converted.images))
+        pages.append(Page(note, body.encode("utf-8"), converted.images, lede))
     converted_bio = None
     if bio is not None:
         text, _ = remove_block_ids(remove_comments(bio))

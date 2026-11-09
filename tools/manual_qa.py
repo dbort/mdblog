@@ -128,6 +128,26 @@ CHECKS = (
             "anything to change.",
         ),
     ),
+    Check(
+        name="summaries: ledes and excerpts",
+        command=("mdblog", "serve", "{vault}", "--port", "{port}"),
+        url="{site}",
+        steps=(
+            "Open {site} in a desktop-width window, then visit All posts and "
+            "{site}tags/project/alpha/.",
+            "On each, find A note from last year: its summary is the lede from its "
+            "summary callout in {vault}/projects/last-year.md, with emphasis and a "
+            "working link to first-note, and never the text FIXTURE-LAST-YEAR.",
+            "Open {site}posts/last-year/ and confirm it shows no summary callout.",
+            "Every other entry shows a plain-text excerpt. link-target's is cut short "
+            "with …, at EXCERPT_LENGTH characters (src/mdblog/build.py). Judge "
+            "whether that length reads well on the home page and in the archive's "
+            "summary lines, at desktop and at phone width (375px), in light and dark "
+            "mode.",
+            "Pass if the lede and the excerpts read well in every place. Note the "
+            "excerpt length you would prefer, if any.",
+        ),
+    ),
 )
 
 

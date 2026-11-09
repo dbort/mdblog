@@ -38,7 +38,16 @@ RECENT = Reply(
     200,
     "application/json",
     json.dumps(
-        {"items": [{"title": "T", "url": "https://x.test/", "date": "2026-01-01"}]}
+        {
+            "items": [
+                {
+                    "title": "T",
+                    "url": "https://x.test/",
+                    "date": "2026-01-01",
+                    "summary": "S",
+                }
+            ]
+        }
     ).encode(),
 )
 NOT_FOUND = Reply(
@@ -207,19 +216,27 @@ def test_a_failing_check_names_its_reason_and_the_others_still_run(
     ("value", "problem"),
     [
         ({"items": []}, None),
-        ({"items": [{"title": "T", "url": "U", "date": "D"}]}, None),
+        (
+            {"items": [{"title": "T", "url": "U", "date": "D", "summary": ""}]},
+            None,
+        ),
         ({"items": [], "more": 1}, "not an object whose only key is items"),
         ({"items": {}}, "items is not an array"),
         (
-            {"items": [{"title": "T", "url": "U"}]},
-            "item 0 does not have exactly the keys date, title and url",
+            {"items": [{"title": "T", "url": "U", "date": "D"}]},
+            "item 0 does not have exactly the keys date, summary, title, url",
         ),
         (
-            {"items": [{"title": "T", "url": "U", "date": "D"}, "entry"]},
-            "item 1 does not have exactly the keys date, title and url",
+            {
+                "items": [
+                    {"title": "T", "url": "U", "date": "D", "summary": "S"},
+                    "entry",
+                ]
+            },
+            "item 1 does not have exactly the keys date, summary, title, url",
         ),
         (
-            {"items": [{"title": 1, "url": "U", "date": "D"}]},
+            {"items": [{"title": 1, "url": "U", "date": "D", "summary": "S"}]},
             "item 0 has a value that is not a string",
         ),
     ],

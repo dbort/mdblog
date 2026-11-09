@@ -5,7 +5,10 @@
 <h2>{{ .Key }}</h2>
 <ul class="archive-list">
 {{- range .Pages }}
-<li><a href="{{ .RelPermalink }}">{{ .Title }}</a>{{ with partial "entry-status.html" . }} {{ . }}{{ end }} {{ partial "date.html" (dict "page" . "published" true) }}</li>
+<li><a href="{{ .RelPermalink }}">{{ .Title }}</a>{{ with partial "entry-status.html" . }} {{ . }}{{ end }} {{ partial "date.html" (dict "page" . "published" true) }}
+{{- with (partial "summary.html" .).html }}
+<div class="p-summary archive-summary">{{ . }}</div>
+{{- end }}</li>
 {{- end }}
 </ul>
 </section>

@@ -16,6 +16,7 @@ from urllib.parse import unquote, urlsplit
 import pytest
 
 from mdblog.build import (
+    EXCERPT_LENGTH,
     FEED_LIMIT,
     HOME_LIMIT,
     NOT_FOUND_MARKER,
@@ -139,7 +140,7 @@ class Site:
         recent: list[dict[str, str]] = []
         for item in items:
             assert isinstance(item, dict), item
-            assert sorted(item) == ["date", "title", "url"], item
+            assert sorted(item) == ["date", "summary", "title", "url"], item
             assert all(isinstance(value, str) for value in item.values()), item
             recent.append({key: str(value) for key, value in item.items()})
         return recent
@@ -443,7 +444,10 @@ def test_archive_lists_every_entry_under_year_headings(site: Site) -> None:
     assert main.one("h1").text == "All posts"
     assert [heading.text for heading in main.all("h2")] == ["2026", "2025"]
     years = main.all(cls="archive-year")
-    lines = [[item.text for item in year.all("li")] for year in years]
+    lines = [
+        [f"{item.all('a')[0].text} {item.one('time').text}" for item in year.all("li")]
+        for year in years
+    ]
     assert lines == [
         [
             "Tips & Tricks Jan 4, 2026",
@@ -454,7 +458,7 @@ def test_archive_lists_every_entry_under_year_headings(site: Site) -> None:
         ],
         ["A note from last year Jun 1, 2025"],
     ]
-    assert main.all(cls="p-summary") == []
+    assert len(main.all(cls="p-summary")) == len(NEWEST_FIRST)
     assert main.all(cls="p-category") == []
 
 
@@ -468,7 +472,7 @@ def test_tag_pages_list_their_entries_and_the_index_lists_every_tag(
     index = site.page("tags/index.html").one("main")
     assert [(item.hrefs(), item.text) for item in index.all("li")] == [
         (["/tags/node.js/"], "node.js 2"),
-        (["/tags/project/alpha/"], "project/alpha 1"),
+        (["/tags/project/alpha/"], "project/alpha 2"),
     ]
 
 
@@ -533,6 +537,7 @@ TAGS = {
     "long-post": ["node.js"],
     "offset-time": ["node.js"],
     "first-note": ["project/alpha"],
+    "last-year": ["project/alpha"],
 }
 
 
@@ -594,6 +599,145 @@ def test_every_page_head_has_its_metadata(site: Site) -> None:
         described = kind == "article" or name == "index.html"
         assert len(_meta(head, "name", "description")) == int(described), name
         assert len(_meta(head, "property", "og:description")) == int(described), name
+
+
+LEDE_TEXT = "FIXTURE-LEDE with emphasis & a link to the first note."
+
+
+def _archive_item(site: Site, slug: str) -> Element:
+    items = site.page("posts/index.html").one("main").all("li")
+    (item,) = [item for item in items if item.hrefs()[0] == f"/posts/{slug}/"]
+    return item
+
+
+def _summaries(site: Site, slug: str) -> dict[str, Element]:
+    """Each `p-summary` element showing `slug`, by the page it is on."""
+    lists = ["index.html", *(f"tags/{tag}/index.html" for tag in TAGS.get(slug, []))]
+    found = {name: _entry(site.page(name), slug).one(cls="p-summary") for name in lists}
+    found["posts/index.html"] = _archive_item(site, slug).one(cls="p-summary")
+    return found
+
+
+def _descriptions(site: Site, slug: str) -> list[str]:
+    """The entry page's meta and og descriptions, then any `recent.json` summary."""
+    head = site.page(f"posts/{slug}/index.html").one("head")
+    found = [
+        *_meta(head, "name", "description"),
+        *_meta(head, "property", "og:description"),
+    ]
+    found.extend(
+        item["summary"] for item in site.recent() if item["url"] == _posts(slug)[0]
+    )
+    return found
+
+
+def test_a_lede_is_the_summary_wherever_its_entry_is_listed_or_described(
+    site: Site,
+) -> None:
+    summaries = _summaries(site, "last-year")
+    assert sorted(summaries) == [
+        "index.html",
+        "posts/index.html",
+        "tags/project/alpha/index.html",
+    ]
+    for name, summary in summaries.items():
+        # The lede wins over the text before `<!--more-->`.
+        assert summary.text == LEDE_TEXT, name
+        assert [p.text for p in summary.all("p")] == [LEDE_TEXT], name
+        assert summary.one("em").text == "emphasis", name
+        assert summary.hrefs() == ["/posts/first-note/"], name
+    assert _descriptions(site, "last-year") == [LEDE_TEXT, LEDE_TEXT]
+    content = site.page("posts/last-year/index.html").one(cls="e-content")
+    assert "FIXTURE-LAST-YEAR." in content.text
+    assert "FIXTURE-LAST-YEAR-AFTER-MORE." in content.text
+    assert "FIXTURE-LEDE" not in content.text
+    assert content.all(cls="callout") == []
+
+
+def test_without_a_lede_every_place_shows_one_plain_excerpt(site: Site) -> None:
+    excerpts: dict[str, str] = {}
+    for slug in NEWEST_FIRST:
+        if slug == "last-year":
+            continue
+        summaries = _summaries(site, slug)
+        for name, summary in summaries.items():
+            assert list(summary.iter())[1:] == [], (slug, name)
+        shown = {summary.text for summary in summaries.values()}
+        assert len(shown) == 1, (slug, shown)
+        (excerpt,) = shown
+        assert set(_descriptions(site, slug)) == {excerpt}, slug
+        excerpts[slug] = excerpt
+    assert excerpts["long-post"] == "FIXTURE-BEFORE-MORE & more."
+    assert excerpts["first-note"] == "The fixture note reached the generated page."
+    assert excerpts["syntax"].startswith("Linking Out See the first note, ")
+
+
+def test_a_long_excerpt_is_cut_at_a_word_boundary(site: Site) -> None:
+    note = (FIXTURE_VAULT / "projects" / "link-target.md").read_text(encoding="utf-8")
+    paragraph = note.split("---\n", 2)[2].split("\n\n")[0]
+    assert len(paragraph) > EXCERPT_LENGTH + 20
+    for excerpt in [
+        summary.text for summary in _summaries(site, "link-target").values()
+    ] + _descriptions(site, "link-target"):
+        cut = excerpt.removesuffix("…")
+        assert excerpt.endswith("…") and len(cut) <= EXCERPT_LENGTH, excerpt
+        assert paragraph.startswith(cut + " "), excerpt
+        next_word = paragraph[len(cut) + 1 :].split(" ")[0]
+        assert len(cut) + 1 + len(next_word) > EXCERPT_LENGTH, excerpt
+
+
+def test_a_lede_reaches_recent_json_as_plain_text(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    (vault / "_site").mkdir(parents=True)
+    shutil.copy(FIXTURE_VAULT / "_site" / "mdblog.toml", vault / "_site")
+    body = (
+        "> [!SUMMARY] Ignored\n"
+        "> A *lede* &amp;\n"
+        ">\n"
+        "> its   second paragraph.\n"
+        "\n"
+        "Before the divider.\n"
+        "\n"
+        "<!--more-->\n"
+        "\n"
+        "After it.\n"
+    )
+    (vault / "lede.md").write_text(published_text("lede", body=body), encoding="utf-8")
+
+    built = _build(vault, tmp_path / "output")
+
+    text = "A lede & its second paragraph."
+    assert [item["summary"] for item in built.recent()] == [text]
+    head = built.page("posts/lede/index.html").one("head")
+    assert _meta(head, "name", "description") == [text]
+    summary = _entry(built.page("index.html"), "lede").one(cls="p-summary")
+    assert [p.text for p in summary.all("p")] == ["A lede &", "its second paragraph."]
+
+
+def test_an_excerpt_leaves_out_footnotes(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    (vault / "_site").mkdir(parents=True)
+    shutil.copy(FIXTURE_VAULT / "_site" / "mdblog.toml", vault / "_site")
+    body = (
+        "A claim[^1] that sits[^note] before a [link](https://a.test/).\n"
+        "\n"
+        "[^1]: The note.\n"
+        "[^note]: Another.\n"
+    )
+    (vault / "noted.md").write_text(
+        published_text("noted", body=body), encoding="utf-8"
+    )
+
+    built = _build(vault, tmp_path / "output")
+
+    text = "A claim that sits before a link."
+    summary = _entry(built.page("index.html"), "noted").one(cls="p-summary")
+    assert (summary.text, list(summary.iter())[1:]) == (text, [])
+    archive = built.page("posts/index.html").one("main").one(cls="p-summary")
+    assert archive.text == text
+    head = built.page("posts/noted/index.html").one("head")
+    assert _meta(head, "name", "description") == [text]
+    assert [item["summary"] for item in built.recent()] == [text]
 
 
 def test_descriptions_are_plain_text_escaped_once(site: Site) -> None:
@@ -918,6 +1062,12 @@ def test_a_site_under_a_sub_path_links_only_within_it(tmp_path: Path) -> None:
     }
 
 
+# A partial that returns a value is replaced by one returning the same shape.
+RETURNING_PARTIALS = {
+    "_partials/summary.html": '{{ return dict "html" "SITE-OVERRIDE" "text" "" }}',
+}
+
+
 @pytest.mark.parametrize(
     "layout",
     sorted(
@@ -932,7 +1082,9 @@ def test_a_site_overrides_each_packaged_layout_by_name(
     vault = _copy_fixture(tmp_path)
     override = vault / "_site" / "layouts" / layout
     override.parent.mkdir(parents=True)
-    override.write_text("SITE-OVERRIDE", encoding="utf-8")
+    override.write_text(
+        RETURNING_PARTIALS.get(layout, "SITE-OVERRIDE"), encoding="utf-8"
+    )
 
     built = _build(vault, tmp_path / "output")
 
