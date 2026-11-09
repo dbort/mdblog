@@ -8,7 +8,13 @@ from pathlib import Path
 
 from mdblog.build import BuildError, build_site
 from mdblog.config import ConfigError
-from mdblog.serve import ServeError, serve_site
+from mdblog.serve import ServeError, choose_port, serve_site
+from mdblog.stage import (
+    WRANGLER_PORT,
+    find_wrangler,
+    serve_bundle,
+    stage_site,
+)
 
 
 def _port(text: str) -> int:
@@ -81,15 +87,50 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="also show notes with publish: false, and show notes that fail "
         "validation with warnings instead of waiting for a fix",
     )
+    stage = commands.add_parser(
+        "stage",
+        help="build one vault's site as a bundle for a Cloudflare Worker",
+        allow_abbrev=False,
+    )
+    stage.add_argument("vault", type=Path, metavar="VAULT", help="the vault to stage")
+    stage.add_argument(
+        "--output",
+        type=Path,
+        required=True,
+        metavar="DIR",
+        help="the directory to replace with the bundle",
+    )
+    stage.add_argument(
+        "--serve",
+        action="store_true",
+        help="then serve the bundle locally with wrangler dev",
+    )
+    stage.add_argument(
+        "--port",
+        type=_port,
+        metavar="N",
+        help=f"the port --serve uses (default: {WRANGLER_PORT}, "
+        "or a free port if it is busy)",
+    )
     args = parser.parse_args(argv)
+    if args.command == "stage" and args.port is not None and not args.serve:
+        stage.error("--port needs --serve")
     try:
         if args.command == "build":
             build_site(args.vault, args.output)
         elif args.command == "check":
             count = check_vault(args.vault)
             print(f"{count} {'note' if count == 1 else 'notes'} would publish")
-        else:
+        elif args.command == "serve":
             serve_site(args.vault, args.output, args.port, drafts=args.drafts)
+        elif not args.serve:
+            stage_site(args.vault, args.output)
+        else:
+            # Both refusals come before the build, so neither costs one.
+            wrangler = find_wrangler()
+            port = choose_port(args.port, WRANGLER_PORT)
+            site_path = stage_site(args.vault, args.output)
+            serve_bundle(args.output, site_path, port, (str(wrangler),))
     except (BuildError, ConfigError, ServeError) as exc:
         print(f"mdblog: {exc}", file=sys.stderr)
         return 1

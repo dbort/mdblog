@@ -1,5 +1,6 @@
 """mdblog.serve: previews one vault's site with Hugo's server, rebuilding as it changes."""
 
+import os
 import shutil
 import signal
 import socket
@@ -7,7 +8,8 @@ import subprocess
 import sys
 import tempfile
 import threading
-from collections.abc import Callable, Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Generator, Iterable, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path, PurePosixPath
@@ -53,14 +55,14 @@ def _bound_port(port: int) -> int:
         return bound
 
 
-def choose_port(requested: int | None) -> int:
-    """A port that is free on `HOST`: `requested`, else 1313, else any free port.
+def choose_port(requested: int | None, default: int = DEFAULT_PORT) -> int:
+    """A port that is free on `HOST`: `requested`, else `default`, else any free port.
 
     Raises `ServeError` naming the port when `requested` cannot be bound, or when no
     port can be bound on `HOST`. The port is free when probed; another process can
-    still take it before Hugo binds it.
+    still take it before the server binds it.
     """
-    port = DEFAULT_PORT if requested is None else requested
+    port = default if requested is None else requested
     try:
         return _bound_port(port)
     except OSError as exc:
@@ -291,8 +293,8 @@ def reset_output(output: Path) -> None:
 
 
 @dataclass
-class HugoProcess:
-    """A Hugo server running as a child process."""
+class ServerProcess:
+    """A server running as a child process that leads its own process group."""
 
     process: subprocess.Popen[bytes]
 
@@ -300,17 +302,45 @@ class HugoProcess:
         return self.process.poll()
 
     def stop(self) -> None:
-        if self.process.poll() is not None:
+        exited = self.process.poll() is not None
+        # The whole group, because wrangler runs its server in grandchild processes,
+        # which can outlive a wrangler that exited on its own.
+        try:
+            os.killpg(self.process.pid, signal.SIGTERM)
+        except ProcessLookupError:
             return
-        self.process.terminate()
+        if exited:
+            return
         try:
             self.process.wait(timeout=STOP_TIMEOUT)
         except subprocess.TimeoutExpired:
-            self.process.kill()
+            os.killpg(self.process.pid, signal.SIGKILL)
             self.process.wait()
 
 
-def start_hugo(argv: Sequence[str], cwd: Path) -> HugoProcess:
+@contextmanager
+def stop_requests() -> Generator[threading.Event]:
+    """An event that SIGINT or SIGTERM sets while the context is open.
+
+    The previous handlers are restored on exit, and neither signal raises meanwhile.
+    """
+    stopping = threading.Event()
+
+    def request_stop(signum: int, frame: FrameType | None) -> None:
+        stopping.set()
+
+    handlers = {
+        signum: signal.signal(signum, request_stop)
+        for signum in (signal.SIGINT, signal.SIGTERM)
+    }
+    try:
+        yield stopping
+    finally:
+        for signum, handler in handlers.items():
+            signal.signal(signum, handler)
+
+
+def start_hugo(argv: Sequence[str], cwd: Path) -> ServerProcess:
     """Starts `argv` in `cwd` without `HUGO*` variables, in its own process group.
 
     Its output goes to this process's stdout and stderr. Raises `ServeError` when it
@@ -322,7 +352,7 @@ def start_hugo(argv: Sequence[str], cwd: Path) -> HugoProcess:
         process = subprocess.Popen(argv, cwd=cwd, env=hugo_env(), process_group=0)
     except OSError as exc:
         raise ServeError(f"cannot run {argv[0]}: {exc.strerror}") from exc
-    return HugoProcess(process)
+    return ServerProcess(process)
 
 
 def serve_site(
@@ -349,44 +379,34 @@ def serve_site(
     destination = (output or default_output(chosen)).resolve()
     check_output(vault, destination)
 
-    stopping = threading.Event()
+    with stop_requests() as stopping:
+        source = Path(tempfile.mkdtemp(prefix="mdblog-serve-source-"))
+        try:
 
-    def request_stop(signum: int, frame: FrameType | None) -> None:
-        stopping.set()
+            def start() -> Server:
+                reset_output(destination)
+                return start_hugo(
+                    hugo_server_argv(hugo, source, destination, chosen, drafts), source
+                )
 
-    handlers = {
-        signum: signal.signal(signum, request_stop)
-        for signum in (signal.SIGINT, signal.SIGTERM)
-    }
-    source = Path(tempfile.mkdtemp(prefix="mdblog-serve-source-"))
-    try:
-
-        def start() -> Server:
-            reset_output(destination)
-            return start_hugo(
-                hugo_server_argv(hugo, source, destination, chosen, drafts), source
+            batches = watchfiles.watch(
+                vault,
+                watch_filter=lambda _change, path: not is_hidden(vault, Path(path)),
+                stop_event=stopping,
+                rust_timeout=POLL_MS,
+                yield_on_timeout=True,
+                # Signals only set `stopping`; nothing raises KeyboardInterrupt.
+                raise_interrupt=False,
             )
-
-        batches = watchfiles.watch(
-            vault,
-            watch_filter=lambda _change, path: not is_hidden(vault, Path(path)),
-            stop_event=stopping,
-            rust_timeout=POLL_MS,
-            yield_on_timeout=True,
-            # Signals only set `stopping`; nothing raises KeyboardInterrupt.
-            raise_interrupt=False,
-        )
-        watch_loop(
-            vault,
-            source,
-            batches,
-            start,
-            lambda: datetime.now().astimezone(),
-            drafts,
-        )
-    finally:
-        shutil.rmtree(source, ignore_errors=True)
-        if output is None:
-            shutil.rmtree(destination, ignore_errors=True)
-        for signum, handler in handlers.items():
-            signal.signal(signum, handler)
+            watch_loop(
+                vault,
+                source,
+                batches,
+                start,
+                lambda: datetime.now().astimezone(),
+                drafts,
+            )
+        finally:
+            shutil.rmtree(source, ignore_errors=True)
+            if output is None:
+                shutil.rmtree(destination, ignore_errors=True)

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from mdblog import stage
 from mdblog.cli import main
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -37,6 +38,17 @@ FIXTURE_VAULT = REPO_ROOT / "tests" / "fixtures" / "vault"
             ["build", "v", "--output", "o", "--drafts"],
             "unrecognized arguments: --drafts",
             id="build-drafts",
+        ),
+        pytest.param(["stage", "v"], "--output", id="stage-no-output"),
+        pytest.param(
+            ["stage", "v", "--output", "o", "--drafts"],
+            "unrecognized arguments: --drafts",
+            id="stage-drafts",
+        ),
+        pytest.param(
+            ["stage", "v", "--output", "o", "--port", "9000"],
+            "--port needs --serve",
+            id="stage-port-without-serve",
         ),
         pytest.param(["serve", "v", "--port", "0"], "from 1 to 65535", id="port-0"),
         pytest.param(["serve", "v", "--port", "x"], "from 1 to 65535", id="port-text"),
@@ -108,6 +120,59 @@ def test_serve_on_a_busy_port_exits_nonzero_naming_it(
 
     assert status == 1
     assert f"mdblog: cannot listen on 127.0.0.1 port {port}:" in capsys.readouterr().err
+
+
+def test_stage_serve_on_a_busy_port_names_it_before_building(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Only its existence is checked before the port, so an installed one is not needed.
+    wrangler = tmp_path / "wrangler"
+    wrangler.write_text("", encoding="utf-8")
+    monkeypatch.setattr(stage, "WRANGLER", wrangler)
+    output = tmp_path / "out"
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        port: int = listener.getsockname()[1]
+
+        status = main(
+            [
+                *("stage", str(FIXTURE_VAULT), "--output", str(output)),
+                *("--serve", "--port", str(port)),
+            ]
+        )
+
+    assert status == 1
+    assert f"mdblog: cannot listen on 127.0.0.1 port {port}:" in capsys.readouterr().err
+    assert not output.exists()
+
+
+def test_stage_serve_without_wrangler_names_it_before_building(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    missing = tmp_path / "node_modules" / ".bin" / "wrangler"
+    monkeypatch.setattr(stage, "WRANGLER", missing)
+    output = tmp_path / "out"
+
+    status = main(["stage", str(FIXTURE_VAULT), "--output", str(output), "--serve"])
+
+    assert status == 1
+    assert f"mdblog: wrangler not found at {missing}" in capsys.readouterr().err
+    assert not output.exists()
+
+
+def test_stage_without_a_worker_exits_nonzero_naming_the_setting(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    output = tmp_path / "out"
+
+    status = main(["stage", str(FIXTURE_VAULT), "--output", str(output)])
+
+    assert status == 1
+    err = capsys.readouterr().err
+    assert "mdblog.toml" in err
+    assert "[worker] name" in err
+    assert not output.exists()
 
 
 # Stands in for Hugo on PATH. It prints to both streams, as Hugo does, and exits with

@@ -1,5 +1,5 @@
 ---
-next_id: friction-003
+next_id: friction-004
 ---
 
 # Friction log
@@ -28,3 +28,4 @@ the papercut and its fix in its message.
 
 - `friction-001` - **Seeing the rendered site during task-012's restyle**: with no headless browser, the agent could not screenshot or measure layout, so it checked markup with real-Hugo tests and left the visual check (sidebar placement at 375px and desktop, both palettes, no sideways scroll) to manual QA. Simpler if: a headless browser in the pixi environment, such as Playwright with Chromium, so agents can screenshot fixture pages and tests can assert layout facts like no horizontal overflow at 375px.
 - `friction-002` - **Checking task-012's palettes against WCAG AA**: with no contrast tool, the agent wrote a throwaway script that hardcoded both palettes, computed `color-mix()` tints by hand and regex-parsed the Chroma rules from `main.css`. Simpler if: a contrast check in `tools/check` that reads the color pairs from `main.css`, so the stylesheet's AA claim is enforced.
+- `friction-003` - **Proving task-016's wrangler runs need no network**: `unshare -rn` is not permitted in the agent's sandbox, so the agent pointed `HTTPS_PROXY` and `HTTP_PROXY` at a closed local port and watched for connection errors, which catches only requests that honor the proxy variables. `tests/test_stage.py` keeps that check as `NO_NETWORK`. Simpler if: a `tools/` wrapper that runs a command with networking cut off on Linux and macOS, such as one built on `bwrap --unshare-net` and `sandbox-exec`, for tests that must prove a tool stays offline.

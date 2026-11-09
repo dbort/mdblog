@@ -1,0 +1,12 @@
+{
+  "name": "mdblog-node-tools",
+  "private": true,
+  "description": "Node tools for mdblog; pixi provides Node itself.",
+  "devDependencies": {
+    "wrangler": "4.158.0"
+  },
+  "allowScripts": {
+    "esbuild": false,
+    "workerd": false
+  }
+}

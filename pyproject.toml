@@ -29,6 +29,9 @@ testpaths = ["tests"]
 pythonpath = ["tools", "tests"]
 addopts = ["--strict-markers", "--strict-config"]
 xfail_strict = true
+markers = [
+    "wrangler: runs the real wrangler from node_modules; skipped under tools/check --offline",
+]
 
 [tool.pyrefly]
 preset = "strict"

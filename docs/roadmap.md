@@ -12,7 +12,7 @@ M4 and M5 complete v1, and M6 and M7 follow it. Search, comments, series, schedu
 
 - [x] task-014: Add mdblog check and a post template
 - [x] task-015: Publish a recent-posts JSON file
-- [ ] task-016: Stage the site for a Cloudflare Worker and serve it with wrangler dev
+- [x] task-016: Stage the site for a Cloudflare Worker and serve it with wrangler dev
 - [ ] task-017: Verify that a URL serves the site (blocked on task-015, task-016)
 
 Produce and check exactly what Cloudflare will serve, on a machine with no Cloudflare credentials. The task files hold the plan.
