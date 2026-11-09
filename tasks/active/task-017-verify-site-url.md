@@ -45,3 +45,6 @@ blocked_by: [task-015, task-016]
 ### Round 1: APPROVED
 - **N1: Unwrapped docstring line** (`src/mdblog/build.py:113`): the edited `hugo_config` docstring line runs to 108 characters where its neighbors wrap near 88. Ruff ignores E501, so the gate passes; rewrap it.
 - **N2: Timeout is per socket operation** (`src/mdblog/verify.py`, `fetch`): urllib applies `timeout` to each connect and read, so a server trickling its response can hold one request past `TIMEOUT`. The Must Have still holds, but the `TIMEOUT` comment ("connecting and reading included") claims slightly more than urllib guarantees.
+
+### Round 2: APPROVED
+- The doc-hygiene pass (9127d55) fixed round 1's N1 and N2. Its verifier found that a timeout while reading an error response's body escaped `fetch` as a bare `TimeoutError`, breaking the Must Have that a timeout fails only its own check. 391a7ee nests the `try` so the outer handlers cover that read, and adds a `404 page` case to `test_a_timeout_fails_only_the_slow_request` that stalls after the headers. The case costs about 0.33 s because the fake server's handler threads are daemons. `tools/check` exits 0 (707 passed).
