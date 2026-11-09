@@ -42,6 +42,7 @@ Publish on the site first, then syndicate copies elsewhere ([POSSE](https://indi
 - Which services come first.
 - Where syndication state lives: vault front matter makes the tool edit the author's notes, and a separate state file needs its own home and backup.
 - What happens to copies when an entry is unpublished or deleted.
+- Whether a copy's text starts from the entry's lede, the `[!summary]` callout that task-019 adds.
 
 ## M7: Backfeed
 
