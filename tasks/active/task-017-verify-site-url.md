@@ -41,3 +41,7 @@ blocked_by: [task-015, task-016]
 - [x] **Step 4** (`README.md`, `docs/vault-format.md`): document the command and the override rule.
 
 ## Review log
+
+### Round 1: APPROVED
+- **N1: Unwrapped docstring line** (`src/mdblog/build.py:113`): the edited `hugo_config` docstring line runs to 108 characters where its neighbors wrap near 88. Ruff ignores E501, so the gate passes; rewrap it.
+- **N2: Timeout is per socket operation** (`src/mdblog/verify.py`, `fetch`): urllib applies `timeout` to each connect and read, so a server trickling its response can hold one request past `TIMEOUT`. The Must Have still holds, but the `TIMEOUT` comment ("connecting and reading included") claims slightly more than urllib guarantees.
