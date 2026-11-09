@@ -50,3 +50,11 @@ A post can open with an Obsidian `> [!summary]` callout holding a short lede. Th
 - [x] **Step 7** (`docs/vault-format.md`, `.claude/docs/hugo-site.md`, `templates/Post Template.md`, `.claude/docs/bug-log.md`): document per Advice. Add an empty `> [!summary]` callout as the template's body, since an empty one counts as none. Delete `bug-003`.
 
 ## Review log
+
+### Round 1: REJECTED
+- **F1: Excerpts pick up footnote markers and footnote text** (`src/mdblog/theme/layouts/_partials/summary.html:13`): `.Summary | plainify` turns a footnote inside Hugo's summary into plain text, so a short post with a footnote shows `A claim1 that ... The note. ↩︎` in all five places, and footnote content still reaches list pages after bug-003's deletion. Strip Goldmark's footnote reference `<sup>` and footnotes section before `plainify`, and add a site test with a footnote inside the excerpt.
+- **N1: The template's empty callout can swallow the first paragraph** (`templates/Post Template.md:9`): text typed on the line after `> [!summary]` lazily continues the callout and becomes the lede; end the template with a blank line.
+- **N2: The user doc's failure list leaves out HTML blocks** (`docs/vault-format.md:69`).
+- **N3: One very long word is cut mid-word** (`src/mdblog/theme/layouts/_partials/summary.html:15`): Hugo's `truncate` cuts a single word longer than `EXCERPT_LENGTH`; rare, non-blocking.
+- **N4: Two fields share one comment** (`src/mdblog/markdown.py:374`): `LedeCallout.start` and `end`.
+- **N5: Manual QA approved without a log** (`tasks/active/task-019-post-summaries.md`): accepted, since Advice records the author's decision.
