@@ -80,15 +80,18 @@ def fetch(url: str, timeout: float, follow_redirects: bool = True) -> Response:
     opener = urllib.request.build_opener(*handlers)
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
-        with opener.open(request, timeout=timeout) as response:
-            return Response(
-                response.status,
-                response.headers.get_content_type(),
-                response.read(),
-            )
-    except urllib.error.HTTPError as exc:
-        with exc:
-            return Response(exc.code, exc.headers.get_content_type(), exc.read())
+        try:
+            with opener.open(request, timeout=timeout) as response:
+                return Response(
+                    response.status,
+                    response.headers.get_content_type(),
+                    response.read(),
+                )
+        except urllib.error.HTTPError as exc:
+            # Reading an error response's body can time out too, so the outer
+            # handlers must cover this read.
+            with exc:
+                return Response(exc.code, exc.headers.get_content_type(), exc.read())
     except urllib.error.URLError as exc:
         raise FetchError(f"{url}: {exc.reason}") from exc
     except (OSError, http.client.HTTPException) as exc:

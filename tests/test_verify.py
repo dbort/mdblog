@@ -21,7 +21,10 @@ class Reply:
     content_type: str
     body: bytes
     headers: dict[str, str] = field(default_factory=dict[str, str])
+    # Seconds the server waits before the status line.
     delay: float = 0.0
+    # Seconds the server waits between the headers and the body.
+    body_delay: float = 0.0
 
 
 HOME = Reply(200, "text/html; charset=utf-8", b"<!doctype html><title>Site</title>")
@@ -71,6 +74,7 @@ class FakeSite:
                 for name, value in reply.headers.items():
                     self.send_header(name, value)
                 self.end_headers()
+                time.sleep(reply.body_delay)
                 self.wfile.write(reply.body)
 
             @override
@@ -251,12 +255,30 @@ def test_a_refused_connection_fails_every_check_naming_its_url(
         assert "Connection refused" in line
 
 
-def test_a_timeout_fails_only_the_slow_request(fake_site: FakeSite) -> None:
-    fake_site.routes["/blog/index.xml"] = Reply(200, "application/xml", b"", delay=1.0)
+@pytest.mark.parametrize(
+    ("check", "path"),
+    [
+        # Before the status line arrives.
+        ("feed", "index.xml"),
+        # In an error response's body, after its status and headers arrived.
+        ("404 page", None),
+    ],
+)
+def test_a_timeout_fails_only_the_slow_request(
+    fake_site: FakeSite, check: str, path: str | None
+) -> None:
+    # The handler threads are daemons, so the test waits out only the timeout.
+    if path is None:
+        fake_site.not_found = Reply(404, "text/html", NOT_FOUND.body, body_delay=5.0)
+    else:
+        fake_site.routes["/blog/" + path] = Reply(200, "text/xml", FEED.body, delay=5.0)
 
     results = dict(verify_site(fake_site.url, timeout=0.3))
 
-    assert results.pop("feed") == f"{fake_site.url}index.xml: timed out"
+    slow = fake_site.url + (path or "mdblog-verify-missing-")
+    problem = results.pop(check)
+    assert problem is not None and problem.startswith(slow)
+    assert problem.endswith(": timed out")
     assert set(results.values()) == {None}
 
 
