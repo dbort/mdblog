@@ -14,7 +14,9 @@ from urllib.parse import urlsplit
 
 from mdblog.build import NOT_FOUND_MARKER
 
-# Seconds each request may take, connecting and reading included.
+# Seconds urllib waits on each blocking socket operation: the connect and each read.
+# It does not bound a whole request, so a server sending slowly in small pieces can
+# hold one request longer.
 TIMEOUT = 10.0
 # Names the client and nothing else; no contact address.
 USER_AGENT = "mdblog-verify"
@@ -72,7 +74,7 @@ def fetch(url: str, timeout: float, follow_redirects: bool = True) -> Response:
     """The response to one GET of `url`, including error statuses.
 
     Without `follow_redirects`, a redirect is the response. Raises `FetchError` when
-    no response arrives within `timeout` seconds or the connection fails.
+    the connection fails or a socket operation waits longer than `timeout` seconds.
     """
     handlers = () if follow_redirects else (_NoRedirect(),)
     opener = urllib.request.build_opener(*handlers)

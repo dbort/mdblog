@@ -111,8 +111,8 @@ def hugo_config(config: SiteConfig, drafts: bool = False) -> str:
 
     The site renders a feed at `/index.xml` and one per tag, and no other feed. The
     home page also renders `/recent.json`. Each entry of `LIMIT_PARAMS` is a site
-    param, and so is `NOT_FOUND_PARAM`. With `drafts`, the site param `PREVIEW_PARAM` is true, and otherwise
-    it is absent.
+    param, and so is `NOT_FOUND_PARAM`. With `drafts`, the site param `PREVIEW_PARAM`
+    is true, and otherwise it is absent.
     """
     preview = f"{PREVIEW_PARAM} = true\n" if drafts else ""
     limits = "".join(f"{name} = {limit}\n" for name, limit in LIMIT_PARAMS.items())
