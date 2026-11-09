@@ -15,6 +15,7 @@ from mdblog.stage import (
     serve_bundle,
     stage_site,
 )
+from mdblog.verify import VerifyError, verify_site
 
 
 def _port(text: str) -> int:
@@ -36,6 +37,19 @@ def check_vault(vault: Path) -> int:
     """
     with tempfile.TemporaryDirectory(prefix="mdblog-check-") as scratch:
         return build_site(vault, Path(scratch) / "site", quiet=True)
+
+
+def verify(url: str) -> int:
+    """0 when every check of `verify_site` on `url` passes, and 1 otherwise.
+
+    Prints one line per check on stdout as it finishes. Raises `VerifyError` as
+    `verify_site` does.
+    """
+    failed = False
+    for name, problem in verify_site(url):
+        print(f"{name}: {problem or 'ok'}", flush=True)
+        failed = failed or problem is not None
+    return 1 if failed else 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -112,6 +126,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         help=f"the port --serve uses (default: {WRANGLER_PORT}, "
         "or a free port if it is busy)",
     )
+    verify_parser = commands.add_parser(
+        "verify",
+        help="check that a URL serves the site's pages, feeds and 404 page",
+        allow_abbrev=False,
+    )
+    verify_parser.add_argument(
+        "url",
+        metavar="URL",
+        help="the site's URL including its base path, such as "
+        "http://127.0.0.1:8787/blog/",
+    )
     args = parser.parse_args(argv)
     if args.command == "stage" and args.port is not None and not args.serve:
         stage.error("--port needs --serve")
@@ -123,6 +148,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"{count} {'note' if count == 1 else 'notes'} would publish")
         elif args.command == "serve":
             serve_site(args.vault, args.output, args.port, drafts=args.drafts)
+        elif args.command == "verify":
+            return verify(args.url)
         elif not args.serve:
             stage_site(args.vault, args.output)
         else:
@@ -131,7 +158,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             port = choose_port(args.port, WRANGLER_PORT)
             site_path = stage_site(args.vault, args.output)
             serve_bundle(args.output, site_path, port, (str(wrangler),))
-    except (BuildError, ConfigError, ServeError) as exc:
+    except (BuildError, ConfigError, ServeError, VerifyError) as exc:
         print(f"mdblog: {exc}", file=sys.stderr)
         return 1
     return 0

@@ -6,19 +6,6 @@ The v1 target is a personal site in the shape of [jacobian.org](https://jacobian
 
 M4 and M5 complete v1, and M6 and M7 follow it. Search, comments, series, scheduled publishing and packaging for other people are outside v1. Each milestone's decisions are settled in the `/new-task` interview that plans it, and each recommendation below is a starting point for that interview.
 
-## M4: Publish-ready output, locally
-
-**Status:** Tasks task-014, task-015, task-016, task-017
-
-- [x] task-014: Add mdblog check and a post template
-- [x] task-015: Publish a recent-posts JSON file
-- [x] task-016: Stage the site for a Cloudflare Worker and serve it with wrangler dev
-- [ ] task-017: Verify that a URL serves the site (blocked on task-015, task-016)
-
-Produce and check exactly what Cloudflare will serve, on a machine with no Cloudflare credentials. The task files hold the plan.
-
-**Done when:** the fixture site, staged under a path and served by `wrangler dev`, passes the URL command, and the gate validates the Worker configuration, all without Cloudflare credentials.
-
 ## M5: Deploy and launch
 
 **Status:** Planned

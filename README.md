@@ -11,6 +11,7 @@ mdblog runs on Linux and macOS. Install [pixi](https://pixi.sh), then run `pixi 
 - `mdblog build VAULT --output DIR` renders the site into `DIR`, or lists every failing note and leaves `DIR` unchanged. It refuses a non-empty `DIR` that mdblog did not write, and any `DIR` inside or around the vault.
 - `mdblog check VAULT` reports whether `build` would succeed, without keeping any output.
 - `mdblog stage VAULT --output DIR` makes a production build laid out for a Cloudflare Worker that serves static assets: `DIR` gets a generated wrangler config and the site under its base path. It needs the `[worker]` table described in [Site folder](docs/vault-format.md#site-folder), refuses `DIR` as `build` does, and leaves `DIR` unchanged when it fails. With `--serve`, it then serves `DIR` on this computer with `wrangler dev`, the way Cloudflare will serve it, and prints the site's address. Ctrl+C stops it.
+- `mdblog verify URL` checks that the site answers at `URL`, its address including the base path, such as `http://127.0.0.1:8787/blog/`: the home page is HTML, the feed is RSS, `recent.json` has its expected shape, and a missing page gets the site's own 404 page. It prints one line per check and exits 1 when any fails. It makes one request per check, with no retries.
 - `mdblog serve VAULT` previews the site on this computer and rebuilds it as the vault changes. `--drafts` adds notes still being written, as described in [Draft preview](docs/vault-format.md#draft-preview).
 
 ## Development

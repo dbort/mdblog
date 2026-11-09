@@ -18,6 +18,7 @@ import pytest
 from mdblog.build import (
     FEED_LIMIT,
     HOME_LIMIT,
+    NOT_FOUND_MARKER,
     PACKAGED_THEME,
     RECENT_LIMIT,
     TAG_LIMIT,
@@ -681,6 +682,20 @@ def test_the_404_page_has_the_site_chrome_a_message_and_a_link_home(
     main = page.one("main")
     assert main.one("h1").text == "Page not found"
     assert main.hrefs() == ["/"]
+
+
+def test_only_the_404_page_carries_the_marker_and_only_in_its_head(
+    site: Site,
+) -> None:
+    marker = NOT_FOUND_MARKER.encode()
+    assert [
+        name for name in site.files() if marker in site.path(name).read_bytes()
+    ] == ["404.html"]
+    page = site.page("404.html")
+    assert NOT_FOUND_MARKER not in page.one("body").text
+    assert [meta.attrs.get("content") for meta in page.one("head").all("meta")].count(
+        NOT_FOUND_MARKER
+    ) == 1
 
 
 def test_every_page_advertises_the_site_feed(site: Site) -> None:
