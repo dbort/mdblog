@@ -35,9 +35,9 @@ blocked_by: [task-015, task-016]
 - Standing obligations: strict static checks apply. The HTTP and parsing logic is importable and typed, not a script. Tests: a fake server for every failure branch, one real-wrangler run, and no test of a remote site.
 
 ## Plan
-- [ ] **Step 1** (new `src/mdblog/verify.py`, `src/mdblog/cli.py`): the four checks, reporting and exit status.
-- [ ] **Step 2** (`src/mdblog/theme/layouts/404.html`, `.claude/docs/hugo-site.md`): add the marker with a comment saying why, and point to it from `hugo-site.md` without copying its value.
-- [ ] **Step 3** (new `tests/test_verify.py`, `tests/test_site.py`, `tests/test_stage.py`): fake-server branch tests, the marker test, and the end-to-end test replacing task-016's direct assertions.
-- [ ] **Step 4** (`README.md`, `docs/vault-format.md`): document the command and the override rule.
+- [x] **Step 1** (new `src/mdblog/verify.py`, `src/mdblog/cli.py`): the four checks, reporting and exit status.
+- [x] **Step 2** (`src/mdblog/theme/layouts/404.html`, `.claude/docs/hugo-site.md`): add the marker with a comment saying why, and point to it from `hugo-site.md` without copying its value.
+- [x] **Step 3** (new `tests/test_verify.py`, `tests/test_site.py`, `tests/test_stage.py`): fake-server branch tests, the marker test, and the end-to-end test replacing task-016's direct assertions.
+- [x] **Step 4** (`README.md`, `docs/vault-format.md`): document the command and the override rule.
 
 ## Review log

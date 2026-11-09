@@ -37,6 +37,11 @@ LIMIT_PARAMS = {
 SITE_DIRECTORIES = ("layouts", "assets", "static")
 # The site param that turns on the draft preview banner. Only draft mode writes it.
 PREVIEW_PARAM = "mdblog_preview"
+# The packaged 404 page carries this string, so `mdblog verify` can tell the site's own
+# 404 page from a host's default one or another site's.
+NOT_FOUND_MARKER = "mdblog-not-found-page-5e1b7c"
+# The site param that passes `NOT_FOUND_MARKER` to the layouts.
+NOT_FOUND_PARAM = "mdblog_not_found_marker"
 
 
 class BuildError(Exception):
@@ -106,7 +111,7 @@ def hugo_config(config: SiteConfig, drafts: bool = False) -> str:
 
     The site renders a feed at `/index.xml` and one per tag, and no other feed. The
     home page also renders `/recent.json`. Each entry of `LIMIT_PARAMS` is a site
-    param. With `drafts`, the site param `PREVIEW_PARAM` is true, and otherwise
+    param, and so is `NOT_FOUND_PARAM`. With `drafts`, the site param `PREVIEW_PARAM` is true, and otherwise
     it is absent.
     """
     preview = f"{PREVIEW_PARAM} = true\n" if drafts else ""
@@ -119,6 +124,7 @@ def hugo_config(config: SiteConfig, drafts: bool = False) -> str:
         "[params]\n"
         f"author = {_toml_string(config.author)}\n"
         f"{limits}"
+        f"{NOT_FOUND_PARAM} = {_toml_string(NOT_FOUND_MARKER)}\n"
         f"{preview}"
         "\n"
         # Renders `==text==` as <mark>. Raw HTML stays off, so a note cannot bypass the

@@ -59,7 +59,7 @@ The `_site/` folder at the vault's root holds the site's own files. mdblog never
 |---|---|---|
 | `_site/mdblog.toml` | yes | The site's `base_url`, `title` and `author`. A path in `base_url`, such as `https://example.test/blog/`, puts the whole site under that path. An optional `[worker]` table holds one key, `name`: the name of the Cloudflare Worker that serves the site, which `mdblog stage` needs. Use 1 to 63 lowercase letters, digits and hyphens, with no hyphen at either end. |
 | `_site/bio.md` | no | The author's bio, shown on the site whatever its front matter says. Its links convert and fail like a note's. Keep its images outside `_site/`. |
-| `_site/layouts/`, `_site/assets/` | no | Theme overrides. Each file replaces the packaged theme's file at the same path. |
+| `_site/layouts/`, `_site/assets/` | no | Theme overrides. Each file replaces the packaged theme's file at the same path. A `_site/layouts/404.html` must keep the packaged file's `mdblog-not-found` meta element, or `mdblog verify` fails. |
 | `_site/static/` | no | Files published at the site's root as they are. |
 | `_site/Templates/` | no | Obsidian templates, such as the post template below. |
 

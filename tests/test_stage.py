@@ -16,6 +16,7 @@ import pytest
 
 from mdblog import stage
 from mdblog.build import MARKER, BuildError, build_site
+from mdblog.cli import main
 from mdblog.config import ConfigError, SiteConfig, WorkerConfig
 from mdblog.serve import ServeError
 from mdblog.stage import (
@@ -459,20 +460,22 @@ def test_wrangler_accepts_the_staged_config_without_credentials_or_network(
     assert "--dry-run: exiting now." in result.stdout
 
 
-def _get(url: str) -> tuple[int, str]:
-    """The status and body of `url`, with status 0 while nothing answers."""
+def _status(url: str) -> int:
+    """The status of `url`, or 0 while nothing answers."""
     try:
         with urllib.request.urlopen(url, timeout=5) as response:
             status: int = response.status
-            return status, response.read().decode()
+            return status
     except urllib.error.HTTPError as exc:
-        return exc.code, exc.read().decode()
+        return exc.code
     except urllib.error.URLError:
-        return 0, ""
+        return 0
 
 
 @pytest.mark.wrangler
-def test_stage_serve_answers_as_cloudflare_would(tmp_path: Path) -> None:
+def test_stage_serve_passes_verify(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     vault = _staged_fixture(tmp_path)
     output = tmp_path / "output"
     port = _free_port()
@@ -500,11 +503,11 @@ def test_stage_serve_answers_as_cloudflare_would(tmp_path: Path) -> None:
         )
     try:
         deadline = time.monotonic() + STARTUP_TIMEOUT
-        while (home := _get(site))[0] != 200:
+        while _status(site) != 200:
             if time.monotonic() > deadline or process.poll() is not None:
                 pytest.fail("wrangler dev never served the home page")
             time.sleep(0.2)
-        missing = _get(f"{site}no-such-page/")
+        verified = main(["verify", site])
         process.send_signal(signal.SIGINT)
         assert process.wait(timeout=30) == 0
     finally:
@@ -512,7 +515,5 @@ def test_stage_serve_answers_as_cloudflare_would(tmp_path: Path) -> None:
             process.kill()
             process.wait()
 
-    assert "<title>mdblog fixture</title>" in home[1]
-    not_found = (output / ASSETS_DIR / "blog" / "404.html").read_text(encoding="utf-8")
-    assert missing == (404, not_found)
+    assert verified == 0, capsys.readouterr().out
     assert site in stdout_path.read_text(encoding="utf-8")
