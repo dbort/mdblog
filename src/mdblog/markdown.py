@@ -370,8 +370,9 @@ def _unquote(lines: Sequence[str]) -> str:
 class LedeCallout:
     """A summary callout that is the first block of a note's text."""
 
-    # The callout's lines in that text, from `start` up to but not including `end`.
+    # The callout's first line in that text.
     start: int
+    # The line after the callout's last line.
     end: int
     # The first line of the content, after the line holding `LEDE_MARKER`.
     content_start: int

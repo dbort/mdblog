@@ -66,7 +66,7 @@ A note with no lede gets a plain-text excerpt in the same places: its opening te
 
 A lede holds paragraphs of text with inline formatting, links and wikilinks, and its wikilinks follow the rules above. It fails the build when it holds:
 
-- a list, heading, code block, table, thematic break, quote or nested callout
+- a list, heading, code block, table, thematic break, quote, nested callout or HTML block
 - an image or a `![[...]]` embed
 - a footnote reference
 - a standard Markdown link whose destination starts with `#`, which would point into the page listing the note. Link to a heading with `[[#heading]]` instead.

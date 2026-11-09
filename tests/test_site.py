@@ -714,6 +714,32 @@ def test_a_lede_reaches_recent_json_as_plain_text(tmp_path: Path) -> None:
     assert [p.text for p in summary.all("p")] == ["A lede &", "its second paragraph."]
 
 
+def test_an_excerpt_leaves_out_footnotes(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    (vault / "_site").mkdir(parents=True)
+    shutil.copy(FIXTURE_VAULT / "_site" / "mdblog.toml", vault / "_site")
+    body = (
+        "A claim[^1] that sits[^note] before a [link](https://a.test/).\n"
+        "\n"
+        "[^1]: The note.\n"
+        "[^note]: Another.\n"
+    )
+    (vault / "noted.md").write_text(
+        published_text("noted", body=body), encoding="utf-8"
+    )
+
+    built = _build(vault, tmp_path / "output")
+
+    text = "A claim that sits before a link."
+    summary = _entry(built.page("index.html"), "noted").one(cls="p-summary")
+    assert (summary.text, list(summary.iter())[1:]) == (text, [])
+    archive = built.page("posts/index.html").one("main").one(cls="p-summary")
+    assert archive.text == text
+    head = built.page("posts/noted/index.html").one("head")
+    assert _meta(head, "name", "description") == [text]
+    assert [item["summary"] for item in built.recent()] == [text]
+
+
 def test_descriptions_are_plain_text_escaped_once(site: Site) -> None:
     raw = site.raw("posts/long-post/index.html")
     assert "<title>Tips &amp; Tricks | mdblog fixture</title>" in raw
