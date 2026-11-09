@@ -9,22 +9,22 @@ title: "Post summaries from a summary callout"
 A post can open with an Obsidian `> [!summary]` callout holding a short lede. That text becomes the post's summary on the home page, tag pages, archive, `recent.json` and link-preview descriptions, and is left off the post's own page. A post without one gets a shortened plain-text excerpt in all the same places, so every listing agrees, and M6 POSSE can later reuse the lede as a copy's intro.
 
 ## Must Have
-- [ ] A published note whose body's first block, after `%%` comments are removed, is a callout of type `summary` (any case, any title, with or without a `-`/`+` fold marker) has that callout removed from its post page, and the callout's content is the note's lede.
-- [ ] A `[!summary]` callout that is not the body's first block renders as an ordinary callout and sets no lede, and so does a first-block callout of any other type, `[!abstract]` and `[!tldr]` included.
-- [ ] A lede callout with no content is removed from the post page, and the note falls back to the excerpt.
-- [ ] For a note with a lede, the `p-summary` element on the home page, on each tag page listing it and on the archive page holds the lede as HTML: inline formatting kept, and each wikilink converted to its root-relative URL as in the body. The post page's `<meta name="description">` and `og:description`, and its `recent.json` item's `summary`, hold the same text as plain text, with each whitespace run collapsed to one space.
-- [ ] A note with both a lede and a `<!--more-->` divider shows the lede in all five places above.
-- [ ] For a note without a lede, all five places hold one identical plain-text excerpt: the plain text of Hugo's summary (the text before `<!--more-->` when present), cut at a word boundary to at most `EXCERPT_LENGTH` characters plus a trailing `…` only when cut. A list's `p-summary` excerpt holds no HTML element, so footnote links no longer reach list pages.
-- [ ] `EXCERPT_LENGTH` is a constant in `src/mdblog/build.py` that reaches the layouts as site config the way the `*_LIMIT` constants do, and the excerpt test derives its expectations from the constant.
-- [ ] The build fails, naming the note, when a lede holds anything other than paragraphs of inline Markdown (a list, heading, code block, table, thematic break, quote or nested callout, or an image or `![[...]]` embed), a footnote reference, or a standard Markdown link whose destination starts with `#`. A wikilink in a lede follows the body's rules, so a broken one fails the build as it would in the body.
-- [ ] Under `mdblog serve --drafts`, a lede that would fail the build prints a warning, stays on the post page as an ordinary callout, and the note uses the excerpt.
-- [ ] Each `recent.json` item has exactly the string keys `date`, `summary`, `title` and `url`, and `home.recent.json`'s contract comment states the `summary` key.
-- [ ] A vault `summary` or `description` property has no effect on the site: `test_properties_hugo_would_read_do_not_change_the_site` includes both.
-- [ ] Feeds keep full content in `<description>`, and the home page's own meta description still comes from the bio, as before.
-- [ ] `docs/vault-format.md` documents the summary callout: its syntax, first-block rule, allowed content, the empty case and the build failures. `.claude/docs/hugo-site.md` records how the lede reaches the layouts and names `EXCERPT_LENGTH`.
-- [ ] `bug-003` is deleted from `.claude/docs/bug-log.md` in the commit that makes list excerpts plain text.
-- [ ] The manual-QA check `summaries` in `tools/manual_qa.py` passes in a log from the author.
-- [ ] `tools/check` exits 0 on the finished branch.
+- [x] A published note whose body's first block, after `%%` comments are removed, is a callout of type `summary` (any case, any title, with or without a `-`/`+` fold marker) has that callout removed from its post page, and the callout's content is the note's lede.
+- [x] A `[!summary]` callout that is not the body's first block renders as an ordinary callout and sets no lede, and so does a first-block callout of any other type, `[!abstract]` and `[!tldr]` included.
+- [x] A lede callout with no content is removed from the post page, and the note falls back to the excerpt.
+- [x] For a note with a lede, the `p-summary` element on the home page, on each tag page listing it and on the archive page holds the lede as HTML: inline formatting kept, and each wikilink converted to its root-relative URL as in the body. The post page's `<meta name="description">` and `og:description`, and its `recent.json` item's `summary`, hold the same text as plain text, with each whitespace run collapsed to one space.
+- [x] A note with both a lede and a `<!--more-->` divider shows the lede in all five places above.
+- [x] For a note without a lede, all five places hold one identical plain-text excerpt: the plain text of Hugo's summary (the text before `<!--more-->` when present), cut at a word boundary to at most `EXCERPT_LENGTH` characters plus a trailing `…` only when cut. A list's `p-summary` excerpt holds no HTML element, so footnote links no longer reach list pages.
+- [x] `EXCERPT_LENGTH` is a constant in `src/mdblog/build.py` that reaches the layouts as site config the way the `*_LIMIT` constants do, and the excerpt test derives its expectations from the constant.
+- [x] The build fails, naming the note, when a lede holds anything other than paragraphs of inline Markdown (a list, heading, code block, table, thematic break, quote or nested callout, or an image or `![[...]]` embed), a footnote reference, or a standard Markdown link whose destination starts with `#`. A wikilink in a lede follows the body's rules, so a broken one fails the build as it would in the body.
+- [x] Under `mdblog serve --drafts`, a lede that would fail the build prints a warning, stays on the post page as an ordinary callout, and the note uses the excerpt.
+- [x] Each `recent.json` item has exactly the string keys `date`, `summary`, `title` and `url`, and `home.recent.json`'s contract comment states the `summary` key.
+- [x] A vault `summary` or `description` property has no effect on the site: `test_properties_hugo_would_read_do_not_change_the_site` includes both.
+- [x] Feeds keep full content in `<description>`, and the home page's own meta description still comes from the bio, as before.
+- [x] `docs/vault-format.md` documents the summary callout: its syntax, first-block rule, allowed content, the empty case and the build failures. `.claude/docs/hugo-site.md` records how the lede reaches the layouts and names `EXCERPT_LENGTH`.
+- [x] `bug-003` is deleted from `.claude/docs/bug-log.md` in the commit that makes list excerpts plain text.
+- [x] The manual-QA check `summaries` in `tools/manual_qa.py` passes in a log from the author.
+- [x] `tools/check` exits 0 on the finished branch.
 
 ## Advice
 - User decisions (2026-11-09): the lede lives in the body as a first-block `> [!summary]` callout, not a property. Obsidian Publish and Quartz read `description` only as SEO metadata, and the author wants visible text. Only type `summary` counts, and only as the first block, so a closing recap callout further down stays put. The lede is paragraphs of inline Markdown with wikilinks, and the callout's title and fold marker are ignored. The post page does not show it. Home and tag lists, the archive, `recent.json` and meta/og descriptions always agree. Each shows the lede, or for a post without one, a plain-text excerpt truncated at a word boundary and shorter than Hugo's 70-word default. The excerpt length is one theme-wide constant, not a site key. `recent.json` has no outside consumers yet, so changing its contract is fine.
