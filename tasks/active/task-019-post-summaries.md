@@ -58,3 +58,7 @@ A post can open with an Obsidian `> [!summary]` callout holding a short lede. Th
 - **N3: One very long word is cut mid-word** (`src/mdblog/theme/layouts/_partials/summary.html:15`): Hugo's `truncate` cuts a single word longer than `EXCERPT_LENGTH`; rare, non-blocking.
 - **N4: Two fields share one comment** (`src/mdblog/markdown.py:374`): `LedeCallout.start` and `end`.
 - **N5: Manual QA approved without a log** (`tasks/active/task-019-post-summaries.md`): accepted, since Advice records the author's decision.
+
+### Round 2: APPROVED
+- **N1: Two lines overrun the surrounding wrap** (`src/mdblog/theme/layouts/_partials/summary.html:4`, `src/mdblog/markdown.py:435`): the partial's header comment and a `find_lede` docstring line run near 100 characters where neighbors wrap near 88; cosmetic.
+- **N2: The footnote test covers four of the six outputs** (`tests/test_site.py:717`): no tag page or `og:description`; the agreement tests already tie those to the same partial.
