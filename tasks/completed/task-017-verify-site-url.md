@@ -10,20 +10,20 @@ blocked_by: [task-015, task-016]
 `mdblog verify URL` checks that a site answers at a URL: home page, feed, recent-posts file, and its own 404 page for a missing path. It runs against `wrangler dev` now and against deployed preview and production URLs in M5, as a separate command independent of any deploy.
 
 ## Must Have
-- [ ] `mdblog verify URL` takes the site's URL including its base path, such as `http://127.0.0.1:8787/blog/`. A missing trailing slash makes no difference.
-- [ ] It checks four things, each with one request:
+- [x] `mdblog verify URL` takes the site's URL including its base path, such as `http://127.0.0.1:8787/blog/`. A missing trailing slash makes no difference.
+- [x] It checks four things, each with one request:
   - The URL answers 200 with an HTML content type.
   - `index.xml` under it answers 200 and parses as RSS 2.0 with a `<channel>`.
   - `recent.json` under it answers 200 and parses as task-015's shape.
   - A path under it that no site holds (a fixed name with a random suffix) answers 404, with a body containing the 404 marker string.
-- [ ] Every check runs even after another fails. Each prints one line naming the check and `ok` or the reason it failed (status, content type, parse error or missing marker). The command exits 0 only when all four pass, and 1 otherwise.
-- [ ] A connection error, DNS failure or timeout fails the check it hit, naming the URL and the error, without a traceback. The timeout applies per request.
-- [ ] The packaged 404 layout carries the marker where readers don't see it, such as in a `<meta>` element. A test of the real build finds it in `404.html` and in no other page.
-- [ ] Unit tests drive the command against a local fake HTTP server, one case for each check's failure: wrong status, wrong content type, unparsable body, 404 without the marker, and connection refused.
-- [ ] End to end: the staged `/blog/` fixture served by `wrangler dev` passes `mdblog verify`. This replaces task-016's direct HTTP assertions, so the suite still runs wrangler once.
-- [ ] `README.md` documents `verify`. `docs/vault-format.md` says that a `_site/layouts/404.html` override must keep the marker or `mdblog verify` fails.
-- [ ] `tools/check` never runs `mdblog verify` against anything but a local server.
-- [ ] `tools/check` exits 0 on the finished branch.
+- [x] Every check runs even after another fails. Each prints one line naming the check and `ok` or the reason it failed (status, content type, parse error or missing marker). The command exits 0 only when all four pass, and 1 otherwise.
+- [x] A connection error, DNS failure or timeout fails the check it hit, naming the URL and the error, without a traceback. The timeout applies per request.
+- [x] The packaged 404 layout carries the marker where readers don't see it, such as in a `<meta>` element. A test of the real build finds it in `404.html` and in no other page.
+- [x] Unit tests drive the command against a local fake HTTP server, one case for each check's failure: wrong status, wrong content type, unparsable body, 404 without the marker, and connection refused.
+- [x] End to end: the staged `/blog/` fixture served by `wrangler dev` passes `mdblog verify`. This replaces task-016's direct HTTP assertions, so the suite still runs wrangler once.
+- [x] `README.md` documents `verify`. `docs/vault-format.md` says that a `_site/layouts/404.html` override must keep the marker or `mdblog verify` fails.
+- [x] `tools/check` never runs `mdblog verify` against anything but a local server.
+- [x] `tools/check` exits 0 on the finished branch.
 
 ## Advice
 - The marker shows that the response is this site's own 404 page and not Cloudflare's empty 404 or another site's. The author asked for a unique-enough string hidden in the page. A fixed string containing `mdblog`, defined once in Python and written into the layout, is enough. Don't build it from the site title: the verifier knows only the URL, and titles need HTML escaping. A test of the real build ties the layout to the constant, so neither can drift without failing.
