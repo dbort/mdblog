@@ -33,7 +33,8 @@ WRANGLER_ENV = {
     "WRANGLER_HIDE_BANNER": "true",
     # wrangler dev otherwise downloads a sample `Request.cf` object from Cloudflare.
     "CLOUDFLARE_CF_FETCH_ENABLED": "false",
-    # Offers to install wrangler's agent skills when it detects a coding agent.
+    # Wrangler otherwise offers to install its agent skills when it detects a coding
+    # agent.
     "WRANGLER_NO_SKILLS_UPDATE_PROMPTS": "true",
 }
 # How often, in seconds, the serve loop checks whether wrangler exited on its own.
@@ -137,7 +138,7 @@ def stage_site(
 
 
 def find_wrangler() -> Path:
-    """`WRANGLER`, or `ServeError` naming it and how to install it when it is absent."""
+    """`WRANGLER`; raises `ServeError` naming it and how to install it when absent."""
     if not WRANGLER.is_file():
         raise ServeError(
             f"wrangler not found at {WRANGLER}; install it with "

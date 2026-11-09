@@ -60,7 +60,7 @@ def choose_port(requested: int | None, default: int = DEFAULT_PORT) -> int:
 
     Raises `ServeError` naming the port when `requested` cannot be bound, or when no
     port can be bound on `HOST`. The port is free when probed; another process can
-    still take it before Hugo binds it.
+    still take it before the server binds it.
     """
     port = default if requested is None else requested
     try:
