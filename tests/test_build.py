@@ -390,6 +390,8 @@ def test_properties_hugo_would_read_do_not_change_the_site(tmp_path: Path) -> No
                 "draft: true\n"
                 "cascade: {params: {author: other}}\n"
                 "outputs: [json]\n"
+                "summary: A colliding summary\n"
+                "description: A colliding description\n"
             ),
             body="Body\n",
         ),

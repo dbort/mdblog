@@ -4,6 +4,6 @@
 {{ partial "entry-meta.html" (dict "page" . "listed" true) }}
 </header>
 <div class="p-summary entry-summary">
-{{ .Summary }}
+{{ (partial "summary.html" .).html }}
 </div>
 </article>

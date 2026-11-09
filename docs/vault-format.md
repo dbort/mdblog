@@ -51,6 +51,28 @@ A published note fails the build when it holds:
 
 Math, note transclusion, and audio, video and PDF players are unsupported. A callout type holding a hyphen, such as `[!custom-thing]`, renders as a plain quote. A link to a heading holding a numeric character reference, such as `&#42;`, can miss the heading without failing the build.
 
+## Summary callout
+
+A published note can open with a summary callout holding its lede: a short summary that the site shows wherever it lists or describes the note, and that the note's own page leaves out.
+
+```markdown
+> [!summary]
+> One or two sentences, with *formatting* and [[wikilinks]].
+```
+
+The callout is a lede only as the note's first block, after comments are removed. A `[!summary]` callout anywhere else, and a first callout of any other type, `[!abstract]` and `[!tldr]` included, is an ordinary callout. The type ignores case, and the lede ignores the callout's title and its `-` or `+` fold marker. An empty summary callout is removed and counts as no lede.
+
+A note with no lede gets a plain-text excerpt in the same places: its opening text, or the text before a `<!--more-->` line when it has one, cut at a word boundary to at most `EXCERPT_LENGTH` characters ([`src/mdblog/build.py`](../src/mdblog/build.py)). A `summary` or `description` property has no effect.
+
+A lede holds paragraphs of text with inline formatting, links and wikilinks, and its wikilinks follow the rules above. It fails the build when it holds:
+
+- a list, heading, code block, table, thematic break, quote or nested callout
+- an image or a `![[...]]` embed
+- a footnote reference
+- a standard Markdown link whose destination starts with `#`, which would point into the page listing the note. Link to a heading with `[[#heading]]` instead.
+
+Under draft preview, such a lede prints a warning, stays on the note's page as an ordinary callout, and the note gets an excerpt.
+
 ## Site folder
 
 The `_site/` folder at the vault's root holds the site's own files. mdblog never publishes its notes or follows its symbolic links.
@@ -65,7 +87,7 @@ The `_site/` folder at the vault's root holds the site's own files. mdblog never
 
 ## Post template
 
-To start new notes from [`templates/Post Template.md`](../templates/Post%20Template.md), copy it to `_site/Templates/` and set the folder of Obsidian's Templates core plugin to `_site/Templates`. The template has to live in `_site/`, because its unfilled placeholder is not valid YAML. Before publishing, fill in `title` unless the file name is the title you want.
+To start new notes from [`templates/Post Template.md`](../templates/Post%20Template.md), copy it to `_site/Templates/` and set the folder of Obsidian's Templates core plugin to `_site/Templates`. The template has to live in `_site/`, because its unfilled placeholder is not valid YAML. Before publishing, fill in `title` unless the file name is the title you want. The template's body is an empty summary callout, which counts as no lede until you write one.
 
 ## Draft preview
 

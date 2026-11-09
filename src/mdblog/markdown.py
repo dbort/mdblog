@@ -1,4 +1,4 @@
-"""mdblog.markdown: finds code, comments, block IDs, headings and links in a note's Markdown.
+"""mdblog.markdown: finds code, comments, block IDs, headings, links and the summary callout in a note's Markdown.
 
 Every function that scans a note's text leaves code untouched: fenced and indented code
 blocks, including ones nested in quotes and lists, and inline code spans.
@@ -54,6 +54,8 @@ class _Parser(MarkdownIt):
 
 
 _PARSER = _Parser()
+# Hugo renders GFM tables, which `_PARSER` reads as paragraphs.
+_TABLE_PARSER = _Parser().enable("table")
 
 
 def _line_starts(text: str) -> list[int]:
@@ -334,3 +336,114 @@ def internal_destinations(text: str) -> tuple[str, ...]:
         for destination in _destinations(_PARSER.parse(text))
         if not is_external(destination)
     )
+
+
+# Hugo's rule for a callout's first line, with the type fixed: `[!summary]` in any case,
+# then any fold sign and title, which a lede ignores.
+LEDE_MARKER = re.compile(r"\[!summary\].*", re.IGNORECASE)
+# One line's quote marker, as CommonMark strips it. A lazy continuation line has none.
+_QUOTE_MARKER = re.compile(r" {0,3}> ?")
+FOOTNOTE_REFERENCE = re.compile(r"\[\^[^\[\]\r\n]+\]")
+_LEDE_BLOCKS = {
+    "bullet_list_open": "a list",
+    "ordered_list_open": "a list",
+    "heading_open": "a heading",
+    "fence": "a code block",
+    "code_block": "a code block",
+    "table_open": "a table",
+    "hr": "a thematic break",
+    "blockquote_open": "a quote or callout",
+    "html_block": "an HTML block",
+}
+
+
+def _split_lines(text: str) -> list[str]:
+    starts = [*_line_starts(text), len(text)]
+    return [text[start:end] for start, end in itertools.pairwise(starts)]
+
+
+def _unquote(lines: Sequence[str]) -> str:
+    return "".join(_QUOTE_MARKER.sub("", line, count=1) for line in lines)
+
+
+@dataclass(frozen=True)
+class LedeCallout:
+    """A summary callout that is the first block of a note's text."""
+
+    # The callout's lines in that text, from `start` up to but not including `end`.
+    start: int
+    end: int
+    # The first line of the content, after the line holding `LEDE_MARKER`.
+    content_start: int
+    # The callout's content without quote markers or surrounding whitespace, or None
+    # when it is blank.
+    lede: str | None
+    # Why the content cannot be a lede, in document order. Empty for a usable lede.
+    failures: tuple[str, ...]
+
+    def split(self, text: str) -> tuple[str, str | None]:
+        """`text` without the callout's lines, and the content of those lines as `lede` is.
+
+        `text` must have the line structure of the text the callout was found in, which
+        holds for that text after wikilink conversion, since no converted wikilink
+        spans or adds a line.
+        """
+        lines = _split_lines(text)
+        body = "".join(lines[: self.start] + lines[self.end :])
+        content = _unquote(lines[self.content_start : self.end]).strip()
+        return body, content or None
+
+
+def _lede_failures(content: str) -> list[str]:
+    failures: list[str] = []
+    for token in _TABLE_PARSER.parse(content):
+        kind = _LEDE_BLOCKS.get(token.type)
+        if token.level == 0 and kind is not None:
+            failures.append(
+                f"summary callout holds {kind}; it may hold only paragraphs of text"
+            )
+        for child in token.children or []:
+            if child.type == "image":
+                failures.append(
+                    f"summary callout holds the image {child.attrGet('src')!r}"
+                )
+            elif child.type == "link_open":
+                destination = str(child.attrGet("href") or "")
+                if destination.startswith("#"):
+                    failures.append(
+                        f"summary callout links to {destination!r}, which would point "
+                        "into the page listing it; use a wikilink like [[#heading]]"
+                    )
+    code = CodeMap(content)
+    for match in WIKILINK.finditer(content):
+        if match[1] and not code.overlaps(match.start(), match.end()):
+            failures.append(f"summary callout holds the embed {match[0]}")
+    for match in FOOTNOTE_REFERENCE.finditer(content):
+        if not code.overlaps(match.start(), match.end()):
+            failures.append(f"summary callout holds the footnote reference {match[0]}")
+    return failures
+
+
+def find_lede(text: str) -> LedeCallout | None:
+    """The summary callout that is `text`'s first block, or None if the first block is
+    anything else.
+
+    The callout is a quote whose first paragraph's first line, after its quote marker,
+    starts with `LEDE_MARKER`. Its content is everything after that line, and is a usable lede only
+    when it holds paragraphs of inline Markdown with no image, embed, footnote
+    reference or link to a `#` destination.
+    """
+    tokens = _PARSER.parse(text)
+    if len(tokens) < 2 or tokens[0].type != "blockquote_open":
+        return None
+    if tokens[0].map is None or tokens[1].type != "paragraph_open":
+        return None
+    start, end = tokens[0].map
+    # Blank quoted lines can come before the paragraph that holds the marker.
+    marker = start if tokens[1].map is None else tokens[1].map[0]
+    lines = _split_lines(text)
+    if LEDE_MARKER.match(_unquote(lines[marker : marker + 1])) is None:
+        return None
+    content = _unquote(lines[marker + 1 : end])
+    failures = tuple(_lede_failures(content))
+    return LedeCallout(start, end, marker + 1, content.strip() or None, failures)

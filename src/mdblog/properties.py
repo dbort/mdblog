@@ -15,6 +15,9 @@ EMPTY_NAME_SLUG = "note"
 # The Hugo page param that marks a published note rendering despite failures. Vault
 # properties never reach Hugo, so only mdblog can set it.
 INVALID_PARAM = "mdblog_invalid"
+# The Hugo page param holding a note's converted lede Markdown, which the layouts show
+# in place of an excerpt.
+LEDE_PARAM = "mdblog_lede"
 
 
 class EntryStatus(StrEnum):
@@ -228,23 +231,31 @@ def file_slug(stem: str) -> str:
 
 
 def front_matter(
-    page: PageProperties, status: EntryStatus = EntryStatus.PUBLISHED
+    page: PageProperties,
+    status: EntryStatus = EntryStatus.PUBLISHED,
+    lede: str | None = None,
 ) -> bytes:
     """The Hugo front matter for `page`, ending in a newline.
 
     The result is one JSON object holding `title`, `date` and, when there are any,
     `tags`. A draft adds `draft: true`, and an invalid entry adds `INVALID_PARAM`
-    under `params`. A published entry adds neither.
+    under `params`. A published entry adds neither. A `lede` is `LEDE_PARAM` under
+    `params`.
     """
     data: dict[str, object] = {"title": page.title, "date": page.date.isoformat()}
     if page.tags:
         data["tags"] = list(page.tags)
+    params: dict[str, object] = {}
     # Hugo's own draft flag, so Hugo leaves a draft out of any build without
     # --buildDrafts.
     if status is EntryStatus.DRAFT:
         data["draft"] = True
     elif status is EntryStatus.INVALID:
-        data["params"] = {INVALID_PARAM: True}
+        params[INVALID_PARAM] = True
+    if lede is not None:
+        params[LEDE_PARAM] = lede
+    if params:
+        data["params"] = params
     # Hugo reads a leading JSON object as front matter, and JSON has one reading of each
     # string, where a YAML reader could take a title of `yes` for a boolean.
     return json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8") + b"\n"

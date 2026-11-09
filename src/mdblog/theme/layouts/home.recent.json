@@ -2,15 +2,17 @@
        object whose only key, `items`, holds an array, possibly empty, of the entries the
        sidebar's Recent posts box lists on a page that is none of them, in the same
        order. Each item has exactly the string keys `title`; `url`, the absolute URL that
-       is the entry's <link> in /index.xml; and `date`, ISO 8601 with its UTC offset, the
-       same instant as its <pubDate>. JSON Feed would require each item's content,
-       making the file as heavy as the full-text feed. */ -}}
+       is the entry's <link> in /index.xml; `date`, ISO 8601 with its UTC offset, the
+       same instant as its <pubDate>; and `summary`, the entry's summary as plain text,
+       the same as its page's meta description, possibly empty. JSON Feed would require
+       each item's content, making the file as heavy as the full-text feed. */ -}}
 {{- $items := slice -}}
 {{- range first site.Params.mdblog_recent_limit site.RegularPages -}}
 {{- $items = $items | append (dict
   "title" .Title
   "url" .Permalink
   "date" (.Date.Format "2006-01-02T15:04:05-07:00")
+  "summary" (partial "summary.html" .).text
 ) -}}
 {{- end -}}
 {{- dict "items" $items | jsonify -}}

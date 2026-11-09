@@ -3,7 +3,9 @@ import pytest
 from mdblog.markdown import (
     CodeMap,
     Heading,
+    LedeCallout,
     anchor_base,
+    find_lede,
     heading_key,
     headings,
     internal_destinations,
@@ -218,4 +220,169 @@ def test_internal_destinations_finds_inline_and_reference_links_and_images() -> 
         "other.md",
         "picture.png",
         "quoted%20name.md",
+    )
+
+
+@pytest.mark.parametrize(
+    "marker",
+    [
+        pytest.param("[!summary]", id="bare"),
+        pytest.param("[!SUMMARY]", id="upper-case"),
+        pytest.param("[!Summary] A *title*", id="title"),
+        pytest.param("[!summary]- Folded", id="folded"),
+        pytest.param("[!summary]+", id="open"),
+        pytest.param("[!summary]Tight title", id="tight-title"),
+    ],
+)
+def test_a_first_block_summary_callout_is_the_lede(marker: str) -> None:
+    text = f"> {marker}\n> The *lede* with [[a note]].\n> Second line.\n\nBody.\n"
+
+    callout = find_lede(text)
+
+    assert callout is not None
+    assert callout == LedeCallout(
+        0, 3, 1, "The *lede* with [[a note]].\nSecond line.", ()
+    )
+    assert callout.split(text) == (
+        "\nBody.\n",
+        "The *lede* with [[a note]].\nSecond line.",
+    )
+
+
+def test_a_lede_keeps_its_paragraphs_and_lazy_lines() -> None:
+    text = "\n>[!summary]\n>First\nlazy line.\n>\n> > not nested\n\nBody.\n"
+
+    callout = find_lede(text)
+
+    assert callout is not None
+    assert callout.lede == "First\nlazy line.\n\n> not nested"
+
+
+def test_a_lede_may_follow_blank_quoted_lines() -> None:
+    callout = find_lede(">\n> [!summary]\n> Lede.\n\nBody.\n")
+
+    assert callout is not None
+    assert callout.split(">\n> [!summary]\n> Lede.\n\nBody.\n") == (
+        "\nBody.\n",
+        "Lede.",
+    )
+
+
+def test_split_keeps_other_line_endings() -> None:
+    text = "> [!summary]\r\n> Lede.\r\n\r\nBody.\r\n"
+
+    callout = find_lede(text)
+
+    assert callout is not None
+    assert callout.split(text) == ("\r\nBody.\r\n", "Lede.")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        pytest.param("> [!abstract]\n> Lede.\n", id="abstract"),
+        pytest.param("> [!tldr]\n> Lede.\n", id="tldr"),
+        pytest.param("> [!note]\n> Lede.\n", id="note"),
+        pytest.param("> [!summarize]\n> Lede.\n", id="longer-type"),
+        pytest.param("> Plain quote [!summary]\n> Lede.\n", id="marker-later"),
+        pytest.param("Intro.\n\n> [!summary]\n> Lede.\n", id="later-callout"),
+        pytest.param("# Title\n> [!summary]\n> Lede.\n", id="after-heading"),
+        pytest.param("```\n> [!summary]\n> Lede.\n```\n", id="in-fence"),
+        pytest.param("    > [!summary]\n    > Lede.\n", id="indented-code"),
+        pytest.param(">     [!summary]\n> Lede.\n", id="code-in-quote"),
+        pytest.param("> # [!summary]\n> Lede.\n", id="heading-in-quote"),
+        pytest.param("", id="empty-text"),
+    ],
+)
+def test_anything_else_first_is_no_lede(text: str) -> None:
+    assert find_lede(text) is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        pytest.param("> [!summary]\n", id="no-content"),
+        pytest.param("> [!summary] Title only\n>\n>  \n\nBody.\n", id="blank"),
+    ],
+)
+def test_an_empty_lede_callout_is_found_with_no_lede(text: str) -> None:
+    callout = find_lede(text)
+
+    assert callout is not None
+    assert (callout.lede, callout.failures) == (None, ())
+    assert callout.split(text)[1] is None
+
+
+def test_a_lede_may_hold_inline_markdown_and_code() -> None:
+    lede = (
+        "Some *emphasis*, **strong**, ==mark==, ~~gone~~, `![[code]] [^1] [x](#y)`,\n"
+        "a [[note#Heading|wikilink]], [[#Heading]], [a link](https://a.test/) and\n"
+        "<https://a.test/>.\n"
+        "\n"
+        "A second paragraph."
+    )
+    text = "> [!summary]\n" + "".join(f"> {line}\n" for line in lede.split("\n"))
+
+    callout = find_lede(text)
+
+    assert callout is not None
+    assert callout.failures == ()
+
+
+@pytest.mark.parametrize(
+    ("content", "failure"),
+    [
+        ("- item", "summary callout holds a list"),
+        ("1. item", "summary callout holds a list"),
+        ("## Heading", "summary callout holds a heading"),
+        ("```\ncode\n```", "summary callout holds a code block"),
+        ("text\n\n    code", "summary callout holds a code block"),
+        ("| a | b |\n|---|---|\n| 1 | 2 |", "summary callout holds a table"),
+        ("text\n\n---", "summary callout holds a thematic break"),
+        ("> quoted", "summary callout holds a quote or callout"),
+        ("> [!note]\n> nested", "summary callout holds a quote or callout"),
+        ("<div>\nraw\n</div>", "summary callout holds an HTML block"),
+    ],
+)
+def test_a_lede_holding_a_block_fails(content: str, failure: str) -> None:
+    text = "> [!summary]\n" + "".join(f"> {line}\n" for line in content.split("\n"))
+
+    callout = find_lede(text)
+
+    assert callout is not None
+    assert callout.failures == (f"{failure}; it may hold only paragraphs of text",)
+
+
+@pytest.mark.parametrize(
+    ("content", "failure"),
+    [
+        ("An ![image](a.png).", "summary callout holds the image 'a.png'"),
+        ("An ![[a.png]].", "summary callout holds the embed ![[a.png]]"),
+        ("A ![[note]].", "summary callout holds the embed ![[note]]"),
+        ("A note[^1].", "summary callout holds the footnote reference [^1]"),
+        (
+            "A [jump](#part).",
+            "summary callout links to '#part', which would point into the page "
+            "listing it; use a wikilink like [[#heading]]",
+        ),
+    ],
+)
+def test_a_lede_holding_an_image_embed_footnote_or_fragment_link_fails(
+    content: str, failure: str
+) -> None:
+    callout = find_lede(f"> [!summary]\n> {content}\n")
+
+    assert callout is not None
+    assert callout.failures == (failure,)
+
+
+def test_a_lede_reports_every_failure_in_order() -> None:
+    callout = find_lede("> [!summary]\n> - a [x](#y)\n>\n> # b\n")
+
+    assert callout is not None
+    assert callout.failures == (
+        "summary callout holds a list; it may hold only paragraphs of text",
+        "summary callout links to '#y', which would point into the page listing it; "
+        "use a wikilink like [[#heading]]",
+        "summary callout holds a heading; it may hold only paragraphs of text",
     )
