@@ -60,3 +60,9 @@ A new guide explains how to publish a vault at a path such as `example.com/notes
 - **N1: Dashboard menu names disagree** (`docs/deploy-under-a-path.md:114`): non-blocking. The guide says **Settings**, then **Builds** to connect the repo, but **Settings**, **Build**, **Branch control** at line 126. Use the dashboard's real label in both places.
 - **N2: Recent-posts script ignores HTTP errors** (`docs/deploy-under-a-path.md:75`): non-blocking. `response.json()` runs without checking `response.ok`, so a missing `recent.json` causes an unhandled rejection. The list stays empty, so it is harmless; an `ok` check or `.catch` would make the failure explicit.
 - **N3: `www` paragraph may exceed a frugal guide** (`docs/deploy-under-a-path.md:54`): non-blocking. Listing `www.example.com/notes/*` serves pages whose links all point at `base_url`'s host. Cut the sentence or say so.
+
+### Round 2: APPROVED
+- **N1: Unwrapped docstring lines** (`src/mdblog/config.py:109`, `src/mdblog/properties.py:168`): non-blocking. The new `timezone` clauses run to 134 and 106 characters where the surrounding docstrings wrap near 88.
+- **N2: Serve timezone test doesn't pin the local zone** (`tests/test_serve.py:239`): non-blocking. `test_rebuild_reads_a_naive_datetime_in_the_site_timezone` sets no `local_zone`, so on a machine in Asia/Tokyo it would pass even if `rebuild` ignored the setting. Call `local_zone("XXX5")`.
+- **N3: "every date" should say datetime** (`docs/vault-format.md:82`): non-blocking. A date-only value has no zone; § Properties already says it correctly.
+- **N4: The pixi path ignores `PIXI_BIN_DIR`** (`tools/workers-build:23`): non-blocking. The install script honors `PIXI_BIN_DIR`, and the script looks only under `$PIXI_HOME/bin`. It matters only if the image sets `PIXI_BIN_DIR`, and the failure would be loud.
