@@ -442,6 +442,57 @@ def test_build_judges_dates_by_the_local_clock(
         build_site(vault, output, FAKE_HUGO)
 
 
+@pytest.mark.parametrize(
+    ("timezone", "builds"),
+    [
+        # These zones are 26 hours apart, so they are never on the same date.
+        pytest.param("Pacific/Kiritimati", True, id="site-ahead"),
+        pytest.param("Etc/GMT+12", False, id="site-behind"),
+    ],
+)
+def test_build_judges_dates_by_the_site_timezone_not_the_local_clock(
+    tmp_path: Path, local_zone: Callable[[str], None], timezone: str, builds: bool
+) -> None:
+    ahead = dt.timezone(dt.timedelta(hours=14))
+    today_ahead = dt.datetime.now(ahead).date().isoformat()
+    vault = _make_vault(tmp_path)
+    (vault / "_site" / "mdblog.toml").write_text(
+        CONFIG + f'timezone = "{timezone}"\n', encoding="utf-8"
+    )
+    (vault / "dated.md").write_text(
+        published_text("dated", date=today_ahead), encoding="utf-8"
+    )
+    output = tmp_path / "output"
+    # The opposite of the site's zone, so the machine's clock would decide otherwise.
+    local_zone("XXX12" if builds else "XXX-14")
+
+    if builds:
+        build_site(vault, output, FAKE_HUGO)
+        assert (output / "posts" / "dated" / "index.md").is_file()
+    else:
+        with pytest.raises(BuildError, match="is in the future"):
+            build_site(vault, output, FAKE_HUGO)
+
+
+def test_build_writes_a_naive_datetime_in_the_site_timezone(
+    tmp_path: Path, local_zone: Callable[[str], None]
+) -> None:
+    local_zone("XXX5")
+    vault = _make_vault(tmp_path)
+    (vault / "_site" / "mdblog.toml").write_text(
+        CONFIG + 'timezone = "Asia/Tokyo"\n', encoding="utf-8"
+    )
+    (vault / "naive.md").write_text(
+        published_text("naive", date="2026-01-15T09:00:00"), encoding="utf-8"
+    )
+    output = tmp_path / "output"
+
+    build_site(vault, output, FAKE_HUGO)
+
+    page = (output / "posts" / "naive" / "index.md").read_text(encoding="utf-8")
+    assert "2026-01-15T09:00:00+09:00" in page
+
+
 def test_build_leaves_the_output_on_a_bad_config(tmp_path: Path) -> None:
     vault = _make_vault(tmp_path)
     (vault / "_site" / "mdblog.toml").write_text("not toml", encoding="utf-8")

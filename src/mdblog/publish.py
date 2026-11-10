@@ -4,6 +4,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
@@ -232,27 +233,29 @@ class _MarkedNote:
     publish: bool
     properties: Mapping[object, object]
     body: bytes
-    # Local, with its offset.
+    # In the site's zone, or the local one, with its offset.
     modified: datetime
 
 
-def _marked_note(note: Path, relative: Path, data: bytes) -> _MarkedNote | None:
+def _marked_note(
+    note: Path, relative: Path, data: bytes, zone: ZoneInfo | None
+) -> _MarkedNote | None:
     marked = marked_parts(data)
     if marked is None:
         return None
     _require_utf8(data)
     publish, properties, body = marked
-    modified = datetime.fromtimestamp(note.stat().st_mtime).astimezone()
+    modified = datetime.fromtimestamp(note.stat().st_mtime).astimezone(zone)
     return _MarkedNote(relative, publish, properties, body, modified)
 
 
 def _preview_entries(
-    notes: Iterable[_MarkedNote], now: datetime
+    notes: Iterable[_MarkedNote], now: datetime, zone: ZoneInfo | None
 ) -> tuple[list[PublishedNote], list[NoteFailure]]:
     ordered = sorted(notes, key=lambda note: note.path)
     previews = {
         note.path: preview_properties(
-            note.properties, note.path.stem, now, draft=not note.publish
+            note.properties, note.path.stem, now, draft=not note.publish, zone=zone
         )
         for note in ordered
     }
@@ -284,13 +287,16 @@ def _preview_entries(
     return entries, warnings
 
 
-def select_notes(vault: Path, now: datetime, drafts: bool = False) -> Selection:
+def select_notes(
+    vault: Path, now: datetime, drafts: bool = False, zone: ZoneInfo | None = None
+) -> Selection:
     """Validates each selected note in `vault` and returns the published ones and all failures.
 
     A selected note is a regular `*.md` file outside `_site/` at the vault's root, with
     no path component starting with `.`. Symbolic links are neither followed nor selected.
     An unreadable note or directory is a failure, and so is a published note whose
-    properties fail `validate_properties` at the time `now`, with one failure per reason.
+    properties fail `validate_properties` at the time `now` in `zone`, with one failure
+    per reason.
     Every note sharing a slug is a failure that names the others, even when the note has
     other failures. A note with any failure is not in `published`. `files` lists every
     regular file under the same rules as notes, whatever its suffix.
@@ -298,7 +304,7 @@ def select_notes(vault: Path, now: datetime, drafts: bool = False) -> Selection:
     With `drafts`, `published` also holds each `publish: false` note as a DRAFT and each
     published note with failures as INVALID, and `failures` are warnings. Their
     properties follow `preview_properties`: a missing or invalid date becomes the file's
-    modification time, and slugs follow `assign_slugs`. A note that is unreadable,
+    modification time in `zone`, and slugs follow `assign_slugs`. A note that is unreadable,
     has unusable front matter or is not UTF-8 is still absent with a failure.
     """
     published: list[PublishedNote] = []
@@ -329,7 +335,8 @@ def select_notes(vault: Path, now: datetime, drafts: bool = False) -> Selection:
             try:
                 data = note.read_bytes()
                 if drafts:
-                    if (found := _marked_note(note, relative, data)) is not None:
+                    found = _marked_note(note, relative, data, zone)
+                    if found is not None:
                         marked.append(found)
                     continue
                 parts = published_parts(data)
@@ -345,13 +352,13 @@ def select_notes(vault: Path, now: datetime, drafts: bool = False) -> Selection:
             slug = valid_slug(properties.get("slug"))
             if slug is not None:
                 slug_users.setdefault(slug, []).append(relative)
-            page = validate_properties(properties, note.stem, now)
+            page = validate_properties(properties, note.stem, now, zone)
             if isinstance(page, PageProperties):
                 published.append(PublishedNote(relative, page, body))
             else:
                 failures.extend(NoteFailure(relative, reason) for reason in page)
     if drafts:
-        entries, warnings = _preview_entries(marked, now)
+        entries, warnings = _preview_entries(marked, now, zone)
         return Selection(
             published=tuple(entries),
             # A stable sort keeps each note's warnings in the order they were found.

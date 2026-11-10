@@ -4,12 +4,14 @@ import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from zoneinfo import ZoneInfo, available_timezones
 
 SITE_DIR = "_site"
 CONFIG_FILE = "mdblog.toml"
 # The keys every `mdblog.toml` holds at its top level, each a string.
 REQUIRED_KEYS = ("base_url", "title", "author")
 WORKER_TABLE = "worker"
+TIMEZONE_KEY = "timezone"
 # Cloudflare's rule for a Worker on a workers.dev subdomain, which a Worker without
 # routes gets by default: at most 63 characters, letters, digits and hyphens, and no
 # hyphen at either end. Wrangler also rejects uppercase. The name is a DNS label there.
@@ -42,6 +44,9 @@ class SiteConfig:
     author: str
     # None when the file has no `[worker]` table.
     worker: WorkerConfig | None = None
+    # The zone of a datetime written with no offset, and of "now"; None means the
+    # machine's local zone.
+    timezone: ZoneInfo | None = None
 
 
 def config_path(vault: Path) -> Path:
@@ -86,12 +91,22 @@ def _worker(value: object) -> WorkerConfig | list[str]:
     return WorkerConfig(name=name, routes=routes)
 
 
+def _timezone(value: object) -> ZoneInfo | str:
+    if not isinstance(value, str):
+        return f"key {TIMEZONE_KEY!r} must be a string"
+    # Membership, not ZoneInfo alone: ZoneInfo accepts a name only some machines'
+    # databases resolve, such as a miscased one on a case-insensitive filesystem.
+    if value not in available_timezones():
+        return f"{TIMEZONE_KEY} {value!r} is not an IANA time zone name"
+    return ZoneInfo(value)
+
+
 def load_config(vault: Path) -> SiteConfig:
     """The settings in `vault`'s `_site/mdblog.toml`.
 
     Raises `ConfigError` naming the file when it is missing, is reached through a
     symbolic link, is not valid TOML, lacks a key, holds a non-string value, holds an
-    unknown key, or has a `[worker]` that is not a table holding a valid string `name`
+    unknown key, has a `timezone` that is not an IANA zone name, or has a `[worker]` that is not a table holding a valid string `name`
     and at most a non-empty `routes` array of non-empty strings. One error lists every
     problem.
     """
@@ -121,8 +136,11 @@ def load_config(vault: Path) -> SiteConfig:
     worker = _worker(table[WORKER_TABLE]) if WORKER_TABLE in table else None
     if isinstance(worker, list):
         problems.extend(worker)
+    zone = _timezone(table[TIMEZONE_KEY]) if TIMEZONE_KEY in table else None
+    if isinstance(zone, str):
+        problems.append(zone)
     # A misspelled optional key must not be ignored silently.
-    known = {*REQUIRED_KEYS, WORKER_TABLE}
+    known = {*REQUIRED_KEYS, WORKER_TABLE, TIMEZONE_KEY}
     problems.extend(f"unknown key {key!r}" for key in sorted(table.keys() - known))
     if problems:
         raise ConfigError(f"{path}: {'; '.join(problems)}")
@@ -131,4 +149,5 @@ def load_config(vault: Path) -> SiteConfig:
         title=values["title"],
         author=values["author"],
         worker=worker if isinstance(worker, WorkerConfig) else None,
+        timezone=zone if isinstance(zone, ZoneInfo) else None,
     )

@@ -181,6 +181,8 @@ def convert_vault(
 ) -> Site:
     """The validated pages, bio and settings of `vault`, with dates compared to `now`.
 
+    Dates are read and compared in the settings' `timezone` when it has one.
+
     Uses `config` in place of the vault's settings when given.
 
     Raises `ConfigError` for unusable settings, and otherwise a `BuildError` listing
@@ -190,7 +192,9 @@ def convert_vault(
     Writes nothing.
     """
     config = config or load_config(vault)
-    selection = select_notes(vault, now, drafts)
+    zone = config.timezone
+    # The site's zone decides which date is today, whatever the machine's zone.
+    selection = select_notes(vault, now.astimezone(zone) if zone else now, drafts, zone)
     bio = read_bio(vault)
     bio_failures = [bio] if isinstance(bio, NoteFailure) else []
     conversion = convert_notes(

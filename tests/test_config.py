@@ -1,4 +1,5 @@
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -83,6 +84,52 @@ def test_load_config_reads_routes_in_order(tmp_path: Path) -> None:
     assert load_config(tmp_path).worker == WorkerConfig(
         name="site", routes=("b.test/x/*", "a.test/x/*")
     )
+
+
+def test_load_config_reads_the_timezone(tmp_path: Path) -> None:
+    _write_config(tmp_path, VALID + 'timezone = "America/New_York"\n')
+
+    assert load_config(tmp_path).timezone == ZoneInfo("America/New_York")
+
+
+def test_load_config_has_no_timezone_without_the_key(tmp_path: Path) -> None:
+    _write_config(tmp_path, VALID)
+
+    assert load_config(tmp_path).timezone is None
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        pytest.param("5", "key 'timezone' must be a string", id="int"),
+        pytest.param(
+            '"Mars/Olympus"',
+            "timezone 'Mars/Olympus' is not an IANA time zone name",
+            id="unknown",
+        ),
+        pytest.param(
+            '"america/new_york"',
+            "timezone 'america/new_york' is not an IANA time zone name",
+            id="miscased",
+        ),
+        pytest.param('""', "timezone '' is not an IANA time zone name", id="empty"),
+        pytest.param(
+            '"../etc/passwd"',
+            "timezone '../etc/passwd' is not an IANA time zone name",
+            id="path",
+        ),
+    ],
+)
+def test_load_config_names_the_file_and_the_timezone_problem(
+    tmp_path: Path, value: str, expected: str
+) -> None:
+    path = _write_config(tmp_path, VALID + f"timezone = {value}\n")
+
+    with pytest.raises(ConfigError) as exc:
+        load_config(tmp_path)
+
+    assert str(path) in str(exc.value)
+    assert expected in str(exc.value)
 
 
 INVALID_NAME = "is not a valid Worker name"

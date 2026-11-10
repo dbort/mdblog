@@ -10,7 +10,7 @@ Two repositories, each deployed to its own Worker:
 root-site/                 vault/
   wrangler.toml              _site/
   public/                      mdblog.toml
-    index.html                 mdblog-commit
+    index.html                 deploy.sh
     _redirects               notes.md ...
     robots.txt
 ```
@@ -21,21 +21,22 @@ The domain must already be a zone on your Cloudflare account, with a proxied DNS
 
 ## The vault
 
-In `_site/mdblog.toml`, set `base_url` to the site's full address, including the path, and add a `[worker]` table with the Worker's name and route ([Site folder](vault-format.md#site-folder) has the rules):
+In `_site/mdblog.toml`, set `base_url` to the site's full address, including the path, set `timezone`, and add a `[worker]` table with the Worker's name and route ([Site folder](vault-format.md#site-folder) has the rules):
 
 ```toml
 base_url = "https://example.com/notes/"
 title = "Notes"
 author = "Your Name"
+timezone = "America/New_York"
 
 [worker]
 name = "example-notes"
 routes = ["example.com/notes/*"]
 ```
 
-The route's path must match `base_url`'s path. `mdblog deploy` checks the site at `base_url` after uploading it and fails if the route sends requests elsewhere. With `routes` set, the Worker has no `workers.dev` address, so the site exists only at `base_url`. A second hostname, such as `www.example.com`, serves the root site's pages under `/notes/` unless `routes` also lists `www.example.com/notes/*`.
+`timezone` makes a `date` written without an offset mean the same time on your computer and on Cloudflare's build machines, which run in another zone. The route's path must match `base_url`'s path: `mdblog deploy` checks the site at `base_url` after uploading it and fails if the route sends requests elsewhere. With `routes` set, the Worker has no `workers.dev` address, so the site exists only at `base_url`.
 
-Create `_site/mdblog-commit` holding one line: the full commit SHA of the mdblog version to build with. Cloudflare's build reads it, and mdblog ignores it.
+Copy [`templates/deploy.sh`](../templates/deploy.sh) to `_site/deploy.sh`, and replace its commit placeholder with the full SHA of the mdblog commit to build with, such as the output of `git rev-parse HEAD` in your mdblog checkout. Cloudflare's build runs it: it clones mdblog at that commit and runs mdblog's [`tools/workers-build`](../tools/workers-build), which installs mdblog's tools and runs `mdblog deploy` on the vault. If you build from a fork of mdblog, change the script's repository URL too.
 
 ## The root site
 
@@ -49,36 +50,80 @@ A root Worker with its own code needs the same redirect in that code.
 
 Files that apply to the whole domain, such as `robots.txt`, `favicon.ico` and `.well-known/`, belong to the root site. Crawlers read only `/robots.txt`, so its rules govern `/notes/` as well, and a `robots.txt` in the vault's `_site/static/` has no effect.
 
-To show recent posts on a root page, fetch `recent.json` from the vault's site. Its shape is a contract, stated in [`home.recent.json`](../src/mdblog/theme/layouts/home.recent.json). The page and the vault's site share an origin, so the request needs no CORS setup:
+### Recent posts on a root page
+
+A root page can list the vault's newest posts by fetching `recent.json` from the vault's site. Its shape is a contract, stated in [`home.recent.json`](../src/mdblog/theme/layouts/home.recent.json). The page and the vault's site share an origin, so the request needs no CORS setup:
 
 ```html
-<ul id="recent-posts"></ul>
+<section class="recent-posts">
+  <h2><a href="/notes/">Notes</a></h2>
+  <ul class="recent-posts-list"></ul>
+</section>
 <script>
   fetch("/notes/recent.json")
-    .then((response) => response.json())
+    .then((response) => {
+      if (!response.ok) throw new Error(`recent.json: HTTP ${response.status}`);
+      return response.json();
+    })
     .then(({ items }) => {
-      const list = document.getElementById("recent-posts");
+      const list = document.querySelector(".recent-posts-list");
       for (const item of items) {
         const link = document.createElement("a");
+        link.className = "recent-post-title";
         link.href = item.url;
         link.textContent = item.title;
         const date = document.createElement("time");
+        date.className = "recent-post-date";
         date.dateTime = item.date;
-        date.textContent = new Date(item.date).toLocaleDateString();
+        date.textContent = new Date(item.date).toLocaleDateString(undefined, {
+          dateStyle: "medium",
+        });
         const entry = document.createElement("li");
+        entry.className = "recent-post";
         entry.append(link, " ", date);
         if (item.summary) {
           const summary = document.createElement("p");
+          summary.className = "recent-post-summary";
           summary.textContent = item.summary;
           entry.append(summary);
         }
         list.append(entry);
       }
-    });
+    })
+    .catch((error) => console.warn(error));
 </script>
 ```
 
-The script sets text with `textContent`, never `innerHTML`, because titles and summaries come from your notes. The list changes when the vault publishes, with no root-site deploy.
+The script sets text with `textContent`, never `innerHTML`, because titles and summaries come from your notes. When the fetch fails, the list stays empty and the heading's link to `/notes/` remains. The list changes when the vault publishes, with no root-site deploy.
+
+To style the entries:
+
+- Style the class names in the root site's own stylesheet. The vault's stylesheet never loads on the root page, so the list takes on the root site's look.
+- Change how dates read with the `toLocaleDateString` options, such as `{ month: "long", day: "numeric" }`. `dateStyle: "medium"` follows the reader's locale.
+- Keep summaries to a line or two, for example with `line-clamp`, so a long lede does not crowd the page.
+- Keep a plain link to the notes, as the heading above does, so the section is useful when scripts are off.
+
+```css
+.recent-posts-list {
+  list-style: none;
+  padding: 0;
+}
+.recent-post {
+  margin-bottom: 1em;
+}
+.recent-post-date {
+  opacity: 0.7;
+  font-size: 0.9em;
+}
+.recent-post-summary {
+  margin: 0.25em 0 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+```
 
 ## First deploy
 
@@ -91,21 +136,15 @@ pixi run mdblog deploy /path/to/vault
 
 ## Publishing on push
 
-Cloudflare's Workers Builds runs `mdblog deploy` on every push to the vault repository's production branch ([Builds](https://developers.cloudflare.com/workers/ci-cd/builds/)). Whatever that branch holds then goes live, including an unfinished edit to a note that is already published. An Obsidian Git setup that pushes automatically publishes on each automatic push.
+Cloudflare's Workers Builds runs `_site/deploy.sh` on every push to the vault repository's production branch ([Builds](https://developers.cloudflare.com/workers/ci-cd/builds/)). Whatever that branch holds then goes live, including an unfinished edit to a note that is already published. An Obsidian Git setup that pushes automatically publishes on each automatic push.
 
-In the Cloudflare dashboard, open the vault's Worker, select **Settings**, then **Builds**, and connect the vault repository. Set:
+In the Cloudflare dashboard, open the vault's Worker, select **Settings**, then **Build**, and connect the vault repository. Set:
 
 - **Root directory:** the repository's root, the default.
 - **Build command:** empty.
-- **Deploy command:** the line below, with your mdblog repository's URL, the pixi version you use (`pixi --version`), and your time zone.
+- **Deploy command:** `sh _site/deploy.sh`
 
-```sh
-curl -fsSL https://pixi.sh/install.sh | PIXI_VERSION=vX.Y.Z PIXI_NO_PATH_UPDATE=1 sh && git clone https://github.com/OWNER/mdblog.git ~/mdblog && git -C ~/mdblog checkout "$(cat _site/mdblog-commit)" && ~/.pixi/bin/pixi run --manifest-path ~/mdblog/pixi.toml npm ci --prefix ~/mdblog && TZ=Area/City ~/.pixi/bin/pixi run --manifest-path ~/mdblog/pixi.toml mdblog deploy .
-```
-
-`TZ` sets the zone for each `date` written without an offset, which mdblog reads as the build machine's local time ([Properties](vault-format.md#properties)).
-
-Under **Settings**, **Build**, **Branch control**, clear **Enable Preview Builds**. A push to another branch would otherwise run Cloudflare's default preview command, which needs a wrangler config the vault does not have.
+Under **Branch control** in the same settings, clear **Enable Preview Builds**. A push to another branch would otherwise run Cloudflare's default preview command, which needs a wrangler config the vault does not have.
 
 Builds deploy with a token Cloudflare creates, which can edit Workers and their routes, so the vault repository holds no credentials.
 
@@ -117,4 +156,4 @@ When the site fails its checks after the upload, the new version is live. Roll b
 
 ## Updating mdblog
 
-Write the new commit SHA into `_site/mdblog-commit` and push. The push rebuilds the site with that version.
+Write the new commit SHA into `_site/deploy.sh` and push. The push rebuilds the site with that version. Compare your copy with the current [`templates/deploy.sh`](../templates/deploy.sh) when you do, in case the template has changed.

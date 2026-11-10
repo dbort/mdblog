@@ -2,6 +2,7 @@ import datetime as dt
 import os
 from collections.abc import Callable
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -521,6 +522,19 @@ def _preview(vault: Path) -> tuple[dict[str, PublishedNote], list[tuple[str, str
         (failure.path.as_posix(), failure.reason) for failure in selection.failures
     ]
     return entries, warnings
+
+
+@pytest.mark.usefixtures("_local")
+def test_a_draft_falls_back_to_its_modification_time_in_the_site_zone(
+    tmp_path: Path,
+) -> None:
+    _draft_note(tmp_path, "draft.md", "---\npublish: false\n---\nBODY\n")
+
+    selection = select_notes(tmp_path, NOW, drafts=True, zone=ZoneInfo("Asia/Tokyo"))
+
+    (entry,) = selection.published
+    assert entry.page.date == MODIFIED
+    assert entry.page.date.isoformat() == "2026-03-04T19:06:07+09:00"
 
 
 @pytest.mark.usefixtures("_local")

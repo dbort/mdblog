@@ -11,6 +11,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 CHECKED_PATHS = ("src", "tests", "tools")
+# Where shell scripts live: the Python paths plus the templates a vault copies.
+SCRIPT_PATHS = (*CHECKED_PATHS, "templates")
+# Interpreters whose scripts shellcheck reads.
+SHELLS = frozenset({"sh", "bash", "dash"})
 MANIFEST = "package.json"
 LOCKFILE = "package-lock.json"
 # Holds the SHA-256 of the lockfile `npm ci` last installed, so an unchanged lockfile
@@ -45,6 +49,35 @@ class Commands:
     # which name the same directories as CHECKED_PATHS.
     typecheck: Sequence[str] = ("pyrefly", "check")
     test: Sequence[str] = ("pytest", "tests")
+    # Runs with every path `shell_scripts` finds appended.
+    shellcheck: Sequence[str] = ("shellcheck",)
+
+
+def _is_shell_script(path: Path) -> bool:
+    if path.suffix == ".sh":
+        return True
+    with path.open("rb") as file:
+        first = file.readline(256)
+    if not first.startswith(b"#!"):
+        return False
+    words = [Path(word.decode(errors="replace")).name for word in first[2:].split()]
+    if words[:1] == ["env"]:
+        words = words[1:]
+    return bool(words) and words[0] in SHELLS
+
+
+def shell_scripts(repo_root: Path) -> list[str]:
+    """Every shell script under `SCRIPT_PATHS`, as sorted repo-relative POSIX paths.
+
+    A shell script is a file named `*.sh` or whose `#!` line runs one of `SHELLS`,
+    directly or through `env`. A missing directory contributes nothing.
+    """
+    return sorted(
+        path.relative_to(repo_root).as_posix()
+        for top in SCRIPT_PATHS
+        for path in (repo_root / top).rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts and _is_shell_script(path)
+    )
 
 
 def run_command(
@@ -150,6 +183,15 @@ def run_steps(commands: Commands, repo_root: Path, offline: bool = False) -> int
         ("ruff check", lambda: run_command(commands.lint, repo_root) == 0),
         ("pyrefly", lambda: run_command(commands.typecheck, repo_root) == 0),
         ("pytest", lambda: run_command(commands.test, repo_root, test_env) == 0),
+        (
+            "shellcheck",
+            lambda: (
+                run_command(
+                    [*commands.shellcheck, *shell_scripts(repo_root)], repo_root
+                )
+                == 0
+            ),
+        ),
     )
     failed: list[str] = []
     for name, step in steps:

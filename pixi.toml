@@ -14,6 +14,7 @@ ruff = "*"
 markdown-it-py = ">=4.2,<5"
 watchfiles = ">=1,<2"
 nodejs = "26.*"
+shellcheck = ">=0.11.0,<0.12"
 
 [pypi-dependencies]
 mdblog = { path = ".", editable = true }
