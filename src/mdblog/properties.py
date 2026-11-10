@@ -164,9 +164,10 @@ def validate_properties(
 
     `stem` is the note's file name without its suffix, and is the title when `title` is
     missing. `now` is the timezone-aware current time, and its date is today, so it
-    should be in `zone`, which None means the local zone. A datetime with no offset
-    is a time in `zone` and is returned with its offset. A null property counts as
-    missing. Reads `title`, `date`, `slug` and `tags`. Other properties have no effect.
+    should be in `zone`, or in the local zone when `zone` is None. A datetime with no
+    offset is a time in that zone and is returned with its offset. A null property
+    counts as missing. Reads `title`, `date`, `slug` and `tags`. Other properties have
+    no effect.
     """
     failures: list[str] = []
     title = _title(properties.get("title"), stem, failures)
