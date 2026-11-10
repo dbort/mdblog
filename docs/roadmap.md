@@ -8,23 +8,19 @@ M4 and M5 complete v1, and M6 and M7 follow it. Search, comments, series, schedu
 
 ## M5: Deploy and launch
 
-**Status:** Planned
+**Status:** Tasks task-020
+
+- [ ] task-020: Deploy a vault under a path of a larger Cloudflare site
 
 Upload the staged site to Cloudflare, make publishing part of writing, then go live.
 
-- A deploy command that stages the current working directories and uploads the result.
 - A preview deployment separate from production, built with its own site URL because Hugo writes the URL into links and feeds, and kept out of search indexes.
-- A way to trigger a publish from the vault.
 - The production domain, and the first real content.
 
 **Done when:** one command publishes the fixture site to a preview URL that M4's URL command accepts, and a new note written in Obsidian and marked `publish: true` reaches the live site with no change to this repo. `tools/check` never contacts a deployed site.
 
 **Decisions:**
-- Where the build runs. Recommended: locally or in CI through pixi, uploading the finished output, so Cloudflare never needs pixi and Hugo stays at the pinned version.
-- Publish trigger. Recommended: a manual command first, then CI on vault pushes once the check command has earned trust, because an automatic trigger would put a half-finished edit to a published note live.
 - Whether custom headers are needed at launch.
-- Where each site's Worker routes live. Recommended: the vault's `_site/`, beside the Worker name, since this repo holds nothing site-specific.
-- How a site under a path shares its domain. Recommended: the blog's Worker claims a route such as `example.org/blog/*` and a separate Worker claims `example.org/*`. Cloudflare sends each request to the more specific route, so the other content deploys on its own. A request for `/blog` without the trailing slash reaches only the other Worker, which then has to redirect it.
 
 ## M6: POSSE
 
