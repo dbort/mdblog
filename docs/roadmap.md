@@ -10,7 +10,7 @@ M4 and M5 complete v1, and M6 and M7 follow it. Search, comments, series, schedu
 
 **Status:** Tasks task-020
 
-- [ ] task-020: Deploy a vault under a path of a larger Cloudflare site
+- [x] task-020: Deploy a vault under a path of a larger Cloudflare site
 
 Upload the staged site to Cloudflare, make publishing part of writing, then go live.
 

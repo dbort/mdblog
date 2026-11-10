@@ -12,7 +12,7 @@ mdblog reads only these properties. An empty property counts as missing, except 
 |---|---|---|
 | `publish` | to publish | `true` or `false`. Anything else fails the build on any note. |
 | `title` | no | A string. When missing, the title is the file name. |
-| `date` | yes | A YAML date or datetime, not a quoted string, and not in the future, because nothing rebuilds the site when that date arrives. A datetime with no offset is the build machine's local time. |
+| `date` | yes | A YAML date or datetime, not a quoted string, and not in the future, because nothing rebuilds the site when that date arrives. A datetime with no offset, and the current time that decides what is in the future, are in the site's `timezone` ([Site folder](#site-folder)), or the build machine's local zone when it has none. |
 | `slug` | yes | The page's URL, `/posts/<slug>/`. Lowercase ASCII letters and digits joined by single hyphens, unique across notes. |
 | `tags` | no | A string or a list. `project/alpha` is its own tag, with no `project` tag implied. Each `/`-separated part uses letters, digits, `-`, `_`, `+` and `.`, with no spaces. Tags ignore case and display in lowercase. |
 
@@ -79,10 +79,11 @@ The `_site/` folder at the vault's root holds the site's own files. mdblog never
 
 | Path | Required | Meaning |
 |---|---|---|
-| `_site/mdblog.toml` | yes | The site's `base_url`, `title` and `author`. A path in `base_url`, such as `https://example.test/blog/`, puts the whole site under that path. An optional `[worker]` table holds one key, `name`: the name of the Cloudflare Worker that serves the site, which `mdblog stage` needs. Use 1 to 63 lowercase letters, digits and hyphens, with no hyphen at either end. |
+| `_site/mdblog.toml` | yes | The site's `base_url`, `title` and `author`. An optional `timezone`, an IANA zone name such as `"America/New_York"`, sets the zone of every datetime written without an offset. A path in `base_url`, such as `https://example.test/blog/`, puts the whole site under that path. An optional `[worker]` table, which `mdblog stage` and `mdblog deploy` need, holds `name`, the name of the Cloudflare Worker that serves the site, and optionally `routes`. Use 1 to 63 lowercase letters, digits and hyphens in `name`, with no hyphen at either end. `routes` is a non-empty list of Cloudflare route patterns, such as `"example.test/blog/*"`, that send requests to the Worker. With `routes` set, the Worker has no `workers.dev` address. |
 | `_site/bio.md` | no | The author's bio, shown on the site whatever its front matter says. Its links convert and fail like a note's. Keep its images outside `_site/`. |
 | `_site/layouts/`, `_site/assets/` | no | Theme overrides. Each file replaces the packaged theme's file at the same path. A `_site/layouts/404.html` must keep the packaged file's `mdblog-not-found` meta element, or `mdblog verify` fails. |
 | `_site/static/` | no | Files published at the site's root as they are. |
+| `_site/deploy.sh` | no | The script Cloudflare's build runs, which pins the mdblog commit, described in [Deploying under a path](deploy-under-a-path.md#the-vault). mdblog never publishes it. |
 | `_site/Templates/` | no | Obsidian templates, such as the post template below. |
 
 ## Post template

@@ -1,0 +1,27 @@
+#!/bin/sh
+# Publishes VAULT from a machine that may have only sh, curl and git, such as a
+# Cloudflare Workers Builds image, which runs it through templates/deploy.sh.
+set -eu
+
+# The pixi release installed when none is on PATH. It must read this checkout's
+# pixi.lock.
+PIXI_VERSION=v0.84.1
+
+if [ "$#" -ne 1 ]; then
+    echo "usage: tools/workers-build VAULT" >&2
+    exit 2
+fi
+repo=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+# Absolute, because pixi runs mdblog from a directory the caller does not choose.
+vault=$(CDPATH='' cd -- "$1" && pwd)
+
+pixi=$(command -v pixi || true)
+if [ -z "$pixi" ]; then
+    curl -fsSL https://pixi.sh/install.sh |
+        PIXI_VERSION="$PIXI_VERSION" PIXI_NO_PATH_UPDATE=1 PIXI_NO_TELEMETRY=1 sh
+    pixi="${PIXI_HOME:-$HOME/.pixi}/bin/pixi"
+fi
+
+"$pixi" run --locked --manifest-path "$repo/pixi.toml" \
+    npm ci --no-audit --no-fund --prefix "$repo"
+exec "$pixi" run --locked --manifest-path "$repo/pixi.toml" mdblog deploy "$vault"

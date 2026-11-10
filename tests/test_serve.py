@@ -19,6 +19,7 @@ from mdblog.serve import (
     hugo_server_argv,
     is_hidden,
     needs_restart,
+    rebuild,
     reset_output,
     serve_site,
     start_hugo,
@@ -233,6 +234,26 @@ def test_restart_follows_removals_and_top_level_changes(
     result: SyncResult, restart: bool
 ) -> None:
     assert needs_restart(result) is restart
+
+
+def test_rebuild_reads_a_naive_datetime_in_the_site_timezone(
+    tmp_path: Path, local_zone: Callable[[str], None]
+) -> None:
+    local_zone("XXX5")
+    vault = _make_vault(tmp_path)
+    (vault / "_site" / "mdblog.toml").write_text(
+        CONFIG + 'timezone = "Asia/Tokyo"\n', encoding="utf-8"
+    )
+    (vault / "note.md").write_text(
+        published_text("note", date="2026-01-15T09:00:00"), encoding="utf-8"
+    )
+    source = tmp_path / "source"
+    source.mkdir()
+
+    assert rebuild(vault, source, NOW) is not None
+
+    page = (source / "content" / "posts" / "note" / "index.md").read_text("utf-8")
+    assert "2026-01-15T09:00:00+09:00" in page
 
 
 def test_hugo_argv_listens_on_localhost_with_the_configured_base_url() -> None:

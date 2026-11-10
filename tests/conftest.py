@@ -1,10 +1,12 @@
 import os
+import threading
 import time
 from collections.abc import Callable, Iterator
 
 import pytest
 
 from check_runner import OFFLINE_ENV
+from fake_site import FakeSite
 
 
 @pytest.fixture
@@ -29,3 +31,15 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         if item.get_closest_marker("wrangler") is not None:
             item.add_marker(skip)
+
+
+@pytest.fixture
+def fake_site() -> Iterator[FakeSite]:
+    site = FakeSite()
+    thread = threading.Thread(
+        target=site.server.serve_forever, args=(0.01,), daemon=True
+    )
+    thread.start()
+    yield site
+    site.server.shutdown()
+    site.server.server_close()

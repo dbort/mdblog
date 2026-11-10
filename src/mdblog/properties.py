@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
+from zoneinfo import ZoneInfo
 
 SLUG_PATTERN = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 TAG_PUNCTUATION = "-_+."
@@ -58,12 +59,12 @@ def _title(value: object, stem: str, failures: list[str]) -> str | None:
     return None
 
 
-def _with_local_offset(value: date) -> date:
+def _with_local_offset(value: date, zone: ZoneInfo | None) -> date:
     # Hugo reads a datetime with no offset as UTC, so a local time has to carry its offset
-    # to reach the site as the same instant. astimezone uses the offset for that date,
+    # to reach the site as the same instant. Both branches use the offset for that date,
     # which can differ from today's across a daylight saving change.
     if isinstance(value, datetime) and value.tzinfo is None:
-        return value.astimezone()
+        return value.replace(tzinfo=zone) if zone else value.astimezone()
     return value
 
 
@@ -73,13 +74,15 @@ def _is_future(value: date, now: datetime) -> bool:
     return value > now.date()
 
 
-def _date(value: object, now: datetime, failures: list[str]) -> date | None:
+def _date(
+    value: object, now: datetime, failures: list[str], zone: ZoneInfo | None
+) -> date | None:
     if value is None:
         failures.append("date is required")
     elif not isinstance(value, date):
         failures.append(f"date must be a YAML date or datetime, not {value!r}")
     else:
-        resolved = _with_local_offset(value)
+        resolved = _with_local_offset(value, zone)
         if not _is_future(resolved, now):
             return resolved
         failures.append(f"date {value.isoformat()} is in the future")
@@ -152,19 +155,23 @@ def _tags(value: object, failures: list[str]) -> tuple[str, ...] | None:
 
 
 def validate_properties(
-    properties: Mapping[object, object], stem: str, now: datetime
+    properties: Mapping[object, object],
+    stem: str,
+    now: datetime,
+    zone: ZoneInfo | None = None,
 ) -> PageProperties | tuple[str, ...]:
     """The validated properties of a published note, or the reason for every failure.
 
     `stem` is the note's file name without its suffix, and is the title when `title` is
     missing. `now` is the timezone-aware current time, and its date is today, so it
-    should be in the local zone. A datetime with no offset means local time and is
-    returned with its offset. A null property counts as missing. Reads `title`,
-    `date`, `slug` and `tags`. Other properties have no effect.
+    should be in `zone`, or in the local zone when `zone` is None. A datetime with no
+    offset is a time in that zone and is returned with its offset. A null property
+    counts as missing. Reads `title`, `date`, `slug` and `tags`. Other properties have
+    no effect.
     """
     failures: list[str] = []
     title = _title(properties.get("title"), stem, failures)
-    page_date = _date(properties.get("date"), now, failures)
+    page_date = _date(properties.get("date"), now, failures, zone)
     slug = _slug(properties.get("slug"), failures)
     tags = _tags(properties.get("tags"), failures)
     if failures or title is None or page_date is None or slug is None or tags is None:
@@ -187,7 +194,11 @@ class PreviewProperties:
 
 
 def preview_properties(
-    properties: Mapping[object, object], stem: str, now: datetime, draft: bool
+    properties: Mapping[object, object],
+    stem: str,
+    now: datetime,
+    draft: bool,
+    zone: ZoneInfo | None = None,
 ) -> tuple[PreviewProperties, tuple[str, ...]]:
     """The usable properties of a note under draft mode, and the reason for each failure.
 
@@ -200,7 +211,7 @@ def preview_properties(
     title = _title(properties.get("title"), stem, failures)
     date_value = properties.get("date")
     date_failures: list[str] = []
-    _date(date_value, now, date_failures)
+    _date(date_value, now, date_failures, zone)
     if draft and (date_value is None or isinstance(date_value, date)):
         date_failures = []
     failures.extend(date_failures)
@@ -212,7 +223,11 @@ def preview_properties(
     tags = _tags(properties.get("tags"), failures)
     page = PreviewProperties(
         title=stem if title is None else title,
-        date=_with_local_offset(date_value) if isinstance(date_value, date) else None,
+        date=(
+            _with_local_offset(date_value, zone)
+            if isinstance(date_value, date)
+            else None
+        ),
         slug=slug,
         tags=() if tags is None else tags,
     )

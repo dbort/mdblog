@@ -11,12 +11,18 @@ from check_runner import (
     Commands,
     lock_problems,
     main,
+    shell_scripts,
 )
 
 PASS = (sys.executable, "-c", "pass")
 FAIL = (sys.executable, "-c", "raise SystemExit(3)")
 PASSING = Commands(
-    npm_install=PASS, format_check=PASS, lint=PASS, typecheck=PASS, test=PASS
+    npm_install=PASS,
+    format_check=PASS,
+    lint=PASS,
+    typecheck=PASS,
+    test=PASS,
+    shellcheck=PASS,
 )
 STEPS = [field.name for field in fields(Commands)]
 MANIFEST = {"name": "tools", "devDependencies": {"wrangler": "1.2.3"}}
@@ -64,6 +70,32 @@ def test_main_exits_nonzero_when_a_tool_is_missing(repo: Path, step: str) -> Non
     commands = replace(PASSING, **{step: ("mdblog-no-such-tool",)})
 
     assert main([], repo_root=repo, commands=commands) != 0
+
+
+def test_shell_scripts_finds_scripts_by_shebang_or_suffix(tmp_path: Path) -> None:
+    files = {
+        "tools/posix": "#!/bin/sh\n",
+        "tools/bash-env": "#!/usr/bin/env bash\n",
+        "tools/flags": "#!/bin/bash -eu\n",
+        "templates/deploy.sh": "echo no shebang\n",
+        "tests/nested/dir/run": "#!/bin/dash\n",
+        "tools/python": "#!/usr/bin/env python3\n",
+        "tools/zsh": "#!/bin/zsh\n",
+        "tools/later": "text\n#!/bin/sh\n",
+        "docs/elsewhere.sh": "#!/bin/sh\n",
+    }
+    for relative, text in files.items():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+    assert shell_scripts(tmp_path) == [
+        "templates/deploy.sh",
+        "tests/nested/dir/run",
+        "tools/bash-env",
+        "tools/flags",
+        "tools/posix",
+    ]
 
 
 def test_lock_problems_is_empty_when_the_files_agree(repo: Path) -> None:

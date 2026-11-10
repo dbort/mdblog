@@ -1,6 +1,7 @@
 import datetime as dt
 import json
 from collections.abc import Callable
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -119,6 +120,48 @@ def test_a_naive_datetime_that_has_arrived_gains_the_local_offset() -> None:
     page = _page(date=dt.datetime(2026, 6, 15, 11, 59))
 
     assert page.date == dt.datetime(2026, 6, 15, 11, 59, tzinfo=ZONE)
+
+
+# Never the clock's zone, so a test that passes used the site's zone, not the machine's.
+SITE_ZONE = ZoneInfo("America/Los_Angeles")
+
+
+@pytest.mark.parametrize(
+    ("value", "offset"),
+    [
+        pytest.param(dt.datetime(2026, 1, 15, 9, 0), "-08:00", id="winter"),
+        pytest.param(dt.datetime(2026, 6, 15, 8, 59), "-07:00", id="summer"),
+    ],
+)
+def test_a_naive_datetime_gains_the_site_zone_offset_for_its_date(
+    value: dt.datetime, offset: str
+) -> None:
+    page = validate_properties({**VALID, "date": value}, "F", NOW, SITE_ZONE)
+
+    assert isinstance(page, PageProperties), page
+    assert page.date.isoformat() == value.isoformat() + offset
+
+
+def test_a_naive_datetime_after_now_in_the_site_zone_is_in_the_future() -> None:
+    # NOW is 10:00 in Los Angeles, so 10:01 there has not arrived, though 10:01 at
+    # the clock's offset has.
+    value = dt.datetime(2026, 6, 15, 10, 1)
+
+    assert validate_properties({**VALID, "date": value}, "F", NOW, SITE_ZONE) == (
+        f"date {value.isoformat()} is in the future",
+    )
+
+
+def test_a_preview_reads_a_naive_datetime_in_the_site_zone() -> None:
+    value = dt.datetime(2026, 1, 15, 9, 0)
+
+    page, reasons = preview_properties(
+        {**VALID, "date": value}, "F", NOW, draft=True, zone=SITE_ZONE
+    )
+
+    assert reasons == ()
+    assert page.date is not None
+    assert page.date.isoformat() == "2026-01-15T09:00:00-08:00"
 
 
 @pytest.mark.parametrize(
