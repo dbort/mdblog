@@ -43,3 +43,8 @@ A new guide explains how to publish a vault at a path such as `example.com/notes
 - [x] **Step 5** (`README.md`, `docs/vault-format.md`): README § Commands gains `mdblog deploy` (what it runs, its exit status, that it needs `[worker]` and wrangler credentials) and a link to the guide. In `vault-format.md` § Site folder, the `mdblog.toml` row gains `routes`'s rule, and a new row for the pin file links the guide.
 
 ## Review log
+
+### Round 1: APPROVED
+- **N1: Dashboard menu names disagree** (`docs/deploy-under-a-path.md:114`): non-blocking. The guide says **Settings**, then **Builds** to connect the repo, but **Settings**, **Build**, **Branch control** at line 126. Use the dashboard's real label in both places.
+- **N2: Recent-posts script ignores HTTP errors** (`docs/deploy-under-a-path.md:75`): non-blocking. `response.json()` runs without checking `response.ok`, so a missing `recent.json` causes an unhandled rejection. The list stays empty, so it is harmless; an `ok` check or `.catch` would make the failure explicit.
+- **N3: `www` paragraph may exceed a frugal guide** (`docs/deploy-under-a-path.md:54`): non-blocking. Listing `www.example.com/notes/*` serves pages whose links all point at `base_url`'s host. Cut the sentence or say so.
