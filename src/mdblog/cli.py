@@ -8,6 +8,7 @@ from pathlib import Path
 
 from mdblog.build import BuildError, build_site
 from mdblog.config import ConfigError
+from mdblog.deploy import DeployError, deploy_site
 from mdblog.serve import ServeError, choose_port, serve_site
 from mdblog.stage import (
     WRANGLER_PORT,
@@ -126,6 +127,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         help=f"the port --serve uses (default: {WRANGLER_PORT}, "
         "or a free port if it is busy)",
     )
+    deploy = commands.add_parser(
+        "deploy",
+        help="publish one vault's site to its Cloudflare Worker and check it",
+        allow_abbrev=False,
+    )
+    deploy.add_argument("vault", type=Path, metavar="VAULT", help="the vault to deploy")
     verify_parser = commands.add_parser(
         "verify",
         help="check that a URL serves the site's pages, feeds and 404 page",
@@ -150,6 +157,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             serve_site(args.vault, args.output, args.port, drafts=args.drafts)
         elif args.command == "verify":
             return verify(args.url)
+        elif args.command == "deploy":
+            url = deploy_site(args.vault, (str(find_wrangler()),))
+            print(f"mdblog: deployed and verified {url}")
         elif not args.serve:
             stage_site(args.vault, args.output)
         else:
@@ -158,7 +168,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             port = choose_port(args.port, WRANGLER_PORT)
             site_path = stage_site(args.vault, args.output)
             serve_bundle(args.output, site_path, port, (str(wrangler),))
-    except (BuildError, ConfigError, ServeError, VerifyError) as exc:
+    except (BuildError, ConfigError, DeployError, ServeError, VerifyError) as exc:
         print(f"mdblog: {exc}", file=sys.stderr)
         return 1
     return 0

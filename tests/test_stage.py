@@ -36,6 +36,7 @@ from notes import published_text
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_VAULT = REPO_ROOT / "tests" / "fixtures" / "vault"
 WORKER = '[worker]\nname = "test-site"\n'
+ROUTES = 'routes = ["example.test/blog/*"]\n'
 CONFIG = (
     'base_url = "https://example.test/blog/"\n'
     'title = "The Site Title"\n'
@@ -129,6 +130,25 @@ def test_wrangler_config_serves_the_assets_as_the_worker() -> None:
     assert assets["directory"] == ASSETS_DIR
     assert assets["not_found_handling"] == "404-page"
     assert "main" not in generated
+
+
+def test_wrangler_config_claims_the_routes_and_leaves_workers_dev() -> None:
+    worker = WorkerConfig("my-site", ("b.test/blog/*", "a.test/blog/*"))
+    config = SiteConfig("https://b.test/blog/", "T", "A", worker)
+
+    generated = wrangler_config(config)
+
+    assert generated["routes"] == ["b.test/blog/*", "a.test/blog/*"]
+    assert generated["workers_dev"] is False
+
+
+def test_wrangler_config_without_routes_sets_neither_key() -> None:
+    config = SiteConfig("https://example.test/", "T", "A", WorkerConfig("my-site"))
+
+    generated = wrangler_config(config)
+
+    assert "routes" not in generated
+    assert "workers_dev" not in generated
 
 
 def test_stage_puts_the_site_under_its_base_path(tmp_path: Path) -> None:
@@ -406,13 +426,16 @@ def _alive(pid: int) -> bool:
 
 
 def _staged_fixture(root: Path) -> Path:
-    """A copy of the fixture vault with a `/blog/` base and a Worker name."""
+    """A copy of the fixture vault with a `/blog/` base, a Worker name and a route,
+    so the tests that run wrangler also show it accepts the generated routes."""
     vault = root / "vault"
     shutil.copytree(FIXTURE_VAULT, vault)
     config = vault / "_site" / "mdblog.toml"
     text = config.read_text(encoding="utf-8")
     config.write_text(
-        text.replace("https://example.org/", "https://example.test/blog/") + WORKER,
+        text.replace("https://example.org/", "https://example.test/blog/")
+        + WORKER
+        + ROUTES,
         encoding="utf-8",
     )
     return vault

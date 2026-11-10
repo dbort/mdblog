@@ -60,8 +60,18 @@ def wrangler_config(config: SiteConfig) -> dict[str, object]:
     """
     if config.worker is None:
         raise ValueError("config has no [worker] table")
+    routes: dict[str, object] = {}
+    if config.worker.routes:
+        routes = {
+            # Wrangler finds each pattern's zone from its host.
+            "routes": list(config.worker.routes),
+            # Hugo writes base_url into every link, so a copy on workers.dev would
+            # link away from itself and duplicate the site.
+            "workers_dev": False,
+        }
     return {
         "name": config.worker.name,
+        **routes,
         "compatibility_date": COMPATIBILITY_DATE,
         # No `main` script: the Worker serves only static assets, and no code of ours
         # runs per request.

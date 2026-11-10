@@ -22,10 +22,13 @@ class ConfigError(Exception):
 
 @dataclass(frozen=True)
 class WorkerConfig:
-    """The settings of a site's `[worker]` table, which `mdblog stage` needs."""
+    """The settings of a site's `[worker]` table, which `mdblog stage` and `deploy` need."""
 
     # The Cloudflare Worker that serves the site, matching `WORKER_NAME`.
     name: str
+    # Wrangler route patterns, such as `example.com/blog/*`, in the vault's order;
+    # empty when the table has no `routes`.
+    routes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -46,10 +49,24 @@ def config_path(vault: Path) -> Path:
     return vault / SITE_DIR / CONFIG_FILE
 
 
+def _routes(value: object) -> tuple[str, ...] | list[str]:
+    if not isinstance(value, list) or not value:
+        return [f"[{WORKER_TABLE}] routes must be a non-empty array of strings"]
+    # TOML arrays hold arbitrary values, so each item is checked here.
+    items: list[object] = value
+    routes = [item for item in items if isinstance(item, str) and item]
+    if len(routes) != len(items):
+        return [f"[{WORKER_TABLE}] routes must hold only non-empty strings"]
+    return tuple(routes)
+
+
 def _worker(value: object) -> WorkerConfig | list[str]:
     if not isinstance(value, dict):
         return [f"[{WORKER_TABLE}] must be a table"]
     problems: list[str] = []
+    routes = _routes(value["routes"]) if "routes" in value else ()
+    if isinstance(routes, list):
+        problems.extend(routes)
     name: object = value.get("name")
     if "name" not in value:
         problems.append(f"[{WORKER_TABLE}] is missing key 'name'")
@@ -62,11 +79,11 @@ def _worker(value: object) -> WorkerConfig | list[str]:
         )
     problems.extend(
         f"[{WORKER_TABLE}] has unknown key {key!r}"
-        for key in sorted(str(key) for key in value.keys() - {"name"})
+        for key in sorted(str(key) for key in value.keys() - {"name", "routes"})
     )
-    if problems or not isinstance(name, str):
+    if problems or not isinstance(name, str) or isinstance(routes, list):
         return problems
-    return WorkerConfig(name=name)
+    return WorkerConfig(name=name, routes=routes)
 
 
 def load_config(vault: Path) -> SiteConfig:
@@ -74,8 +91,9 @@ def load_config(vault: Path) -> SiteConfig:
 
     Raises `ConfigError` naming the file when it is missing, is reached through a
     symbolic link, is not valid TOML, lacks a key, holds a non-string value, holds an
-    unknown key, or has a `[worker]` that is not a table holding only a valid string
-    `name`. One error lists every problem.
+    unknown key, or has a `[worker]` that is not a table holding a valid string `name`
+    and at most a non-empty `routes` array of non-empty strings. One error lists every
+    problem.
     """
     path = config_path(vault)
     if path.parent.is_symlink() or path.is_symlink():

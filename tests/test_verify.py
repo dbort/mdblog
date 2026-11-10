@@ -1,109 +1,14 @@
-import json
 import re
 import socket
-import threading
-import time
-from collections.abc import Iterator
-from dataclasses import dataclass, field
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import override
 
 import pytest
 
+from fake_site import FEED, HOME, NOT_FOUND, FakeSite, Reply
 from mdblog.build import NOT_FOUND_MARKER
 from mdblog.cli import main
 from mdblog.verify import USER_AGENT, recent_shape_problem, verify_site
 
-
-@dataclass(frozen=True)
-class Reply:
-    status: int
-    content_type: str
-    body: bytes
-    headers: dict[str, str] = field(default_factory=dict[str, str])
-    # Seconds the server waits before the status line.
-    delay: float = 0.0
-    # Seconds the server waits between the headers and the body.
-    body_delay: float = 0.0
-
-
-HOME = Reply(200, "text/html; charset=utf-8", b"<!doctype html><title>Site</title>")
-FEED = Reply(
-    200,
-    "application/rss+xml",
-    b'<?xml version="1.0"?><rss version="2.0"><channel><title>Site</title>'
-    b"</channel></rss>",
-)
-RECENT = Reply(
-    200,
-    "application/json",
-    json.dumps(
-        {
-            "items": [
-                {
-                    "title": "T",
-                    "url": "https://x.test/",
-                    "date": "2026-01-01",
-                    "summary": "S",
-                }
-            ]
-        }
-    ).encode(),
-)
-NOT_FOUND = Reply(
-    404,
-    "text/html",
-    f'<meta name="mdblog-not-found" content="{NOT_FOUND_MARKER}">'.encode(),
-)
 OK_LINES = ["home page: ok", "feed: ok", "recent posts: ok", "404 page: ok"]
-
-
-class FakeSite:
-    """A local HTTP server holding a site under `/blog/`; any other path gets
-    `not_found`. It records each request's path and User-Agent."""
-
-    def __init__(self) -> None:
-        self.routes = {
-            "/blog/": HOME,
-            "/blog/index.xml": FEED,
-            "/blog/recent.json": RECENT,
-        }
-        self.not_found = NOT_FOUND
-        self.requests: list[tuple[str, str | None]] = []
-        site = self
-
-        class Handler(BaseHTTPRequestHandler):
-            def do_GET(self) -> None:
-                site.requests.append((self.path, self.headers.get("User-Agent")))
-                reply = site.routes.get(self.path, site.not_found)
-                time.sleep(reply.delay)
-                self.send_response(reply.status)
-                self.send_header("Content-Type", reply.content_type)
-                self.send_header("Content-Length", str(len(reply.body)))
-                for name, value in reply.headers.items():
-                    self.send_header(name, value)
-                self.end_headers()
-                time.sleep(reply.body_delay)
-                self.wfile.write(reply.body)
-
-            @override
-            def log_message(self, format: str, *args: object) -> None:
-                pass
-
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        self.url = f"http://127.0.0.1:{self.server.server_address[1]}/blog/"
-
-
-@pytest.fixture
-def fake_site() -> Iterator[FakeSite]:
-    site = FakeSite()
-    thread = threading.Thread(
-        target=site.server.serve_forever, args=(0.01,), daemon=True
-    )
-    thread.start()
-    yield site
-    site.server.shutdown()
-    site.server.server_close()
 
 
 def _verify(url: str, capsys: pytest.CaptureFixture[str]) -> tuple[int, list[str]]:

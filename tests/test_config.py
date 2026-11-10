@@ -74,7 +74,20 @@ def test_load_config_accepts_a_valid_worker_name(tmp_path: Path, name: str) -> N
     assert load_config(tmp_path).worker == WorkerConfig(name=name)
 
 
+def test_load_config_reads_routes_in_order(tmp_path: Path) -> None:
+    _write_config(
+        tmp_path,
+        VALID + '[worker]\nname = "site"\nroutes = ["b.test/x/*", "a.test/x/*"]\n',
+    )
+
+    assert load_config(tmp_path).worker == WorkerConfig(
+        name="site", routes=("b.test/x/*", "a.test/x/*")
+    )
+
+
 INVALID_NAME = "is not a valid Worker name"
+NOT_AN_ARRAY = "[worker] routes must be a non-empty array of strings"
+NOT_STRINGS = "[worker] routes must hold only non-empty strings"
 
 
 @pytest.mark.parametrize(
@@ -95,6 +108,24 @@ INVALID_NAME = "is not a valid Worker name"
             '[worker]\nname = "site"\nroute = "x"\n',
             "[worker] has unknown key 'route'",
             id="unknown-key",
+        ),
+        pytest.param(
+            '[worker]\nname = "site"\nroutes = "a.test/*"\n',
+            NOT_AN_ARRAY,
+            id="routes-string",
+        ),
+        pytest.param(
+            '[worker]\nname = "site"\nroutes = []\n', NOT_AN_ARRAY, id="routes-empty"
+        ),
+        pytest.param(
+            '[worker]\nname = "site"\nroutes = ["a.test/*", 3]\n',
+            NOT_STRINGS,
+            id="routes-int",
+        ),
+        pytest.param(
+            '[worker]\nname = "site"\nroutes = ["a.test/*", ""]\n',
+            NOT_STRINGS,
+            id="routes-empty-string",
         ),
     ],
 )
