@@ -472,6 +472,21 @@ def _status(url: str) -> int:
         return 0
 
 
+def _startup_failure(process: subprocess.Popen[bytes], log: Path) -> str:
+    """Why `process` never served the site, with the end of its output, so a crash
+    can be told from a slow start."""
+    status = process.poll()
+    outcome = (
+        f"it exited with status {status}"
+        if status is not None
+        else f"it was still running after {STARTUP_TIMEOUT} seconds"
+    )
+    tail = log.read_text(encoding="utf-8", errors="replace").splitlines()[-40:]
+    return "\n".join(
+        [f"wrangler dev never served the home page: {outcome}. Its output ends:", *tail]
+    )
+
+
 @pytest.mark.wrangler
 def test_stage_serve_passes_verify(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -480,7 +495,7 @@ def test_stage_serve_passes_verify(
     output = tmp_path / "output"
     port = _free_port()
     site = f"http://127.0.0.1:{port}/blog/"
-    stdout_path = tmp_path / "stdout.txt"
+    log_path = tmp_path / "output.txt"
     command = [
         sys.executable,
         "-c",
@@ -493,19 +508,19 @@ def test_stage_serve_passes_verify(
         "--port",
         str(port),
     ]
-    with stdout_path.open("wb") as stdout:
+    with log_path.open("wb") as log:
         process = subprocess.Popen(
             command,
             env=_wrangler_env(tmp_path),
             stdin=subprocess.DEVNULL,
-            stdout=stdout,
-            stderr=subprocess.DEVNULL,
+            stdout=log,
+            stderr=subprocess.STDOUT,
         )
     try:
         deadline = time.monotonic() + STARTUP_TIMEOUT
         while _status(site) != 200:
             if time.monotonic() > deadline or process.poll() is not None:
-                pytest.fail("wrangler dev never served the home page")
+                pytest.fail(_startup_failure(process, log_path))
             time.sleep(0.2)
         verified = main(["verify", site])
         process.send_signal(signal.SIGINT)
@@ -516,4 +531,4 @@ def test_stage_serve_passes_verify(
             process.wait()
 
     assert verified == 0, capsys.readouterr().out
-    assert site in stdout_path.read_text(encoding="utf-8")
+    assert site in log_path.read_text(encoding="utf-8")

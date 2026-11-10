@@ -143,8 +143,10 @@ line or a box.
 - Task work happens on a branch named exactly `task-XXX`, created from
   `main` by the first `/work`. A resumed task continues on the same
   branch.
-- Task work never commits directly to `main`. The only task commits on
-  `main` are `/new-task`'s plan file and `/ship`'s verified merge.
+- Task work and ad hoc fixes never commit directly to `main`. Meta
+  records do: `/new-task`'s plan file, and a log entry for an issue
+  already on `main` (`friction-log.md`, `bug-log.md`). The only other
+  commit on `main` is `/ship`'s verified merge.
 - Everything is local. No agent fetches, pulls, or pushes.
 - Run `git branch --show-current` before every `git add` or `git commit`.
   Task work leaves the tree on the task branch, and a commit meant for
