@@ -106,9 +106,9 @@ def load_config(vault: Path) -> SiteConfig:
 
     Raises `ConfigError` naming the file when it is missing, is reached through a
     symbolic link, is not valid TOML, lacks a key, holds a non-string value, holds an
-    unknown key, has a `timezone` that is not an IANA zone name, or has a `[worker]` that is not a table holding a valid string `name`
-    and at most a non-empty `routes` array of non-empty strings. One error lists every
-    problem.
+    unknown key, has a `timezone` that is not an IANA zone name, or has a `[worker]`
+    that is not a table holding a valid string `name` and at most a non-empty `routes`
+    array of non-empty strings. One error lists every problem.
     """
     path = config_path(vault)
     if path.parent.is_symlink() or path.is_symlink():

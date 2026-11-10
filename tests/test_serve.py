@@ -236,7 +236,10 @@ def test_restart_follows_removals_and_top_level_changes(
     assert needs_restart(result) is restart
 
 
-def test_rebuild_reads_a_naive_datetime_in_the_site_timezone(tmp_path: Path) -> None:
+def test_rebuild_reads_a_naive_datetime_in_the_site_timezone(
+    tmp_path: Path, local_zone: Callable[[str], None]
+) -> None:
+    local_zone("XXX5")
     vault = _make_vault(tmp_path)
     (vault / "_site" / "mdblog.toml").write_text(
         CONFIG + 'timezone = "Asia/Tokyo"\n', encoding="utf-8"
