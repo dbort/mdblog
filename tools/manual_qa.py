@@ -93,7 +93,7 @@ CHECKS = (
             "Visit the home page, All posts, All tags, {site}tags/project/alpha/, "
             "{site}posts/syntax/ and {site}404.html.",
             "Compare each with the decisions in "
-            "tasks/active/task-012-restyle-default-theme.md, section Advice: serif "
+            "tasks/completed/task-012-restyle-default-theme.md, section Advice: serif "
             "text on ivory with red links, a right-hand sidebar of dashed boxes with "
             "red ring markers, no bio above the home page's entries, and a muted "
             "« before the site title on every page but home.",
