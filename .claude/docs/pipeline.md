@@ -110,12 +110,25 @@ limit a task's total rounds. The log is append-only: it is the task's review rec
 - **Frontmatter:** `id`, `title`, and optional `blocked_by: [task-XXX, ...]`
   listing hard blockers only: tasks this one's code cannot proceed
   without. `/work` refuses a task whose blockers are not all in
-  `tasks/completed/`. Advisory sequencing goes in `## Advice` prose.
-- **Sections:** `## Summary` (plain prose for a human, 1-3 sentences),
-  `## Must Have` (machine-checkable conditions), `## Advice` (decisions in
-  force, each with its reason), `## Plan` (ordered checklist), `## Review
-  log`. A decision the user makes during `/work` is appended to `## Advice`
-  and binds the reviewer like any other.
+  `tasks/completed/`. Advisory sequencing goes in `## Notes`.
+- **Sections**, in order:
+  - `## Summary`: plain prose for a human, 1-3 sentences.
+  - `## Must Have`: observable, machine-checkable behavior. Binding.
+  - `## Decisions`: the user's decisions and verified facts about outside
+    tools, each with its reason. Binding. A decision the user makes during
+    `/work` is appended here with its date.
+  - `## Notes`: pointers into the code, suggested approaches, things to
+    verify early, the known dependents of a rename, deletion or fixture
+    change (by file, no line numbers), and ordering constraints with their
+    reasons. Not binding.
+  - `## Checklist`: empty in the plan. `/work` writes its own steps here
+    and ticks each as it lands, so a resumed task shows where it stopped.
+    Not binding.
+  - `## Review log`: § Review loop.
+- **Deviations:** when `/work` departs from a Note, it appends a dated line
+  to `## Notes` saying what it did and why. When it thinks a Must Have or
+  Decision is wrong, it stops and asks the user. The reviewer never rejects
+  a branch for departing from Notes or the Checklist.
 
 ## Roadmap
 

@@ -14,10 +14,12 @@ Pipeline rules: `.claude/docs/pipeline.md`.
    `blocked_by` id is not in `tasks/completed/`.
 2. **Branch.** Check out `task-XXX`, creating it from `main` if absent.
    Read the task file there, including every `## Review log` round.
-3. **Implement** the Plan, addressing any open findings from the last
-   REJECTED round. Check off steps as they land. Follow `CLAUDE.md`
-   conventions. When a product or behavior decision is not settled by the
-   task file, ask the user, then append the answer to `## Advice` (dated).
+3. **Implement** the task, addressing any open findings from the last
+   REJECTED round. If `## Checklist` is empty, write your steps there
+   first; tick each as it lands. Must Haves and Decisions bind; departures
+   follow `pipeline.md` § Task files. Follow `CLAUDE.md` conventions. When
+   a product or behavior decision is not settled by the task file, ask the
+   user, then append the answer to `## Decisions` (dated).
    Log workarounds in `.claude/docs/friction-log.md` and defects in
    shipped code in `.claude/docs/bug-log.md`.
 4. **Verify and commit.** `tools/check` green; everything committed on
