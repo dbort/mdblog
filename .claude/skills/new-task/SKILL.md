@@ -14,7 +14,8 @@ Pipeline rules: `.claude/docs/pipeline.md`.
    questions on what only the user decides: behavior, edge cases, Must
    Haves, tradeoffs. Leave file-level mechanics to `/work`.
 2. **Check** `CLAUDE.md` § Standing task-planning obligations. Each one
-   shapes the plan or gets an opt-out reason in `## Advice`.
+   shapes the plan, and the task file names it only where that section
+   says to.
 3. **Write** `tasks/active/task-XXX-<slug>.md` with the id from
    `python3 tools/task_status.py --next-id`, using the template below.
 4. **Roadmap:** if the task delivers a `docs/roadmap.md` milestone, add it
@@ -24,15 +25,18 @@ Pipeline rules: `.claude/docs/pipeline.md`.
    user starts the work with `/work task-XXX`.
 
 Writing rules: `## Summary` is plain prose for a human skimmer and adds
-information beyond the title. `## Advice` and `## Plan` are dense and
-imperative, for an agent: each constraint with its reason, current
-decisions only, no history. Must Haves are machine-checkable ("returns
-HTTP 429 on rate limit", not "handles errors well"). A manual-QA case
-only for what no test can assert. Plan steps state outcomes and
-interfaces, not keystrokes. Before writing a step that deletes or renames
-a name, or changes what a test fixture produces, grep code, comments and
-docs for every user of it and name each affected file in the plan: a
-missed dependent surfaces only as an unplanned failure late in `/work`.
+information beyond the title. `## Decisions` and `## Notes` are dense and
+imperative, for an agent: each item with its reason, current decisions
+only, no history. Must Haves state observable behavior that a machine can
+check ("returns HTTP 429 on rate limit", not "handles errors well"), and
+name a test design only when the design is the requirement, such as a
+real-tool test where a failure would be silent. A manual-QA case only for
+what no test can assert. Write no file-level steps; `/work` writes the
+Checklist. Notes hold only what `/work` cannot cheaply rediscover. Before
+planning a change that deletes or renames a name, or changes what a test
+fixture produces, grep code, comments and docs for every user of it and
+name each affected file in Notes: a missed dependent surfaces only as an
+unplanned failure late in `/work`.
 
 ```markdown
 ---
@@ -47,13 +51,15 @@ title: "Short title"
 1-3 sentences: what the task does and why.
 
 ## Must Have
-- [ ] Machine-checkable condition.
+- [ ] Observable, machine-checkable behavior.
 
-## Advice
-Decisions and constraints the implementer must honor, each with its reason.
+## Decisions
+- User decisions and verified facts about outside tools, each with its reason.
 
-## Plan
-- [ ] **Step 1** (`path/to/file`): outcome and interfaces involved.
+## Notes
+- Code pointers, suggested approaches, early checks, known dependents, ordering constraints.
+
+## Checklist
 
 ## Review log
 ```

@@ -37,8 +37,10 @@ destination).
 ## Standing task-planning obligations
 
 Every new task plan satisfies each entry or opts out with its reason in
-`## Advice`; the `new-task` skill checks this list. Add an entry whenever
-a bug reveals a class of work that tasks keep getting wrong.
+`## Decisions`; the `new-task` skill checks this list. A task file names
+an entry only to opt out of it or where the entry changes what that task
+must do, never to say it applies. Add an entry whenever a bug reveals a
+class of work that tasks keep getting wrong.
 
 - **Strict static checks:** new or changed code uses precise types and
   passes the strictest practical setting of its language's static checker,
@@ -53,10 +55,10 @@ a bug reveals a class of work that tasks keep getting wrong.
   statically checked language, with its logic in importable functions that
   tests call directly.
 
-- **Docs point to code:** a plan updates only the doc that owns each
+- **Docs point to code:** a task updates only the doc that owns each
   changed fact and copies nothing code defines into a doc (§ Writing
-  style by destination). A plan step that edits a doc names the facts it
-  adds.
+  style by destination). A Must Have or Checklist step that calls for a
+  doc edit names the facts it adds.
 
 - **Test where the risk is:** unit tests cover novel code: every documented
   rule, branch and error message, including realistic bad input. A real
@@ -137,6 +139,6 @@ the rule set `doc-hygiene` enforces.
   emphasis. A parenthetical holds one short fact; unpack anything longer
   or nested.
 
-**Task files** (`tasks/*/*.md`): dense imperative prose in `## Advice`
-and `## Plan`; plain human prose in `## Summary`
+**Task files** (`tasks/*/*.md`): dense imperative prose in `## Decisions`,
+`## Notes` and `## Checklist`; plain human prose in `## Summary`
 (`.claude/skills/new-task/SKILL.md`).
